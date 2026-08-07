@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubscriptionTier {
+  free
+  starter
+  growth
+  agency
+}
+
+enum SubscriptionStatus {
+  active
+  canceled
+  past_due
+  incomplete
+  trialing
+}
+
+enum RfpStatus {
+  uploaded
+  extracting
+  extracted
+  drafting
+  drafted
+  exported
+}
+
+enum LibraryItemType {
+  case_study
+  team_bio
+  certification
+  company_profile
+}
+
+enum DraftSection {
+  exec_summary
+  technical_approach
+  team
+  pricing
+}
+
+enum DraftStatus {
+  generated
+  edited
+}
+
+model User {
+  id         String   @id @default(cuid())
+  clerkId    String   @unique
+  email      String
+  agencyName String?
+  teamSize   String?
+  createdAt  DateTime @default(now())
+
+  subscription Subscription?
+  rfps         Rfp[]
+  libraryItems LibraryItem[]
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  tier                   SubscriptionTier   @default(free)
+  status                 SubscriptionStatus @default(active)
+  razorpaySubscriptionId String?
+  currentPeriodEnd       DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Rfp {
+  id                         String    @id @default(cuid())
+  userId                     String
+  title                      String
+  originalFileUrl            String?
+  status                     RfpStatus @default(uploaded)
+  extractedScope             Json?
+  extractedDeadline          DateTime?
+  extractedEligibility       Json?
+  extractedEvaluationCriteria Json?
+  createdAt                  DateTime  @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  drafts Draft[]
+
+  @@index([userId])
+}
+
+model LibraryItem {
+  id        String          @id @default(cuid())
+  userId    String
+  type      LibraryItemType
+  title     String
+  content   String
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Draft {
+  id          String       @id @default(cuid())
+  rfpId       String
+  sectionName DraftSection
+  content     String
+  status      DraftStatus  @default(generated)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  rfp Rfp @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+
+  @@index([rfpId])
+}

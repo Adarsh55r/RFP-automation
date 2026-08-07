@@ -23,15 +23,20 @@
 # misc
 .DS_Store
 *.pem
+Thumbs.db
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+debug-*.log
+*.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — keep secrets local; allow a placeholder template
+.env
+.env.*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +44,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# prisma generated client (regenerate with `npx prisma generate`)
+/lib/generated/prisma
+
+# local editor / agent tooling
+.cursor/
+.vscode/
+.idea/
+
+# OS / tooling noise
+*.swp
+*.swo
