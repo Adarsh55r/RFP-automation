@@ -1,5 +1,3 @@
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import { getAnthropicClient, EXTRACTION_MODEL } from "@/lib/anthropic";
 import {
   getRfpStorageBucket,
@@ -81,6 +79,7 @@ export async function extractTextFromDocument(
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".pdf")) {
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: buffer });
     try {
       const result = await parser.getText();
@@ -91,6 +90,7 @@ export async function extractTextFromDocument(
   }
 
   if (lower.endsWith(".docx")) {
+    const mammoth = await import("mammoth");
     const result = await mammoth.extractRawText({ buffer });
     return (result.value ?? "").trim();
   }

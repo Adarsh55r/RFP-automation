@@ -8,25 +8,6 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // #region agent log
-  fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "91d1a9",
-    },
-    body: JSON.stringify({
-      sessionId: "91d1a9",
-      location: "app/dashboard/layout.tsx:10",
-      message: "dashboard layout entered",
-      data: {},
-      timestamp: Date.now(),
-      hypothesisId: "H2",
-      runId: "dev-manifest",
-    }),
-  }).catch(() => {});
-  // #endregion
-
   const clerkUser = await currentUser();
 
   if (!clerkUser) {
