@@ -1,24 +1,5 @@
 "use server";
 
-// #region agent log
-fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-Debug-Session-Id": "91d1a9",
-  },
-  body: JSON.stringify({
-    sessionId: "91d1a9",
-    location: "lib/actions/rfp-extraction.ts:3",
-    message: "rfp extraction action module evaluated",
-    data: {},
-    timestamp: Date.now(),
-    hypothesisId: "H2",
-    runId: "dashboard-ssr",
-  }),
-}).catch(() => {});
-// #endregion
-
 import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";

@@ -13,24 +13,6 @@ export const metadata: Metadata = {
 };
 
 export default async function NewRfpPage() {
-  // #region agent log
-  fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "91d1a9",
-    },
-    body: JSON.stringify({
-      sessionId: "91d1a9",
-      location: "app/dashboard/rfps/new/page.tsx:16",
-      message: "new rfp page entered",
-      data: {},
-      timestamp: Date.now(),
-      hypothesisId: "H2",
-    }),
-  }).catch(() => {});
-  // #endregion
-
   const user = await requireDashboardUser();
   if (!user) {
     redirect("/sign-in");
@@ -38,28 +20,6 @@ export default async function NewRfpPage() {
 
   const tier = user.subscription?.tier ?? "free";
   const quota = await getRfpUploadQuota(user.id, tier);
-
-  // #region agent log
-  fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "91d1a9",
-    },
-    body: JSON.stringify({
-      sessionId: "91d1a9",
-      location: "app/dashboard/rfps/new/page.tsx:38",
-      message: "quota computed",
-      data: {
-        tier,
-        remaining: quota.remaining,
-        limit: quota.limit,
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H4",
-    }),
-  }).catch(() => {});
-  // #endregion
 
   const atLimit = quota.remaining === 0;
 

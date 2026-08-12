@@ -40,6 +40,25 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // #region agent log
+  fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "91d1a9",
+    },
+    body: JSON.stringify({
+      sessionId: "91d1a9",
+      location: "app/layout.tsx:43",
+      message: "root layout rendered",
+      data: {},
+      timestamp: Date.now(),
+      hypothesisId: "H4",
+      runId: "dev-manifest",
+    }),
+  }).catch(() => {});
+  // #endregion
+
   return (
     <ClerkProvider
       appearance={clerkAppearance}

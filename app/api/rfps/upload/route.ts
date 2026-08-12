@@ -18,24 +18,6 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  // #region agent log
-  fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "91d1a9",
-    },
-    body: JSON.stringify({
-      sessionId: "91d1a9",
-      location: "app/api/rfps/upload/route.ts:21",
-      message: "upload route entered",
-      data: {},
-      timestamp: Date.now(),
-      hypothesisId: "H3",
-    }),
-  }).catch(() => {});
-  // #endregion
-
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
@@ -139,31 +121,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
     await prisma.rfp.delete({ where: { id: rfp.id } }).catch(() => undefined);
-
-    // #region agent log
-    fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "91d1a9",
-      },
-      body: JSON.stringify({
-        sessionId: "91d1a9",
-        location: "app/api/rfps/upload/route.ts:140",
-        message: "upload failed",
-        data: {
-          errorName: error instanceof Error ? error.name : "unknown",
-          errorMessage: error instanceof Error ? error.message : String(error),
-          supabaseConfigured: Boolean(
-            process.env.NEXT_PUBLIC_SUPABASE_URL &&
-              process.env.SUPABASE_SERVICE_ROLE_KEY,
-          ),
-        },
-        timestamp: Date.now(),
-        hypothesisId: "H3",
-      }),
-    }).catch(() => {});
-    // #endregion
 
     const message =
       error instanceof Error && error.message.includes("Supabase is not configured")

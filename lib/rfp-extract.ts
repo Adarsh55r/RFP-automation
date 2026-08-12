@@ -6,28 +6,6 @@ import {
   getSupabaseAdmin,
 } from "@/lib/supabase/admin";
 
-// #region agent log
-fetch("http://127.0.0.1:7300/ingest/e0510c8a-6039-4418-bcce-da7cd1d3581a", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-Debug-Session-Id": "91d1a9",
-  },
-  body: JSON.stringify({
-    sessionId: "91d1a9",
-    location: "lib/rfp-extract.ts:9",
-    message: "rfp extract module evaluated",
-    data: {
-      hasWindow: typeof window !== "undefined",
-      hasDOMMatrix: typeof DOMMatrix !== "undefined",
-    },
-    timestamp: Date.now(),
-    hypothesisId: "H3",
-    runId: "dashboard-ssr",
-  }),
-}).catch(() => {});
-// #endregion
-
 export type ExtractionResult = {
   scope: string;
   deadline: string | null;
