@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { FileStack, Inbox } from "lucide-react";
 import {
@@ -76,12 +77,12 @@ export function KitPreview() {
           <p className="font-mono text-sm tracking-wide text-surface-raised">
             DRAFTWIN / KIT
           </p>
-          <a
+          <Link
             href="/"
             className="rounded-control px-2 py-2 font-sans text-sm font-medium text-surface-raised/80 transition-colors duration-hover ease-out hover:text-surface-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark focus-visible:outline-none"
           >
             Back to home
-          </a>
+          </Link>
         </div>
       </header>
 
