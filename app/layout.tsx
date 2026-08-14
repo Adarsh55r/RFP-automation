@@ -52,6 +52,9 @@ export default function RootLayout({
         className={`scroll-smooth ${fraunces.variable} ${manrope.variable} ${ibmPlexMono.variable}`}
       >
         <body className="min-h-screen bg-surface font-sans text-ink antialiased">
+          <a href="#main-content" className="skip-link">
+            Skip to content
+          </a>
           <ToastProvider>{children}</ToastProvider>
         </body>
       </html>

@@ -40,10 +40,10 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-surface-raised/10">
         <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-6 text-sm text-surface-raised/60 md:flex-row md:items-center md:justify-between md:px-8">
-          <p className="font-mono text-xs tracking-wide">
+          <p className="font-mono text-xs tracking-wide text-surface-raised/80">
             © 2026 DraftWin
           </p>
-          <p>Not affiliated with GeM or any tender portal.</p>
+          <p className="text-surface-raised/80">Not affiliated with GeM or any tender portal.</p>
         </div>
       </div>
     </footer>

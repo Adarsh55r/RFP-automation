@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { OnboardingFlow } from "@/components/auth/onboarding-flow";
 import { cn } from "@/lib/cn";
+import { textLinkOnDark } from "@/lib/focus";
 
 export const metadata: Metadata = {
   title: "Set up your agency",
@@ -15,16 +16,16 @@ export default function OnboardingPage() {
         <div className="mx-auto flex h-16 max-w-content items-center px-6 md:px-8">
           <Link
             href="/"
-            className={cn(
-              "rounded-control font-sans text-base font-semibold text-surface-raised",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-raised focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark",
-            )}
+            className={cn(textLinkOnDark, "text-base")}
           >
             DraftWin
           </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-content px-6 py-12 md:px-8 md:py-16">
+      <main
+        id="main-content"
+        className="mx-auto max-w-content px-6 py-12 md:px-8 md:py-16"
+      >
         <OnboardingFlow />
       </main>
     </div>

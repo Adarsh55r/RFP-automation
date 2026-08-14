@@ -6,6 +6,7 @@ import { useDropzone, type FileRejection } from "react-dropzone";
 import { FileText, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { focusRing } from "@/lib/focus";
 import {
   formatFileSize,
   RFP_ACCEPTED_MIME_TYPES,
@@ -88,7 +89,7 @@ export function RfpUploadZone() {
     }
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, isFocused, open } = useDropzone({
     onDrop,
     accept: RFP_ACCEPTED_MIME_TYPES,
     maxFiles: 1,
@@ -140,6 +141,7 @@ export function RfpUploadZone() {
             isDragActive
               ? "border-brand bg-brand/10"
               : "border-border bg-surface-raised hover:border-brand/60",
+            isFocused && focusRing,
           )}
         >
           <input {...getInputProps()} />
@@ -217,7 +219,7 @@ export function RfpUploadZone() {
                 <Button type="button" onClick={() => open()}>
                   Replace
                 </Button>
-                <Button type="button" onClick={handleContinue}>
+                <Button type="button" onClick={handleContinue} className="w-full sm:w-auto">
                   Continue
                 </Button>
               </div>

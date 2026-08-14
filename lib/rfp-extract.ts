@@ -1,3 +1,4 @@
+import { generateLlmText } from "@/lib/llm";
 import { getAnthropicClient, EXTRACTION_MODEL } from "@/lib/anthropic";
 import {
   getRfpStorageBucket,
@@ -79,14 +80,15 @@ export async function extractTextFromDocument(
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".pdf")) {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: buffer });
-    try {
-      const result = await parser.getText();
-      return (result.text ?? "").trim();
-    } finally {
-      await parser.destroy().catch(() => undefined);
-    }
+    // unpdf avoids Next/webpack pdfjs-dist bundling failures from pdf-parse.
+    const { extractText } = await import("unpdf");
+    const data = new Uint8Array(
+      buffer.buffer,
+      buffer.byteOffset,
+      buffer.byteLength,
+    );
+    const result = await extractText(data, { mergePages: true });
+    return (typeof result.text === "string" ? result.text : "").trim();
   }
 
   if (lower.endsWith(".docx")) {
@@ -177,6 +179,33 @@ export async function extractRequirementsWithClaude(
     return parseExtractionJson(block.text);
   } catch {
     throw new Error("Claude returned invalid JSON for extraction.");
+  }
+}
+
+/** Provider-aware extraction (Gemini for testing, Claude when LLM_PROVIDER=anthropic). */
+export async function extractRequirementsWithLlm(
+  documentText: string,
+): Promise<ExtractionResult> {
+  const text =
+    documentText.length > MAX_TEXT_CHARS
+      ? `${documentText.slice(0, MAX_TEXT_CHARS)}\n\n[Document truncated for length.]`
+      : documentText;
+
+  if (!text.trim()) {
+    throw new Error("No readable text was found in the document.");
+  }
+
+  const raw = await generateLlmText({
+    purpose: "extraction",
+    maxTokens: 4096,
+    system: EXTRACTION_SYSTEM,
+    user: `Extract requirements from this RFP document as JSON:\n\n${text}`,
+  });
+
+  try {
+    return parseExtractionJson(raw);
+  } catch {
+    throw new Error("The model returned invalid JSON for extraction.");
   }
 }
 

@@ -1,5 +1,9 @@
 export { DashboardShell } from "./dashboard-shell";
 export { dashboardNavItems } from "./dashboard-nav";
+export { ExportDocumentMoment } from "./export-document-moment";
+export { LibraryView } from "./library-view";
 export { RecentRfps } from "./recent-rfps";
+export { RfpDraftView } from "./rfp-draft-view";
 export { RfpUploadZone } from "./rfp-upload-zone";
+export { SettingsView } from "./settings-view";
 export { StatCards } from "./stat-cards";

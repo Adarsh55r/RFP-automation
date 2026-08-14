@@ -48,6 +48,10 @@ export function RfpExtractionPanel({
   const [extracting, setExtracting] = useState(false);
   const [statusLineIndex, setStatusLineIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    scope?: string;
+    deadline?: string;
+  }>({});
   const [confirmPending, startConfirm] = useTransition();
 
   useEffect(() => {
@@ -68,15 +72,20 @@ export function RfpExtractionPanel({
     return () => window.clearInterval(interval);
   }, [extracting]);
 
-  const canExtract =
-    Boolean(rfp.originalFileUrl) &&
-    (status === "uploaded" || status === "extracted") &&
-    !extracting;
+  const canExtract = Boolean(rfp.originalFileUrl) && !extracting;
 
   const showForm =
-    !extracting && (status === "extracted" || status === "drafting");
+    !extracting &&
+    (status === "extracted" ||
+      status === "drafting" ||
+      status === "drafted" ||
+      status === "exported");
+
+  const canOpenDraft =
+    status === "drafting" || status === "drafted" || status === "exported";
 
   const handleExtract = async () => {
+    const statusBeforeExtract = status;
     setExtracting(true);
     setError(null);
     setStatus("extracting");
@@ -112,7 +121,9 @@ export function RfpExtractionPanel({
       setStatus(payload.status ?? "extracted");
       router.refresh();
     } catch (extractError) {
-      setStatus("uploaded");
+      setStatus(
+        statusBeforeExtract === "extracting" ? "uploaded" : statusBeforeExtract,
+      );
       setError(
         extractError instanceof Error
           ? extractError.message
@@ -124,6 +135,21 @@ export function RfpExtractionPanel({
   };
 
   const handleConfirm = () => {
+    const nextErrors: { scope?: string; deadline?: string } = {};
+    if (!form.scope.trim()) {
+      nextErrors.scope = "Add a short scope summary before continuing.";
+    }
+    if (form.deadline.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(form.deadline.trim())) {
+      nextErrors.deadline = "Deadline must be a valid date.";
+    }
+
+    if (nextErrors.scope || nextErrors.deadline) {
+      setFieldErrors(nextErrors);
+      setError(null);
+      return;
+    }
+
+    setFieldErrors({});
     setError(null);
     startConfirm(async () => {
       const result = await confirmExtraction({
@@ -140,6 +166,10 @@ export function RfpExtractionPanel({
       }
 
       setStatus(result.status);
+      if (status === "extracted") {
+        router.push(`/dashboard/rfps/${rfp.id}/draft`);
+        return;
+      }
       router.refresh();
     });
   };
@@ -162,7 +192,7 @@ export function RfpExtractionPanel({
             type="button"
             onClick={handleExtract}
             disabled={!canExtract}
-            className="w-fit"
+            className="w-full sm:w-fit"
           >
             Extract requirements
           </Button>
@@ -210,13 +240,14 @@ export function RfpExtractionPanel({
                 Correct anything that looks off before you continue to drafting.
               </p>
             </div>
-            {status === "extracted" ? (
+            {status === "extracted" || canOpenDraft ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 onClick={handleExtract}
                 disabled={!canExtract}
+                className="w-full sm:w-auto"
               >
                 Re-run extraction
               </Button>
@@ -234,7 +265,11 @@ export function RfpExtractionPanel({
                 }))
               }
               rows={6}
+              aria-invalid={Boolean(fieldErrors.scope)}
             />
+            {fieldErrors.scope ? (
+              <p className="text-sm text-danger">{fieldErrors.scope}</p>
+            ) : null}
           </label>
 
           <label className="flex flex-col gap-2">
@@ -250,8 +285,12 @@ export function RfpExtractionPanel({
                   deadline: event.target.value,
                 }))
               }
-              className="max-w-xs font-mono"
+              aria-invalid={Boolean(fieldErrors.deadline)}
+              className="max-w-full font-mono sm:max-w-xs"
             />
+            {fieldErrors.deadline ? (
+              <p className="text-sm text-danger">{fieldErrors.deadline}</p>
+            ) : null}
           </label>
 
           <label className="flex flex-col gap-2">
@@ -293,14 +332,38 @@ export function RfpExtractionPanel({
               type="button"
               onClick={handleConfirm}
               disabled={confirmPending}
-              className="w-fit"
+              className="w-full sm:w-fit"
             >
               {confirmPending ? "Saving…" : "Confirm and continue"}
             </Button>
           ) : (
-            <p className="font-mono text-xs tracking-wide text-slate">
-              Requirements confirmed — status is drafting.
-            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleConfirm}
+                disabled={confirmPending}
+                className="w-full sm:w-fit"
+              >
+                {confirmPending ? "Saving…" : "Save requirements"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => router.push(`/dashboard/rfps/${rfp.id}/draft`)}
+                className="w-full sm:w-fit"
+              >
+                Open draft
+              </Button>
+              {canOpenDraft ? (
+                <Button
+                  type="button"
+                  onClick={() => router.push(`/dashboard/rfps/${rfp.id}/draft`)}
+                  className="w-full bg-accent text-ink sm:w-fit"
+                >
+                  Export as DOCX
+                </Button>
+              ) : null}
+            </div>
           )}
         </Card>
       ) : null}

@@ -37,7 +37,12 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
     return { ok: false as const, error: "RFP not found." };
   }
 
-  if (rfp.status !== RfpStatus.extracted && rfp.status !== RfpStatus.drafting) {
+  if (
+    rfp.status !== RfpStatus.extracted &&
+    rfp.status !== RfpStatus.drafting &&
+    rfp.status !== RfpStatus.drafted &&
+    rfp.status !== RfpStatus.exported
+  ) {
     return {
       ok: false as const,
       error: "Extract requirements before confirming.",
@@ -60,6 +65,11 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
     };
   }
 
+  const nextStatus =
+    rfp.status === RfpStatus.extracted || rfp.status === RfpStatus.drafting
+      ? RfpStatus.drafting
+      : rfp.status;
+
   await prisma.rfp.update({
     where: { id: rfp.id },
     data: {
@@ -69,12 +79,13 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
       extractedEvaluationCriteria: editableTextToList(
         payload.evaluationCriteria,
       ),
-      status: RfpStatus.drafting,
+      status: nextStatus,
     },
   });
 
   revalidatePath(`/dashboard/rfps/${rfp.id}`);
+  revalidatePath(`/dashboard/rfps/${rfp.id}/draft`);
   revalidatePath("/dashboard");
 
-  return { ok: true as const, status: RfpStatus.drafting };
+  return { ok: true as const, status: nextStatus };
 }

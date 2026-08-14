@@ -32,7 +32,7 @@ export const clerkAppearance = {
     dividerText: "font-mono text-xs tracking-wide text-slate uppercase",
     formFieldLabel: "font-sans text-sm font-medium text-ink",
     formFieldInput:
-      "h-10 rounded-control border border-border bg-surface-raised px-4 font-sans text-sm text-ink focus:border-brand focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-surface",
+      "h-10 rounded-control border border-border bg-surface-raised px-4 font-sans text-sm text-ink hover:border-brand/60 focus:border-brand focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-surface",
     formButtonPrimary:
       "rounded-control bg-brand text-surface-raised font-sans font-semibold h-10 shadow-none hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.12)] transition-[transform,box-shadow] duration-hover ease-out",
     footerActionLink: "font-sans font-semibold text-brand hover:text-brand",

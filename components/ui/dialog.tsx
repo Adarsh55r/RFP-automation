@@ -36,7 +36,7 @@ export const DialogContent = forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed top-1/2 left-1/2 z-50 w-[calc(100%-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2",
+        "fixed top-1/2 left-1/2 z-50 w-[calc(100%-32px)] max-w-lg max-h-[calc(100vh-32px)] overflow-y-auto -translate-x-1/2 -translate-y-1/2",
         "rounded-card border border-border bg-surface-raised p-6 shadow-[0_16px_48px_rgb(11_31_51_/_0.16)]",
         "data-[state=open]:animate-[dw-fade-in_180ms_ease-out]",
         "focus:outline-none",

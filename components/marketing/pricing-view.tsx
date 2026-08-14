@@ -76,7 +76,7 @@ function PlanCard({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
   return (
     <Card
       className={cn(
-        "flex h-full flex-col",
+            "flex h-full flex-col transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
         plan.highlighted && "border-accent shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
       )}
     >

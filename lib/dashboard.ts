@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
@@ -8,7 +9,11 @@ function startOfMonth() {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-export async function requireDashboardUser() {
+/**
+ * Lean user+subscription lookup, deduped per request.
+ * Do not join RFPs here — layout and most pages don't need them.
+ */
+export const requireDashboardUser = cache(async () => {
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     return null;
@@ -16,15 +21,9 @@ export async function requireDashboardUser() {
 
   return prisma.user.findUnique({
     where: { clerkId },
-    include: {
-      subscription: true,
-      rfps: {
-        orderBy: { createdAt: "desc" },
-        take: 8,
-      },
-    },
+    include: { subscription: true },
   });
-}
+});
 
 export async function getDashboardHomeData() {
   const user = await requireDashboardUser();
@@ -35,7 +34,7 @@ export async function getDashboardHomeData() {
   const monthStart = startOfMonth();
   const tier: SubscriptionTier = user.subscription?.tier ?? "free";
 
-  const [rfpsThisMonth, draftsInProgress] = await Promise.all([
+  const [rfpsThisMonth, draftsInProgress, recentRfps] = await Promise.all([
     prisma.rfp.count({
       where: {
         userId: user.id,
@@ -47,6 +46,11 @@ export async function getDashboardHomeData() {
         userId: user.id,
         status: { in: ["drafting", "drafted"] },
       },
+    }),
+    prisma.rfp.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
     }),
   ]);
 
@@ -62,6 +66,7 @@ export async function getDashboardHomeData() {
       rfpsLimit: limit,
       draftsInProgress,
     },
-    recentRfps: user.rfps,
+    recentRfps,
   };
 }
+

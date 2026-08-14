@@ -131,6 +131,7 @@ export function OnboardingFlow() {
               autoComplete="organization"
               placeholder="e.g. Northbeam Digital Pvt Ltd"
               value={agencyName}
+              aria-invalid={Boolean(error && step === 1)}
               onChange={(event) => setAgencyName(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {

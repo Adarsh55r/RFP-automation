@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { dashboardNavItems, isNavActive } from "@/components/dashboard/dashboard-nav";
 import { cn } from "@/lib/cn";
-import { focusRingOnDark } from "@/lib/focus";
+import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
 
 type DashboardSidebarProps = {
   onNavigate?: () => void;
@@ -28,10 +28,7 @@ export function DashboardSidebar({
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          className={cn(
-            "font-sans text-base font-semibold text-surface-raised",
-            focusRingOnDark,
-          )}
+            className={cn(textLinkOnDark, "text-base")}
         >
           DraftWin
         </Link>

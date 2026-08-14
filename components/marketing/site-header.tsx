@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/cn";
-import { focusRingOnDark } from "@/lib/focus";
+import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
 
 const publicLinks = [
   { href: "/#product", label: "Product" },
@@ -45,10 +45,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-6 md:px-8">
         <Link
           href="/"
-          className={cn(
-            "rounded-control font-sans text-base font-semibold tracking-tight text-surface-raised",
-            focusRingOnDark,
-          )}
+          className={cn(textLinkOnDark, "text-base tracking-tight")}
         >
           DraftWin
         </Link>
@@ -153,7 +150,7 @@ export function SiteHeader() {
                 <Link
                   href="/dashboard"
                   className={cn(
-                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90",
+                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
                     focusRingOnDark,
                   )}
                   onClick={() => setOpen(false)}
@@ -166,7 +163,7 @@ export function SiteHeader() {
                 <Link
                   href="/sign-in"
                   className={cn(
-                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90",
+                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
                     focusRingOnDark,
                   )}
                   onClick={() => setOpen(false)}

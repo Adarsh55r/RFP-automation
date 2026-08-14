@@ -13,7 +13,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           className={cn(
             "h-10 w-full appearance-none rounded-control border border-border bg-surface-raised px-4 pr-10 font-sans text-sm text-ink",
-            "transition-[border-color,box-shadow] duration-hover ease-out",
+            "transition-[border-color,box-shadow] duration-hover ease-out hover:border-brand/60",
             "disabled:cursor-not-allowed disabled:opacity-50",
             "aria-[invalid=true]:border-danger",
             focusRing,

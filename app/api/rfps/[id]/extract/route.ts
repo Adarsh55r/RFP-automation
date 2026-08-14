@@ -2,10 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
+import { isLlmConfigError, llmConfigErrorMessage } from "@/lib/llm";
 import {
   deadlineToDate,
   downloadRfpFile,
-  extractRequirementsWithClaude,
+  extractRequirementsWithLlm,
   extractTextFromDocument,
 } from "@/lib/rfp-extract";
 
@@ -57,6 +58,8 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
+  const previousStatus = rfp.status;
+
   await prisma.rfp.update({
     where: { id: rfp.id },
     data: { status: RfpStatus.extracting },
@@ -65,7 +68,7 @@ export async function POST(_request: Request, context: RouteContext) {
   try {
     const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
     const documentText = await extractTextFromDocument(buffer, fileName);
-    const extracted = await extractRequirementsWithClaude(documentText);
+    const extracted = await extractRequirementsWithLlm(documentText);
 
     const updated = await prisma.rfp.update({
       where: { id: rfp.id },
@@ -92,17 +95,15 @@ export async function POST(_request: Request, context: RouteContext) {
     await prisma.rfp
       .update({
         where: { id: rfp.id },
-        data: { status: RfpStatus.uploaded },
+        data: { status: previousStatus },
       })
       .catch(() => undefined);
 
-    const message =
-      error instanceof Error &&
-      error.message.includes("Anthropic is not configured")
-        ? "AI extraction is not configured yet. Add ANTHROPIC_API_KEY."
-        : error instanceof Error
-          ? error.message
-          : "Extraction failed. Try again in a moment.";
+    const message = isLlmConfigError(error)
+      ? llmConfigErrorMessage("extraction")
+      : error instanceof Error
+        ? error.message
+        : "Extraction failed. Try again in a moment.";
 
     console.error("RFP extraction failed:", error);
     return NextResponse.json({ error: message }, { status: 500 });

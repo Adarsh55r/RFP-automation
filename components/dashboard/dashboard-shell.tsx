@@ -39,7 +39,7 @@ export function DashboardShell({ agencyName, children }: DashboardShellProps) {
         <div className="fixed inset-0 z-50 md:hidden" role="presentation">
           <button
             type="button"
-            className="absolute inset-0 bg-brand-dark/50"
+            className="absolute inset-0 bg-brand-dark/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-raised focus-visible:ring-inset"
             aria-label="Close navigation menu"
             onClick={() => setNavOpen(false)}
           />
@@ -54,7 +54,10 @@ export function DashboardShell({ agencyName, children }: DashboardShellProps) {
           agencyName={agencyName}
           onOpenNav={() => setNavOpen(true)}
         />
-        <main className={cn("flex-1 bg-surface px-4 py-8 md:px-8")}>
+        <main
+          id="main-content"
+          className={cn("flex-1 bg-surface px-4 py-8 md:px-8")}
+        >
           {children}
         </main>
       </div>

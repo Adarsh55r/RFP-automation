@@ -7,7 +7,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Badge } from "@/components/ui/badge";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/cn";
-import { focusRing } from "@/lib/focus";
+import { textLink } from "@/lib/focus";
 import {
   INTENDED_PLAN_COOKIE,
   INTENDED_PLAN_COOKIE_MAX_AGE,
@@ -40,7 +40,7 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
           Already have an account?{" "}
           <Link
             href="/sign-in"
-            className={cn("font-semibold text-brand", focusRing, "rounded-control")}
+            className={cn(textLink, "font-semibold")}
           >
             Log in
           </Link>

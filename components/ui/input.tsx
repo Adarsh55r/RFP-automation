@@ -13,8 +13,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           "h-10 w-full rounded-control border border-border bg-surface-raised px-4 font-sans text-sm text-ink",
           "placeholder:text-slate",
-          "transition-[border-color,box-shadow] duration-hover ease-out",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "transition-[border-color,box-shadow] duration-hover ease-out hover:border-brand/60",
+          "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border",
           "aria-[invalid=true]:border-danger",
           focusRing,
           className,

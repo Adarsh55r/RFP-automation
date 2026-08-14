@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { focusRing } from "@/lib/focus";
+import { textLink, textLinkOnDark } from "@/lib/focus";
 
 export function AuthShell({
   title,
@@ -20,17 +20,17 @@ export function AuthShell({
         <div className="mx-auto flex h-16 max-w-content items-center px-6 md:px-8">
           <Link
             href="/"
-            className={cn(
-              "rounded-control font-sans text-base font-semibold text-surface-raised",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-raised focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark",
-            )}
+            className={cn(textLinkOnDark, "text-base")}
           >
             DraftWin
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-content flex-col items-center px-6 py-12 md:px-8 md:py-16">
+      <main
+        id="main-content"
+        className="mx-auto flex max-w-content flex-col items-center px-6 py-12 md:px-8 md:py-16"
+      >
         <div className="mb-8 w-full max-w-md text-center">
           <h1 className="font-display text-3xl font-medium text-ink md:text-4xl">
             {title}
@@ -42,7 +42,7 @@ export function AuthShell({
           <div className="mt-8 text-center text-sm text-slate">{footer}</div>
         ) : null}
         <p className="mt-8">
-          <Link href="/" className={cn("text-sm font-medium text-brand", focusRing, "rounded-control")}>
+          <Link href="/" className={cn(textLink, "text-sm font-semibold")}>
             ← Back to home
           </Link>
         </p>

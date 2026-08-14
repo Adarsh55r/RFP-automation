@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keep PDF libs external so webpack does not rebundle pdf.js.
+  serverExternalPackages: ["unpdf", "pdfjs-dist"],
 };
 
 export default nextConfig;

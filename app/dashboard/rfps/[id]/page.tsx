@@ -6,6 +6,8 @@ import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel"
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { requireDashboardUser } from "@/lib/dashboard";
+import { cn } from "@/lib/cn";
+import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
 import { getRfpForUser } from "@/lib/rfps";
 
@@ -53,11 +55,14 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
       <header className="flex flex-col gap-6">
         <Link
-          href="/dashboard"
-          className="inline-flex w-fit items-center gap-2 font-sans text-sm font-medium text-slate transition-colors duration-hover ease-out hover:text-brand"
+          href="/dashboard/rfps"
+          className={cn(
+            textLink,
+            "inline-flex w-fit items-center gap-2 text-sm text-slate hover:text-brand",
+          )}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to dashboard
+          Back to RFPs
         </Link>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -88,7 +93,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
             href={rfp.originalFileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 w-fit font-sans text-sm font-medium text-brand transition-colors duration-hover ease-out hover:text-ink"
+            className={cn(textLink, "mt-2 inline-block w-fit text-sm")}
           >
             Open uploaded file
           </a>

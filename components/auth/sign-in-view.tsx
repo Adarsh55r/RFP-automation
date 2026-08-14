@@ -4,8 +4,8 @@ import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { clerkAppearance } from "@/lib/clerk-appearance";
-import { focusRing } from "@/lib/focus";
 import { cn } from "@/lib/cn";
+import { textLink } from "@/lib/focus";
 
 export function SignInView() {
   return (
@@ -17,7 +17,7 @@ export function SignInView() {
           New to DraftWin?{" "}
           <Link
             href="/sign-up?plan=free"
-            className={cn("font-semibold text-brand", focusRing, "rounded-control")}
+            className={cn(textLink, "font-semibold")}
           >
             Start free
           </Link>

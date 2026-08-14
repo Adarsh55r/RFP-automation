@@ -20,3 +20,7 @@ export function getAnthropicClient() {
 /** Haiku is enough for structured RFP extraction and keeps cost down. */
 export const EXTRACTION_MODEL =
   process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-haiku-4-5-20251001";
+
+/** Sonnet for grounded proposal drafting (quality over cost). */
+export const DRAFTING_MODEL =
+  process.env.ANTHROPIC_DRAFTING_MODEL ?? "claude-sonnet-4-20250514";

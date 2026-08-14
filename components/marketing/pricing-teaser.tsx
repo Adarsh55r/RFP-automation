@@ -18,7 +18,7 @@ export function PricingTeaser() {
             Rupee plans. No per-seat surprise in USD.
           </h2>
         </div>
-        <Button asChild variant="secondary">
+        <Button asChild variant="secondary" className="w-full md:w-auto">
           <Link href="/pricing">See full pricing</Link>
         </Button>
       </div>
@@ -28,7 +28,7 @@ export function PricingTeaser() {
           <Card
             key={plan.id}
             className={cn(
-              "flex h-full flex-col",
+              "flex h-full flex-col transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
               plan.highlighted && "border-accent shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
             )}
           >

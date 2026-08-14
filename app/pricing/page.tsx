@@ -13,7 +13,7 @@ export default function PricingPage() {
   return (
     <>
       <SiteHeader />
-      <main>
+      <main id="main-content">
         <PricingView />
       </main>
       <SiteFooter />

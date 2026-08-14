@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
@@ -7,9 +8,16 @@ function startOfMonth() {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-export async function getRfpForUser(rfpId: string, userId: string) {
+export const getRfpForUser = cache(async (rfpId: string, userId: string) => {
   return prisma.rfp.findFirst({
     where: { id: rfpId, userId },
+  });
+});
+
+export async function getRfpsForUser(userId: string) {
+  return prisma.rfp.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
   });
 }
 
