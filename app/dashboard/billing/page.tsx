@@ -28,7 +28,7 @@ const statusLabel: Record<string, string> = {
 export default async function BillingPage() {
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const tier: SubscriptionTier = user.subscription?.tier ?? "free";

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function NewRfpPage() {
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const tier = user.subscription?.tier ?? "free";

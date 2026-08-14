@@ -35,7 +35,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
   const { id } = await params;
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const rfp = await getRfpForUser(id, user.id);

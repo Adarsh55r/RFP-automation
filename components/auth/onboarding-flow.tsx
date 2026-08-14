@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,13 +40,6 @@ export function OnboardingFlow() {
   const [teamSize, setTeamSize] = useState<TeamSize | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    if (user.unsafeMetadata?.onboardingCompleted) {
-      router.replace("/dashboard");
-    }
-  }, [isLoaded, user, router]);
 
   if (!isLoaded || !user) {
     return (

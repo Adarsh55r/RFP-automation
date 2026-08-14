@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Logo } from "@/components/brand";
 import { cn } from "@/lib/cn";
 import { textLink, textLinkOnDark } from "@/lib/focus";
 
@@ -18,11 +19,8 @@ export function AuthShell({
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border bg-brand-dark">
         <div className="mx-auto flex h-16 max-w-content items-center px-6 md:px-8">
-          <Link
-            href="/"
-            className={cn(textLinkOnDark, "text-base")}
-          >
-            DraftWin
+          <Link href="/" className={cn(textLinkOnDark, "inline-flex")}>
+            <Logo />
           </Link>
         </div>
       </header>

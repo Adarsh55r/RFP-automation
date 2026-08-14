@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/brand";
 import { focusRingOnDark } from "@/lib/focus";
 import { cn } from "@/lib/cn";
 
@@ -14,9 +15,9 @@ export function SiteFooter() {
     <footer className="bg-brand-dark">
       <div className="mx-auto flex max-w-content flex-col gap-8 px-6 py-12 md:flex-row md:items-center md:justify-between md:px-8">
         <div>
-          <p className="font-sans text-base font-semibold text-surface-raised">
-            DraftWin
-          </p>
+          <Link href="/" className={cn(focusRingOnDark, "inline-flex rounded-control text-surface-raised")}>
+            <Logo />
+          </Link>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-surface-raised/70">
             Proposals for private-sector RFPs. Built for IT services agencies in
             India.

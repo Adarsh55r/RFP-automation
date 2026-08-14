@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function LibraryPage() {
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const items = await getLibraryItemsForUser(user.id);

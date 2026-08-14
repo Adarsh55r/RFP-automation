@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/brand";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/cn";
 import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
@@ -43,11 +44,8 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-6 md:px-8">
-        <Link
-          href="/"
-          className={cn(textLinkOnDark, "text-base tracking-tight")}
-        >
-          DraftWin
+        <Link href="/" className={cn(textLinkOnDark, "inline-flex")}>
+          <Logo />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-2 md:flex">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/brand";
 import { dashboardNavItems, isNavActive } from "@/components/dashboard/dashboard-nav";
 import { cn } from "@/lib/cn";
 import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
@@ -28,9 +29,9 @@ export function DashboardSidebar({
         <Link
           href="/dashboard"
           onClick={onNavigate}
-            className={cn(textLinkOnDark, "text-base")}
+          className={cn(textLinkOnDark, "inline-flex")}
         >
-          DraftWin
+          <Logo />
         </Link>
       </div>
 

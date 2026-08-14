@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/brand";
 import { cn } from "@/lib/cn";
+import { focusRingOnDark } from "@/lib/focus";
 import { FileStack, Inbox } from "lucide-react";
 import {
   Badge,
@@ -74,9 +76,17 @@ export function KitPreview() {
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border bg-brand-dark">
         <div className="mx-auto flex max-w-content items-center justify-between px-8 py-4">
-          <p className="font-mono text-sm tracking-wide text-surface-raised">
-            DRAFTWIN / KIT
-          </p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className={cn(focusRingOnDark, "inline-flex rounded-control text-surface-raised")}
+            >
+              <Logo />
+            </Link>
+            <p className="font-mono text-xs tracking-wide text-surface-raised/70 uppercase">
+              Kit
+            </p>
+          </div>
           <Link
             href="/"
             className="rounded-control px-2 py-2 font-sans text-sm font-medium text-surface-raised/80 transition-colors duration-hover ease-out hover:text-surface-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark focus-visible:outline-none"

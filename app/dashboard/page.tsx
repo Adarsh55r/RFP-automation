@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const data = await getDashboardHomeData();
 
   if (!data) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const firstName =

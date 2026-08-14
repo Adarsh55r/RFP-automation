@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   return (

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default async function RfpsPage() {
   const user = await requireDashboardUser();
   if (!user) {
-    redirect("/sign-in");
+    redirect("/onboarding");
   }
 
   const rfps = await getRfpsForUser(user.id);
