@@ -4,15 +4,17 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand";
+import { SmoothLink } from "@/components/marketing/smooth-link";
+import { Button } from "@/components/ui/button";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/cn";
 import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
 
 const publicLinks = [
+  { href: "/#how-it-works", label: "How it works" },
   { href: "/#product", label: "Product" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/#pricing", label: "Pricing" },
 ];
 
 export function SiteHeader() {
@@ -44,13 +46,13 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-6 md:px-8">
-        <Link href="/" className={cn(textLinkOnDark, "inline-flex")}>
+        <SmoothLink href="/" className={cn(textLinkOnDark, "inline-flex")}>
           <Logo />
-        </Link>
+        </SmoothLink>
 
         <nav aria-label="Primary" className="hidden items-center gap-2 md:flex">
           {publicLinks.map((link) => (
-            <Link
+            <SmoothLink
               key={link.href}
               href={link.href}
               className={cn(
@@ -59,7 +61,7 @@ export function SiteHeader() {
               )}
             >
               {link.label}
-            </Link>
+            </SmoothLink>
           ))}
           {isSignedIn ? (
             <>
@@ -131,7 +133,7 @@ export function SiteHeader() {
           <ul className="flex flex-col gap-2">
             {publicLinks.map((link) => (
               <li key={link.href}>
-                <Link
+                <SmoothLink
                   href={link.href}
                   className={cn(
                     "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
@@ -140,7 +142,7 @@ export function SiteHeader() {
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
-                </Link>
+                </SmoothLink>
               </li>
             ))}
             {isSignedIn ? (

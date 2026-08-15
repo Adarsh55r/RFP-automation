@@ -7,7 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { confirmExtraction } from "@/lib/actions/rfp-extraction";
+import { downloadRfpDocx } from "@/lib/download-rfp-docx";
 import {
   formatDeadlineForInput,
   listToEditableText,
@@ -43,6 +45,7 @@ export function RfpExtractionPanel({
   rfp: Rfp;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [status, setStatus] = useState<RfpStatus>(rfp.status);
   const [form, setForm] = useState<ExtractionFormState>(() => formFromRfp(rfp));
   const [extracting, setExtracting] = useState(false);
@@ -53,6 +56,7 @@ export function RfpExtractionPanel({
     deadline?: string;
   }>({});
   const [confirmPending, startConfirm] = useTransition();
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setStatus(rfp.status);
@@ -172,6 +176,30 @@ export function RfpExtractionPanel({
       }
       router.refresh();
     });
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setError(null);
+    try {
+      await downloadRfpDocx(rfp.id);
+      setStatus("exported");
+      toast({
+        title: "Proposal exported",
+        description: "Your Word document has downloaded.",
+        variant: "success",
+      });
+      router.refresh();
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "Could not export DOCX.",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -357,10 +385,11 @@ export function RfpExtractionPanel({
               {canOpenDraft ? (
                 <Button
                   type="button"
-                  onClick={() => router.push(`/dashboard/rfps/${rfp.id}/draft`)}
+                  onClick={() => void handleExport()}
+                  disabled={exporting}
                   className="w-full bg-accent text-ink sm:w-fit"
                 >
-                  Export as DOCX
+                  {exporting ? "Exporting…" : "Export as DOCX"}
                 </Button>
               ) : null}
             </div>

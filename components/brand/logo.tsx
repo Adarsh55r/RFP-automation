@@ -73,7 +73,7 @@ export function Logo({
       <LogoMark className={markClassName} />
       {withWordmark ? (
         <span className="font-sans text-base font-semibold tracking-tight">
-          DraftWin
+          Draft<span className="text-accent">Win</span>
         </span>
       ) : (
         <span className="sr-only">DraftWin</span>

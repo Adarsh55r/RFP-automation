@@ -1,6 +1,8 @@
 export { DocumentTransform } from "./document-transform";
 export { FeatureGrid } from "./feature-grid";
+export { HashScroll } from "./hash-scroll";
 export { Hero } from "./hero";
+export { HeroAtmosphere } from "./hero-atmosphere";
 export { HowItWorks } from "./how-it-works";
 export { PositioningStrip } from "./positioning-strip";
 export { PricingTeaser } from "./pricing-teaser";

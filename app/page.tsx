@@ -1,5 +1,6 @@
 import {
   FeatureGrid,
+  HashScroll,
   Hero,
   HowItWorks,
   PositioningStrip,
@@ -11,6 +12,7 @@ import {
 export default function Home() {
   return (
     <>
+      <HashScroll />
       <SiteHeader />
       <main id="main-content">
         <Hero />

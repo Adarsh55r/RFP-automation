@@ -6,6 +6,8 @@ import { focusRing, focusRingDanger } from "@/lib/focus";
 const variants = {
   primary:
     "bg-brand text-surface-raised shadow-none hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.12)]",
+  accent:
+    "bg-accent text-ink shadow-none hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.12)]",
   secondary:
     "border border-border bg-surface-raised text-ink hover:-translate-y-0.5 hover:border-brand",
   ghost:

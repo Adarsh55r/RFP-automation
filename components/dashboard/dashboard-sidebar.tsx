@@ -59,6 +59,18 @@ export function DashboardSidebar({
           );
         })}
       </nav>
+      <div className="border-t border-surface-raised/10 p-4">
+        <Link
+          href="/privacy"
+          onClick={onNavigate}
+          className={cn(
+            "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/70 transition-colors duration-hover ease-out hover:text-surface-raised",
+            focusRingOnDark,
+          )}
+        >
+          Privacy policy
+        </Link>
+      </div>
     </aside>
   );
 }

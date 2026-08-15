@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { FileDown, Library, ListChecks, Upload } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Section } from "@/components/marketing/section";
 
 const steps = [
@@ -40,7 +39,7 @@ export function HowItWorks() {
         Four steps from inbox PDF to a proposal you can send.
       </h2>
       <motion.ol
-        className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
+        className="relative mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8"
         initial={reduceMotion ? "show" : "hidden"}
         whileInView="show"
         viewport={{ once: true, amount: 0.35 }}
@@ -51,11 +50,16 @@ export function HowItWorks() {
           },
         }}
       >
+        <div
+          aria-hidden
+          className="absolute top-5 right-5 left-5 hidden h-px bg-brand/25 lg:block"
+        />
         {steps.map((step, index) => {
           const Icon = step.icon;
           return (
             <motion.li
               key={step.title}
+              className="relative"
               variants={{
                 hidden: { opacity: 0, y: 16 },
                 show: {
@@ -65,20 +69,16 @@ export function HowItWorks() {
                 },
               }}
             >
-              <Card className="h-full">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex size-10 items-center justify-center rounded-control bg-surface text-brand">
-                  <Icon aria-hidden className="size-6" strokeWidth={1.75} />
-                </div>
-                <span className="font-mono text-xs tracking-wide text-slate">
-                  0{index + 1}
-                </span>
+              <div className="relative z-10 flex size-10 items-center justify-center rounded-control bg-brand text-surface-raised">
+                <Icon aria-hidden className="size-5" strokeWidth={1.75} />
               </div>
-              <h3 className="mt-6 font-sans text-lg font-semibold text-ink">
+              <p className="mt-6 font-mono text-xs tracking-wide text-slate">
+                0{index + 1}
+              </p>
+              <h3 className="mt-2 font-sans text-lg font-semibold text-ink">
                 {step.title}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate">{step.body}</p>
-              </Card>
             </motion.li>
           );
         })}

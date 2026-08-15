@@ -83,6 +83,16 @@
   }
 }
 
+@keyframes dw-hero-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 body {
   background: var(--surface);
   color: var(--ink);
@@ -120,6 +130,18 @@ body {
     outline: 2px solid var(--surface-raised);
     outline-offset: 2px;
   }
+
+  .marketing-dark-band {
+    background: linear-gradient(
+      165deg,
+      var(--brand-dark) 0%,
+      color-mix(in srgb, var(--brand) 28%, var(--brand-dark)) 100%
+    );
+  }
+
+  .hero-glow {
+    animation: dw-hero-glow 4s ease-out infinite;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -135,5 +157,10 @@ body {
   .hover-lift:hover {
     transform: none;
     box-shadow: none;
+  }
+
+  .hero-glow {
+    animation: none;
+    opacity: 0.7;
   }
 }

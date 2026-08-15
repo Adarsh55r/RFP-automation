@@ -1,5 +1,4 @@
 import { BookMarked, IndianRupee, PencilLine, Stamp } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Section } from "@/components/marketing/section";
 
 const features = [
@@ -34,24 +33,29 @@ export function FeatureGrid() {
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
         Built around how pre-sales teams in India actually chase RFPs.
       </h2>
-      <div className="mt-12 grid gap-6 md:grid-cols-2">
+      <ul className="mt-12 divide-y divide-border border-y border-border">
         {features.map((feature) => {
           const Icon = feature.icon;
           return (
-            <Card key={feature.title}>
-              <div className="flex size-10 items-center justify-center rounded-control bg-surface text-brand">
+            <li
+              key={feature.title}
+              className="grid gap-4 py-8 md:grid-cols-[auto_1fr] md:items-start md:gap-8"
+            >
+              <div className="flex size-10 items-center justify-center rounded-control bg-brand/10 text-brand">
                 <Icon aria-hidden className="size-6" strokeWidth={1.75} />
               </div>
-              <h3 className="mt-6 font-sans text-lg font-semibold text-ink">
-                {feature.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate">
-                {feature.body}
-              </p>
-            </Card>
+              <div>
+                <h3 className="font-sans text-lg font-semibold text-ink">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
+                  {feature.body}
+                </p>
+              </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </Section>
   );
 }

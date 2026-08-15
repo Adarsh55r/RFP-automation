@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
 
@@ -71,22 +72,47 @@ function CleanProposal() {
     <div className="flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface-raised shadow-[0_16px_40px_rgb(11_31_51_/_0.12)]">
       <div className="h-2 bg-brand" />
       <div className="flex flex-1 flex-col p-4">
-        <p className="font-mono text-[10px] tracking-wide text-slate">
-          NORTHSTAR RETAIL · RFP-2026-0441
-        </p>
-        <p className="mt-2 font-sans text-sm font-semibold text-ink">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] tracking-wide text-slate">
+              NORTHSTAR RETAIL
+            </p>
+            <p className="mt-1 font-mono text-[10px] tracking-wide text-slate">
+              RFP-2026-0441
+            </p>
+          </div>
+          <span className="size-8 shrink-0 rounded-full bg-brand/15 ring-2 ring-brand/20" />
+        </div>
+        <p className="mt-4 font-sans text-sm font-semibold text-ink">
           Technical &amp; commercial proposal
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-slate">
           Cloud migration &amp; AMS · 24 months · Bengaluru / remote
         </p>
-        <ol className="mt-4 space-y-2 text-[11px] leading-relaxed text-ink">
-          <li>1. Understanding of scope</li>
-          <li>2. Three relevant case studies</li>
-          <li>3. Named team &amp; CVs</li>
-          <li>4. Commercials on your rate card</li>
-        </ol>
+        <ul className="mt-4 space-y-2">
+          {[
+            "Understanding of scope",
+            "Three relevant case studies",
+            "Named team & CVs",
+            "Commercials on your rate card",
+          ].map((item) => (
+            <li
+              key={item}
+              className="flex items-center gap-2 text-[11px] leading-relaxed text-ink"
+            >
+              <Check
+                aria-hidden
+                className="size-4 shrink-0 text-accent"
+                strokeWidth={2.25}
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
         <div className="mt-auto pt-4">
+          <div className="mb-4 h-2 overflow-hidden rounded-control bg-border">
+            <div className="h-full w-[92%] bg-brand" />
+          </div>
           <Badge variant="accent">Ready to send</Badge>
         </div>
       </div>
@@ -173,7 +199,7 @@ export function DocumentTransform() {
 
   return (
     <div
-      className="relative mx-auto h-[360px] w-full max-w-[300px] sm:h-[400px] sm:max-w-[340px]"
+      className="relative mx-auto h-[400px] w-full max-w-[320px] sm:h-[440px] sm:max-w-[360px]"
       aria-hidden
     >
       {messyDocs.map((doc, index) => {
@@ -183,7 +209,7 @@ export function DocumentTransform() {
         return (
           <div
             key={doc.title}
-            className="absolute top-8 left-1/2 h-[280px] w-[230px] -translate-x-1/2 sm:h-[310px] sm:w-[250px]"
+            className="absolute top-10 left-1/2 h-[300px] w-[240px] -translate-x-1/2 sm:h-[340px] sm:w-[270px]"
           >
             <motion.div
               className="h-full w-full"
@@ -204,7 +230,7 @@ export function DocumentTransform() {
         );
       })}
 
-      <div className="absolute top-8 left-1/2 h-[280px] w-[230px] -translate-x-1/2 sm:h-[310px] sm:w-[250px]">
+      <div className="absolute top-10 left-1/2 h-[300px] w-[240px] -translate-x-1/2 sm:h-[340px] sm:w-[270px]">
         <motion.div
           className="h-full w-full rounded-card"
           initial={false}
