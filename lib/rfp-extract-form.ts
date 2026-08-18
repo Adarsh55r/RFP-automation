@@ -51,3 +51,19 @@ export function editableTextToList(text: string): string[] {
     .map((line) => line.replace(/^[-*•]\s*/, "").trim())
     .filter(Boolean);
 }
+
+export function jsonHasListItems(value: unknown): boolean {
+  return listToEditableText(value).trim().length > 0;
+}
+
+export function rfpHasDraftableRequirements(rfp: {
+  extractedScope: unknown;
+  extractedEligibility: unknown;
+  extractedQuestionnaire: unknown;
+}): boolean {
+  return (
+    Boolean(scopeToEditableText(rfp.extractedScope).trim()) ||
+    jsonHasListItems(rfp.extractedEligibility) ||
+    jsonHasListItems(rfp.extractedQuestionnaire)
+  );
+}

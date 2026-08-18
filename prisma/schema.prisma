@@ -50,6 +50,14 @@ enum DraftStatus {
   edited
 }
 
+enum RfpDocumentType {
+  rfp
+  vendor_empanelment
+  security_questionnaire
+  pitch_request
+  other
+}
+
 model User {
   id         String   @id @default(cuid())
   clerkId    String   @unique
@@ -84,6 +92,11 @@ model Rfp {
   extractedDeadline          DateTime?
   extractedEligibility       Json?
   extractedEvaluationCriteria Json?
+  extractedDocumentType      RfpDocumentType?
+  extractedDesirable         Json?
+  extractedQuestionnaire     Json?
+  extractedFlags             Json?
+  coverageMap                String?
   createdAt                  DateTime  @default(now())
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -78,6 +78,10 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedDeadline: deadlineToDate(extracted.deadline),
         extractedEligibility: extracted.eligibilityCriteria,
         extractedEvaluationCriteria: extracted.evaluationCriteria,
+        extractedDocumentType: extracted.documentType,
+        extractedDesirable: extracted.desirableCriteria,
+        extractedQuestionnaire: extracted.questionnaireItems,
+        extractedFlags: extracted.flaggedForReview,
       },
     });
 
@@ -85,10 +89,14 @@ export async function POST(_request: Request, context: RouteContext) {
       id: updated.id,
       status: updated.status,
       extracted: {
+        documentType: extracted.documentType,
         scope: extracted.scope,
         deadline: extracted.deadline,
         eligibilityCriteria: extracted.eligibilityCriteria,
+        desirableCriteria: extracted.desirableCriteria,
         evaluationCriteria: extracted.evaluationCriteria,
+        questionnaireItems: extracted.questionnaireItems,
+        flaggedForReview: extracted.flaggedForReview,
       },
     });
   } catch (error) {

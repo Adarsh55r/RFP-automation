@@ -5,11 +5,19 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { confirmExtraction } from "@/lib/actions/rfp-extraction";
 import { downloadRfpDocx } from "@/lib/download-rfp-docx";
+import {
+  RFP_DOCUMENT_TYPES,
+  isRfpDocumentType,
+  rfpDocumentTypeLabel,
+  type RfpDocumentType,
+} from "@/lib/rfp-document-type";
 import {
   formatDeadlineForInput,
   listToEditableText,
@@ -24,18 +32,28 @@ const STATUS_LINES = [
 ] as const;
 
 type ExtractionFormState = {
+  documentType: RfpDocumentType;
   scope: string;
   deadline: string;
   eligibilityCriteria: string;
+  desirableCriteria: string;
   evaluationCriteria: string;
+  questionnaireItems: string;
+  flaggedForReview: string;
 };
 
 function formFromRfp(rfp: Rfp): ExtractionFormState {
   return {
+    documentType: isRfpDocumentType(rfp.extractedDocumentType)
+      ? rfp.extractedDocumentType
+      : "other",
     scope: scopeToEditableText(rfp.extractedScope),
     deadline: formatDeadlineForInput(rfp.extractedDeadline),
     eligibilityCriteria: listToEditableText(rfp.extractedEligibility),
+    desirableCriteria: listToEditableText(rfp.extractedDesirable),
     evaluationCriteria: listToEditableText(rfp.extractedEvaluationCriteria),
+    questionnaireItems: listToEditableText(rfp.extractedQuestionnaire),
+    flaggedForReview: listToEditableText(rfp.extractedFlags),
   };
 }
 
@@ -101,10 +119,14 @@ export function RfpExtractionPanel({
       const payload = (await response.json()) as {
         error?: string;
         extracted?: {
+          documentType?: string;
           scope: string;
           deadline: string | null;
           eligibilityCriteria: string[];
+          desirableCriteria?: string[];
           evaluationCriteria: string[];
+          questionnaireItems?: string[];
+          flaggedForReview?: string[];
         };
         status?: RfpStatus;
       };
@@ -115,10 +137,22 @@ export function RfpExtractionPanel({
 
       if (payload.extracted) {
         setForm({
+          documentType: isRfpDocumentType(payload.extracted.documentType)
+            ? payload.extracted.documentType
+            : "other",
           scope: payload.extracted.scope,
           deadline: payload.extracted.deadline ?? "",
           eligibilityCriteria: payload.extracted.eligibilityCriteria.join("\n"),
+          desirableCriteria: (payload.extracted.desirableCriteria ?? []).join(
+            "\n",
+          ),
           evaluationCriteria: payload.extracted.evaluationCriteria.join("\n"),
+          questionnaireItems: (payload.extracted.questionnaireItems ?? []).join(
+            "\n",
+          ),
+          flaggedForReview: (payload.extracted.flaggedForReview ?? []).join(
+            "\n",
+          ),
         });
       }
 
@@ -140,8 +174,13 @@ export function RfpExtractionPanel({
 
   const handleConfirm = () => {
     const nextErrors: { scope?: string; deadline?: string } = {};
-    if (!form.scope.trim()) {
-      nextErrors.scope = "Add a short scope summary before continuing.";
+    const hasBody =
+      Boolean(form.scope.trim()) ||
+      Boolean(form.eligibilityCriteria.trim()) ||
+      Boolean(form.questionnaireItems.trim());
+    if (!hasBody) {
+      nextErrors.scope =
+        "Add a scope summary, eligibility criteria, or questionnaire items.";
     }
     if (form.deadline.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(form.deadline.trim())) {
       nextErrors.deadline = "Deadline must be a valid date.";
@@ -158,10 +197,14 @@ export function RfpExtractionPanel({
     startConfirm(async () => {
       const result = await confirmExtraction({
         rfpId: rfp.id,
+        documentType: form.documentType,
         scope: form.scope,
         deadline: form.deadline,
         eligibilityCriteria: form.eligibilityCriteria,
+        desirableCriteria: form.desirableCriteria,
         evaluationCriteria: form.evaluationCriteria,
+        questionnaireItems: form.questionnaireItems,
+        flaggedForReview: form.flaggedForReview,
       });
 
       if (!result.ok) {
@@ -211,9 +254,9 @@ export function RfpExtractionPanel({
               Extract requirements
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate">
-              DraftWin will read the uploaded RFP and pull out scope, deadline,
-              eligibility, and evaluation criteria. You can edit anything before
-              continuing.
+              DraftWin will classify the pack and pull out scope, deadlines,
+              mandatory vs preferred eligibility, evaluation weightage, and
+              questionnaire rows. You can edit anything before continuing.
             </p>
           </div>
           <Button
@@ -268,19 +311,59 @@ export function RfpExtractionPanel({
                 Correct anything that looks off before you continue to drafting.
               </p>
             </div>
-            {status === "extracted" || canOpenDraft ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleExtract}
-                disabled={!canExtract}
-                className="w-full sm:w-auto"
-              >
-                Re-run extraction
-              </Button>
-            ) : null}
+            <div className="flex flex-col gap-2 sm:items-end">
+              <Badge variant="submitted" className="w-fit">
+                {rfpDocumentTypeLabel[form.documentType]}
+              </Badge>
+              {status === "extracted" || canOpenDraft ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleExtract}
+                  disabled={!canExtract}
+                  className="w-full sm:w-auto"
+                >
+                  Re-run extraction
+                </Button>
+              ) : null}
+            </div>
           </div>
+
+          {form.flaggedForReview.trim() ? (
+            <div className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3">
+              <p className="font-mono text-xs tracking-wide text-ink uppercase">
+                Flagged for review
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">
+                {form.flaggedForReview.split("\n").filter(Boolean).join(" · ")}
+              </p>
+            </div>
+          ) : null}
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
+              Document type
+            </span>
+            <Select
+              value={form.documentType}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  documentType: isRfpDocumentType(event.target.value)
+                    ? event.target.value
+                    : "other",
+                }))
+              }
+              className="max-w-full sm:max-w-xs"
+            >
+              {RFP_DOCUMENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {rfpDocumentTypeLabel[type]}
+                </option>
+              ))}
+            </Select>
+          </label>
 
           <label className="flex flex-col gap-2">
             <span className="font-sans text-sm font-medium text-ink">Scope</span>
@@ -325,7 +408,9 @@ export function RfpExtractionPanel({
             <span className="font-sans text-sm font-medium text-ink">
               Eligibility criteria
             </span>
-            <span className="text-xs text-slate">One criterion per line.</span>
+            <span className="text-xs text-slate">
+              Mandatory / must-have items. One criterion per line.
+            </span>
             <Textarea
               value={form.eligibilityCriteria}
               onChange={(event) =>
@@ -335,6 +420,25 @@ export function RfpExtractionPanel({
                 }))
               }
               rows={6}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
+              Desirable criteria
+            </span>
+            <span className="text-xs text-slate">
+              Preferred / good-to-have items. One criterion per line.
+            </span>
+            <Textarea
+              value={form.desirableCriteria}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  desirableCriteria: event.target.value,
+                }))
+              }
+              rows={4}
             />
           </label>
 
@@ -352,6 +456,44 @@ export function RfpExtractionPanel({
                 }))
               }
               rows={6}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
+              Questionnaire items
+            </span>
+            <span className="text-xs text-slate">
+              Numbered security or vendor questions. One question per line.
+            </span>
+            <Textarea
+              value={form.questionnaireItems}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  questionnaireItems: event.target.value,
+                }))
+              }
+              rows={6}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
+              Flagged for review
+            </span>
+            <span className="text-xs text-slate">
+              Ambiguous, contradictory, or illegible fields. One flag per line.
+            </span>
+            <Textarea
+              value={form.flaggedForReview}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  flaggedForReview: event.target.value,
+                }))
+              }
+              rows={3}
             />
           </label>
 

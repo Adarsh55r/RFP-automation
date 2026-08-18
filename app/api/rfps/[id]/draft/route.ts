@@ -14,9 +14,13 @@ import {
   DRAFT_SECTIONS,
   draftSectionLabel,
   isDraftSection,
+  isMetaBlock,
+  META_BLOCKS,
   SECTION_MARKER_PREFIX,
   SECTION_MARKER_SUFFIX,
+  type MetaBlock,
 } from "@/lib/rfp-draft";
+import { rfpHasDraftableRequirements } from "@/lib/rfp-extract-form";
 import { DraftSection, RfpStatus } from "@/lib/generated/prisma";
 
 export const runtime = "nodejs";
@@ -30,8 +34,15 @@ type StreamEvent =
   | { type: "section_start"; section: DraftSection; label: string }
   | { type: "delta"; section: DraftSection; text: string }
   | { type: "section_done"; section: DraftSection }
+  | { type: "meta_start"; block: MetaBlock }
+  | { type: "meta_delta"; block: MetaBlock; text: string }
+  | { type: "meta_done"; block: MetaBlock }
   | { type: "done" }
   | { type: "error"; message: string };
+
+type ActiveBlock =
+  | { kind: "section"; name: DraftSection }
+  | { kind: "meta"; name: MetaBlock };
 
 function encodeEvent(event: StreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
@@ -39,8 +50,61 @@ function encodeEvent(event: StreamEvent) {
 
 class SectionStreamParser {
   private buffer = "";
-  private current: DraftSection | null = null;
+  private current: ActiveBlock | null = null;
   private contents: Partial<Record<DraftSection, string>> = {};
+  private meta: Partial<Record<MetaBlock, string>> = {};
+
+  private append(text: string): StreamEvent | null {
+    if (!this.current || !text) {
+      return null;
+    }
+    if (this.current.kind === "section") {
+      this.contents[this.current.name] =
+        (this.contents[this.current.name] ?? "") + text;
+      return { type: "delta", section: this.current.name, text };
+    }
+    this.meta[this.current.name] = (this.meta[this.current.name] ?? "") + text;
+    return { type: "meta_delta", block: this.current.name, text };
+  }
+
+  private open(name: string): StreamEvent | null {
+    if (isDraftSection(name)) {
+      this.current = { kind: "section", name };
+      this.contents[name] = "";
+      return {
+        type: "section_start",
+        section: name,
+        label: draftSectionLabel[name],
+      };
+    }
+    if (isMetaBlock(name)) {
+      this.current = { kind: "meta", name };
+      this.meta[name] = "";
+      return { type: "meta_start", block: name };
+    }
+    this.current = null;
+    return null;
+  }
+
+  private close(): StreamEvent | null {
+    if (!this.current) {
+      return null;
+    }
+    if (this.current.kind === "section") {
+      const event: StreamEvent = {
+        type: "section_done",
+        section: this.current.name,
+      };
+      this.current = null;
+      return event;
+    }
+    const event: StreamEvent = {
+      type: "meta_done",
+      block: this.current.name,
+    };
+    this.current = null;
+    return event;
+  }
 
   push(chunk: string): StreamEvent[] {
     this.buffer += chunk;
@@ -66,17 +130,12 @@ class SectionStreamParser {
           break;
         }
 
-        const sectionName = this.buffer.slice(afterPrefix, end).trim();
+        const blockName = this.buffer.slice(afterPrefix, end).trim();
         this.buffer = this.buffer.slice(end + SECTION_MARKER_SUFFIX.length);
 
-        if (isDraftSection(sectionName)) {
-          this.current = sectionName;
-          this.contents[sectionName] = "";
-          events.push({
-            type: "section_start",
-            section: sectionName,
-            label: draftSectionLabel[sectionName],
-          });
+        const opened = this.open(blockName);
+        if (opened) {
+          events.push(opened);
         }
         continue;
       }
@@ -100,14 +159,9 @@ class SectionStreamParser {
         if (this.buffer.length > hold) {
           const emitText = this.buffer.slice(0, -hold);
           this.buffer = this.buffer.slice(-hold);
-          if (emitText) {
-            this.contents[this.current] =
-              (this.contents[this.current] ?? "") + emitText;
-            events.push({
-              type: "delta",
-              section: this.current,
-              text: emitText,
-            });
+          const delta = this.append(emitText);
+          if (delta) {
+            events.push(delta);
           }
         }
         break;
@@ -115,18 +169,15 @@ class SectionStreamParser {
 
       const emitText = this.buffer.slice(0, cut);
       this.buffer = this.buffer.slice(cut);
-      if (emitText) {
-        this.contents[this.current] =
-          (this.contents[this.current] ?? "") + emitText;
-        events.push({
-          type: "delta",
-          section: this.current,
-          text: emitText,
-        });
+      const delta = this.append(emitText);
+      if (delta) {
+        events.push(delta);
       }
 
-      events.push({ type: "section_done", section: this.current });
-      this.current = null;
+      const closed = this.close();
+      if (closed) {
+        events.push(closed);
+      }
 
       if (this.buffer.startsWith(DRAFT_END_MARKER)) {
         this.buffer = this.buffer.slice(DRAFT_END_MARKER.length);
@@ -140,27 +191,25 @@ class SectionStreamParser {
   finish(): StreamEvent[] {
     const events: StreamEvent[] = [];
     if (this.current) {
+      const names = [...DRAFT_SECTIONS, ...META_BLOCKS].join("|");
       const remaining = this.buffer
         .split(DRAFT_END_MARKER)
         .join("")
         .replace(
           new RegExp(
-            `${SECTION_MARKER_PREFIX}(${DRAFT_SECTIONS.join("|")})${SECTION_MARKER_SUFFIX}`,
+            `${SECTION_MARKER_PREFIX}(${names})${SECTION_MARKER_SUFFIX}`,
             "g",
           ),
           "",
         );
-      if (remaining) {
-        this.contents[this.current] =
-          (this.contents[this.current] ?? "") + remaining;
-        events.push({
-          type: "delta",
-          section: this.current,
-          text: remaining,
-        });
+      const delta = this.append(remaining);
+      if (delta) {
+        events.push(delta);
       }
-      events.push({ type: "section_done", section: this.current });
-      this.current = null;
+      const closed = this.close();
+      if (closed) {
+        events.push(closed);
+      }
     }
     this.buffer = "";
     return events;
@@ -168,6 +217,10 @@ class SectionStreamParser {
 
   getContent(section: DraftSection) {
     return (this.contents[section] ?? "").trim();
+  }
+
+  getMeta(block: MetaBlock) {
+    return (this.meta[block] ?? "").trim();
   }
 }
 
@@ -207,9 +260,12 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
-  if (!rfp.extractedScope) {
+  if (!rfpHasDraftableRequirements(rfp)) {
     return Response.json(
-      { error: "This RFP has no extracted requirements yet." },
+      {
+        error:
+          "This RFP has no extracted requirements yet. Add a scope, eligibility criteria, or questionnaire items.",
+      },
       { status: 400 },
     );
   }
@@ -254,6 +310,12 @@ export async function POST(_request: Request, context: RouteContext) {
                 content: parser.getContent(item.section),
               });
             }
+            if (item.type === "meta_done" && item.block === "coverage_map") {
+              await prisma.rfp.update({
+                where: { id: rfp.id },
+                data: { coverageMap: parser.getMeta("coverage_map") },
+              });
+            }
           }
         }
 
@@ -266,6 +328,12 @@ export async function POST(_request: Request, context: RouteContext) {
               userId: user.id,
               sectionName: item.section,
               content: parser.getContent(item.section),
+            });
+          }
+          if (item.type === "meta_done" && item.block === "coverage_map") {
+            await prisma.rfp.update({
+              where: { id: rfp.id },
+              data: { coverageMap: parser.getMeta("coverage_map") },
             });
           }
         }
@@ -283,9 +351,13 @@ export async function POST(_request: Request, context: RouteContext) {
           }
         }
 
+        const coverageMap = parser.getMeta("coverage_map");
         await prisma.rfp.update({
           where: { id: rfp.id },
-          data: { status: RfpStatus.drafted },
+          data: {
+            status: RfpStatus.drafted,
+            ...(coverageMap ? { coverageMap } : {}),
+          },
         });
 
         send({ type: "done" });

@@ -84,9 +84,10 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
               Write the proposal
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
-              Draft from your extracted RFP fields and Content Library — case
-              studies, bios, certifications, and company profile — then export a
-              polished Word proposal when the sections are ready.
+              Draft from your extracted fields and Content Library — case
+              studies, bios, certifications, and company profile. The coverage
+              map is for you only; export still writes the four proposal
+              sections to Word.
             </p>
           </div>
           <Badge variant={rfpStatusVariant[rfp.status]} className="w-fit">
@@ -99,6 +100,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         rfpId={rfp.id}
         rfpTitle={rfp.title}
         initialDrafts={drafts}
+        initialCoverageMap={rfp.coverageMap}
         autoStart={autoStart}
       />
     </div>

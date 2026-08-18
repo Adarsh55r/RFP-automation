@@ -2,6 +2,10 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { Rfp, RfpStatus } from "@/lib/generated/prisma";
+import {
+  isRfpDocumentType,
+  rfpDocumentTypeLabel,
+} from "@/lib/rfp-document-type";
 
 const statusVariant: Record<
   RfpStatus,
@@ -57,6 +61,9 @@ export function RecentRfps({
                 </p>
                 <p className="mt-1 font-mono text-xs tracking-wide text-slate">
                   {formatDate(rfp.createdAt)}
+                  {isRfpDocumentType(rfp.extractedDocumentType)
+                    ? ` · ${rfpDocumentTypeLabel[rfp.extractedDocumentType]}`
+                    : ""}
                 </p>
               </div>
               <Badge variant={statusVariant[rfp.status]} className="w-fit">

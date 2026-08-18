@@ -4,15 +4,20 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
+import { isRfpDocumentType } from "@/lib/rfp-extract";
 import { editableTextToList } from "@/lib/rfp-extract-form";
 import { deadlineToDate } from "@/lib/rfp-extract";
 
 export type ConfirmExtractionPayload = {
   rfpId: string;
+  documentType: string;
   scope: string;
   deadline: string;
   eligibilityCriteria: string;
+  desirableCriteria: string;
   evaluationCriteria: string;
+  questionnaireItems: string;
+  flaggedForReview: string;
 };
 
 export async function confirmExtraction(payload: ConfirmExtractionPayload) {
@@ -50,8 +55,22 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
   }
 
   const scope = payload.scope.trim();
-  if (!scope) {
-    return { ok: false as const, error: "Scope cannot be empty." };
+  const eligibilityCriteria = editableTextToList(payload.eligibilityCriteria);
+  const desirableCriteria = editableTextToList(payload.desirableCriteria);
+  const evaluationCriteria = editableTextToList(payload.evaluationCriteria);
+  const questionnaireItems = editableTextToList(payload.questionnaireItems);
+  const flaggedForReview = editableTextToList(payload.flaggedForReview);
+
+  if (
+    !scope &&
+    eligibilityCriteria.length === 0 &&
+    questionnaireItems.length === 0
+  ) {
+    return {
+      ok: false as const,
+      error:
+        "Add a scope summary, at least one eligibility criterion, or questionnaire items before continuing.",
+    };
   }
 
   const deadline = payload.deadline.trim()
@@ -73,12 +92,16 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
   await prisma.rfp.update({
     where: { id: rfp.id },
     data: {
+      extractedDocumentType: isRfpDocumentType(payload.documentType)
+        ? payload.documentType
+        : "other",
       extractedScope: scope,
       extractedDeadline: deadline,
-      extractedEligibility: editableTextToList(payload.eligibilityCriteria),
-      extractedEvaluationCriteria: editableTextToList(
-        payload.evaluationCriteria,
-      ),
+      extractedEligibility: eligibilityCriteria,
+      extractedDesirable: desirableCriteria,
+      extractedEvaluationCriteria: evaluationCriteria,
+      extractedQuestionnaire: questionnaireItems,
+      extractedFlags: flaggedForReview,
       status: nextStatus,
     },
   });

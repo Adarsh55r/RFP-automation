@@ -10,6 +10,10 @@ import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
 import { getRfpForUser } from "@/lib/rfps";
+import {
+  isRfpDocumentType,
+  rfpDocumentTypeLabel,
+} from "@/lib/rfp-document-type";
 
 type RfpDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -77,9 +81,16 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
               Added {formatDate(rfp.createdAt)}
             </p>
           </div>
-          <Badge variant={rfpStatusVariant[rfp.status]} className="w-fit">
-            {rfpStatusLabel[rfp.status]}
-          </Badge>
+          <div className="flex w-fit flex-col gap-2 sm:items-end">
+            {isRfpDocumentType(rfp.extractedDocumentType) ? (
+              <Badge variant="submitted" className="w-fit">
+                {rfpDocumentTypeLabel[rfp.extractedDocumentType]}
+              </Badge>
+            ) : null}
+            <Badge variant={rfpStatusVariant[rfp.status]} className="w-fit">
+              {rfpStatusLabel[rfp.status]}
+            </Badge>
+          </div>
         </div>
       </header>
 

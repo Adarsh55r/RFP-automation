@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useReducedMotion } from "framer-motion";
 import { Check, FileDown, LoaderCircle, Sparkles } from "lucide-react";
 import { ExportDocumentMoment } from "@/components/dashboard/export-document-moment";
+import { CoverageMapCard } from "@/components/dashboard/coverage-map-card";
 import { saveDraftSection } from "@/lib/actions/rfp-draft";
 import {
   DRAFT_SECTIONS,
@@ -27,6 +28,9 @@ type StreamEvent =
   | { type: "section_start"; section: DraftSection; label: string }
   | { type: "delta"; section: DraftSection; text: string }
   | { type: "section_done"; section: DraftSection }
+  | { type: "meta_start"; block: string }
+  | { type: "meta_delta"; block: string; text: string }
+  | { type: "meta_done"; block: string }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -176,11 +180,13 @@ export function RfpDraftView({
   rfpId,
   rfpTitle,
   initialDrafts,
+  initialCoverageMap,
   autoStart,
 }: {
   rfpId: string;
   rfpTitle: string;
   initialDrafts: Draft[];
+  initialCoverageMap?: string | null;
   autoStart: boolean;
 }) {
   const router = useRouter();
@@ -188,6 +194,8 @@ export function RfpDraftView({
   const [sections, setSections] = useState(() =>
     sectionsFromDrafts(initialDrafts),
   );
+  const [coverageMap, setCoverageMap] = useState(initialCoverageMap ?? "");
+  const [coverageStreaming, setCoverageStreaming] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportPhase, setExportPhase] = useState<ExportPhase>("idle");
@@ -216,6 +224,8 @@ export function RfpDraftView({
     setExportPhase("idle");
     setVisibleOrder([]);
     setSections(emptySections());
+    setCoverageMap("");
+    setCoverageStreaming(false);
 
     try {
       const response = await fetch(`/api/rfps/${rfpId}/draft`, {
@@ -288,6 +298,20 @@ export function RfpDraftView({
                 status: "ready",
               },
             }));
+          }
+
+          if (payload.type === "meta_start" && payload.block === "coverage_map") {
+            setCoverageStreaming(true);
+            setCoverageMap("");
+          }
+
+          if (payload.type === "meta_delta" && payload.block === "coverage_map") {
+            setCoverageMap((current) => `${current}${payload.text}`);
+            setCoverageStreaming(true);
+          }
+
+          if (payload.type === "meta_done" && payload.block === "coverage_map") {
+            setCoverageStreaming(false);
           }
 
           if (payload.type === "error") {
@@ -394,8 +418,10 @@ export function RfpDraftView({
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
             Sections stream in as the model writes them, grounded in your
-            extracted requirements and Content Library. Click any section to
-            edit — changes autosave when you leave the field.
+            extracted requirements and Content Library. A coverage map appears
+            first so you can see gaps before you send — it stays in DraftWin,
+            not the Word file. Click any section to edit — changes autosave
+            when you leave the field.
           </p>
         </div>
 
@@ -497,6 +523,13 @@ export function RfpDraftView({
       ) : null}
 
       <div className="flex flex-col gap-6">
+        {coverageStreaming || coverageMap.trim() ? (
+          <CoverageMapCard
+            markdown={coverageMap}
+            streaming={coverageStreaming}
+          />
+        ) : null}
+
         {orderedSections.map((section) => (
           <DraftSectionCard
             key={section}
@@ -519,7 +552,7 @@ export function RfpDraftView({
           />
         ))}
 
-        {generating && visibleOrder.length === 0 ? (
+        {generating && visibleOrder.length === 0 && !coverageStreaming ? (
           <Card className="flex flex-col gap-4" aria-busy="true">
             <p className="font-mono text-xs tracking-wide text-slate uppercase">
               Starting draft
