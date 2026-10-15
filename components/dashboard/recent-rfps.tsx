@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import type { Rfp, RfpStatus } from "@/lib/generated/prisma";
+import type { RfpStatus } from "@/lib/generated/prisma";
+import type { RfpListItem } from "@/lib/rfps";
 import {
   isRfpDocumentType,
   rfpDocumentTypeLabel,
@@ -40,7 +41,7 @@ export function RecentRfps({
   rfps,
   title = "Recent RFPs",
 }: {
-  rfps: Rfp[];
+  rfps: RfpListItem[];
   title?: string;
 }) {
   return (

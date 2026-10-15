@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
-import type { SubscriptionTier } from "@/lib/generated/prisma";
+import type { Prisma, SubscriptionTier } from "@/lib/generated/prisma";
 
 function startOfMonth() {
   const now = new Date();
@@ -14,10 +14,23 @@ export const getRfpForUser = cache(async (rfpId: string, userId: string) => {
   });
 });
 
+/** Columns RFP lists show. Keeps large fields (full RFP text, bid plan) out of list queries. */
+export const rfpListSelect = {
+  id: true,
+  title: true,
+  status: true,
+  createdAt: true,
+  extractedDocumentType: true,
+  extractedDeadline: true,
+} satisfies Prisma.RfpSelect;
+
+export type RfpListItem = Prisma.RfpGetPayload<{ select: typeof rfpListSelect }>;
+
 export async function getRfpsForUser(userId: string) {
   return prisma.rfp.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
+    select: rfpListSelect,
   });
 }
 
