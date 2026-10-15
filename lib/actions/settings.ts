@@ -32,7 +32,7 @@ export async function updateAgencySettings(payload: {
   if (agencyName.length < 2) {
     return {
       ok: false as const,
-      error: "Enter your agency’s legal or trading name (at least 2 characters).",
+      error: "Enter your company’s legal or trading name (at least 2 characters).",
     };
   }
 

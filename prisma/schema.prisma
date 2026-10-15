@@ -36,6 +36,7 @@ enum LibraryItemType {
   team_bio
   certification
   company_profile
+  saved_answer
 }
 
 enum DraftSection {
@@ -43,6 +44,8 @@ enum DraftSection {
   technical_approach
   team
   pricing
+  cover_letter
+  responses
 }
 
 enum DraftStatus {
@@ -52,7 +55,8 @@ enum DraftStatus {
 
 enum RfpDocumentType {
   rfp
-  vendor_empanelment
+  public_tender
+  rfi
   security_questionnaire
   pitch_request
   other
@@ -76,7 +80,7 @@ model Subscription {
   userId                 String             @unique
   tier                   SubscriptionTier   @default(free)
   status                 SubscriptionStatus @default(active)
-  razorpaySubscriptionId String?
+  stripeSubscriptionId   String?
   currentPeriodEnd       DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -96,6 +100,9 @@ model Rfp {
   extractedDesirable         Json?
   extractedQuestionnaire     Json?
   extractedFlags             Json?
+  extractedSubmission        Json?
+  sourceText                 String?
+  draftPlan                  Json?
   coverageMap                String?
   createdAt                  DateTime  @default(now())
 

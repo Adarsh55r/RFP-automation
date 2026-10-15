@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { RfpStatus } from "@/lib/generated/prisma";
+import { Prisma, RfpStatus } from "@/lib/generated/prisma";
 import { isRfpDocumentType } from "@/lib/rfp-extract";
 import { editableTextToList } from "@/lib/rfp-extract-form";
 import { deadlineToDate } from "@/lib/rfp-extract";
@@ -18,6 +18,7 @@ export type ConfirmExtractionPayload = {
   evaluationCriteria: string;
   questionnaireItems: string;
   flaggedForReview: string;
+  submissionRequirements: string;
 };
 
 export async function confirmExtraction(payload: ConfirmExtractionPayload) {
@@ -60,6 +61,9 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
   const evaluationCriteria = editableTextToList(payload.evaluationCriteria);
   const questionnaireItems = editableTextToList(payload.questionnaireItems);
   const flaggedForReview = editableTextToList(payload.flaggedForReview);
+  const submissionRequirements = editableTextToList(
+    payload.submissionRequirements,
+  );
 
   if (
     !scope &&
@@ -102,6 +106,9 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
       extractedEvaluationCriteria: evaluationCriteria,
       extractedQuestionnaire: questionnaireItems,
       extractedFlags: flaggedForReview,
+      extractedSubmission: submissionRequirements,
+      // Requirements changed, so the bid plan must be rebuilt on the next draft.
+      draftPlan: Prisma.DbNull,
       status: nextStatus,
     },
   });

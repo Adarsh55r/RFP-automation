@@ -75,10 +75,10 @@ function CleanProposal() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-[10px] tracking-wide text-slate">
-              NORTHSTAR RETAIL
+              CITY OF MAPLE GROVE
             </p>
             <p className="mt-1 font-mono text-[10px] tracking-wide text-slate">
-              RFP-2026-0441
+              RFP 2026-IT-041
             </p>
           </div>
           <span className="size-8 shrink-0 rounded-full bg-brand/15 ring-2 ring-brand/20" />
@@ -87,14 +87,14 @@ function CleanProposal() {
           Technical &amp; commercial proposal
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-slate">
-          Cloud migration &amp; AMS · 24 months · Bengaluru / remote
+          Managed IT &amp; cloud migration · 3 years · Minnesota / remote
         </p>
         <ul className="mt-4 space-y-2">
           {[
             "Understanding of scope",
-            "Three relevant case studies",
-            "Named team & CVs",
-            "Commercials on your rate card",
+            "Every mandatory item answered",
+            "Three past-performance references",
+            "Cost proposal in the required format",
           ].map((item) => (
             <li
               key={item}
@@ -122,13 +122,13 @@ function CleanProposal() {
 
 const messyDocs = [
   {
-    title: "Corrigendum 3 / Annex C",
+    title: "Addendum 2 / Attachment C",
     meta: "pg 14 of 67  ·  scanned PDF",
     lines: [
-      "12.4.2 bidder shall furnish ISO / SOC evidence",
-      "leave blank if N/A — do not delete row",
-      "evaluation: tech 70  comm 30 ???",
-      "see email thread 18/Mar (missing)",
+      "4.2 offeror shall provide COI + W-9",
+      "page limit: 25 pp excl. appendices",
+      "scoring: technical 60  cost 40 ???",
+      "questions due 10/02 — see portal",
     ],
   },
   {
@@ -136,29 +136,29 @@ const messyDocs = [
     meta: "xlsx exported to pdf  ·  41 qs",
     lines: [
       "Q41. Describe your SOC 2 Type II…",
-      "Q42. Data residency — IN / SG / EU",
-      "Attach: VAPT | policy index | DPA",
-      "due Friday  17:00  IST  —",
+      "Q42. Data residency — US / UK / EU",
+      "Attach: pen test | policy index | DPA",
+      "due Friday  5:00 PM  ET  —",
     ],
   },
   {
-    title: "Vendor empanelment",
-    meta: "Part B commercials  ·  pg 22",
+    title: "Invitation to Tender",
+    meta: "Council ITT  ·  Social Value 10%",
     lines: [
-      "rate card in INR, exclusive of GST",
-      "onshore / offshore split mandatory",
-      "staff-aug vs fixed bid — both?",
-      "signatory: director only",
+      "prices in GBP, exclusive of VAT",
+      "Cyber Essentials Plus mandatory",
+      "Q7 Social Value — 500 words max",
+      "submit via Find a Tender portal",
     ],
   },
   {
-    title: "Agency pitch pack",
+    title: "Commercial RFP",
     meta: "slides + word dump  ·  28 pp",
     lines: [
-      "why us / logos / 3 case studies min.",
-      "named PM + architect CVs",
+      "why us / logos / 3 references min.",
+      "named PM + architect résumés",
       "transition plan week 0–6",
-      "do not include public-sector refs",
+      "MSA redlines due with response",
     ],
   },
 ] as const;

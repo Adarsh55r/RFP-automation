@@ -1,230 +1,138 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { upsertGeneratedDraftSection } from "@/lib/actions/rfp-draft";
+import { upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
+  generateLlmText,
   isLlmConfigError,
   llmConfigErrorMessage,
   streamLlmText,
+  type LlmEffort,
 } from "@/lib/llm";
+import { normalizeMarkdown } from "@/lib/markdown";
 import {
-  buildDraftingSystemPrompt,
-  buildDraftingUserPrompt,
-  DRAFT_END_MARKER,
-  DRAFT_SECTIONS,
+  buildDraftingContext,
+  buildPlanTask,
+  buildResponsesTask,
+  buildReviewTask,
+  buildSectionTask,
   draftSectionLabel,
+  DRAFTING_SYSTEM,
   isDraftSection,
-  isMetaBlock,
-  META_BLOCKS,
-  SECTION_MARKER_PREFIX,
-  SECTION_MARKER_SUFFIX,
+  parseDraftPlan,
+  RESPONSE_BATCH_SIZE,
+  sectionsForRfp,
+  type DraftPlan,
   type MetaBlock,
 } from "@/lib/rfp-draft";
-import { rfpHasDraftableRequirements } from "@/lib/rfp-extract-form";
-import { DraftSection, RfpStatus } from "@/lib/generated/prisma";
+import { getRfpSourceText } from "@/lib/rfp-extract";
+import {
+  editableTextToList,
+  listToEditableText,
+  rfpHasDraftableRequirements,
+} from "@/lib/rfp-extract-form";
+import {
+  DraftSection,
+  RfpStatus,
+  type Prisma,
+} from "@/lib/generated/prisma";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Plan, parallel sections, and the compliance review run in one request.
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+type DraftPhase = "planning" | "writing" | "reviewing";
+
 type StreamEvent =
+  | { type: "phase"; phase: DraftPhase }
   | { type: "section_start"; section: DraftSection; label: string }
   | { type: "delta"; section: DraftSection; text: string }
-  | { type: "section_done"; section: DraftSection }
+  | { type: "section_done"; section: DraftSection; content: string }
+  | { type: "section_error"; section: DraftSection; message: string }
   | { type: "meta_start"; block: MetaBlock }
   | { type: "meta_delta"; block: MetaBlock; text: string }
   | { type: "meta_done"; block: MetaBlock }
   | { type: "done" }
   | { type: "error"; message: string };
 
-type ActiveBlock =
-  | { kind: "section"; name: DraftSection }
-  | { kind: "meta"; name: MetaBlock };
+const sectionMaxTokens: Record<DraftSection, number> = {
+  cover_letter: 8000,
+  exec_summary: 10000,
+  technical_approach: 32000,
+  team: 16000,
+  pricing: 12000,
+  responses: 20000,
+};
+
+const RESPONSE_BATCH_CONCURRENCY = 3;
 
 function encodeEvent(event: StreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
-class SectionStreamParser {
-  private buffer = "";
-  private current: ActiveBlock | null = null;
-  private contents: Partial<Record<DraftSection, string>> = {};
-  private meta: Partial<Record<MetaBlock, string>> = {};
+/** Strip wrappers models sometimes add: code fences and a repeated "# Section title". */
+function cleanSection(text: string) {
+  return normalizeMarkdown(text)
+    .trim()
+    .replace(/^#\s+[^\n]*\n+/, "")
+    .trim();
+}
 
-  private append(text: string): StreamEvent | null {
-    if (!this.current || !text) {
-      return null;
-    }
-    if (this.current.kind === "section") {
-      this.contents[this.current.name] =
-        (this.contents[this.current.name] ?? "") + text;
-      return { type: "delta", section: this.current.name, text };
-    }
-    this.meta[this.current.name] = (this.meta[this.current.name] ?? "") + text;
-    return { type: "meta_delta", block: this.current.name, text };
-  }
+function errorMessage(error: unknown, fallback: string) {
+  if (isLlmConfigError(error)) return llmConfigErrorMessage("drafting");
+  return error instanceof Error ? error.message : fallback;
+}
 
-  private open(name: string): StreamEvent | null {
-    if (isDraftSection(name)) {
-      this.current = { kind: "section", name };
-      this.contents[name] = "";
-      return {
-        type: "section_start",
-        section: name,
-        label: draftSectionLabel[name],
-      };
-    }
-    if (isMetaBlock(name)) {
-      this.current = { kind: "meta", name };
-      this.meta[name] = "";
-      return { type: "meta_start", block: name };
-    }
-    this.current = null;
-    return null;
-  }
-
-  private close(): StreamEvent | null {
-    if (!this.current) {
-      return null;
-    }
-    if (this.current.kind === "section") {
-      const event: StreamEvent = {
-        type: "section_done",
-        section: this.current.name,
-      };
-      this.current = null;
-      return event;
-    }
-    const event: StreamEvent = {
-      type: "meta_done",
-      block: this.current.name,
+async function readBody(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      section?: unknown;
+      instruction?: unknown;
+      currentContent?: unknown;
     };
-    this.current = null;
-    return event;
-  }
-
-  push(chunk: string): StreamEvent[] {
-    this.buffer += chunk;
-    const events: StreamEvent[] = [];
-
-    while (true) {
-      if (!this.current) {
-        const start = this.buffer.indexOf(SECTION_MARKER_PREFIX);
-        if (start === -1) {
-          // Keep a small tail in case a marker is split across chunks.
-          if (this.buffer.length > SECTION_MARKER_PREFIX.length) {
-            this.buffer = this.buffer.slice(
-              -(SECTION_MARKER_PREFIX.length + 24),
-            );
-          }
-          break;
-        }
-
-        const afterPrefix = start + SECTION_MARKER_PREFIX.length;
-        const end = this.buffer.indexOf(SECTION_MARKER_SUFFIX, afterPrefix);
-        if (end === -1) {
-          this.buffer = this.buffer.slice(start);
-          break;
-        }
-
-        const blockName = this.buffer.slice(afterPrefix, end).trim();
-        this.buffer = this.buffer.slice(end + SECTION_MARKER_SUFFIX.length);
-
-        const opened = this.open(blockName);
-        if (opened) {
-          events.push(opened);
-        }
-        continue;
-      }
-
-      const nextMarker = this.buffer.indexOf(SECTION_MARKER_PREFIX);
-      const endMarker = this.buffer.indexOf(DRAFT_END_MARKER);
-      let cut = -1;
-
-      if (nextMarker !== -1 && (endMarker === -1 || nextMarker < endMarker)) {
-        cut = nextMarker;
-      } else if (endMarker !== -1) {
-        cut = endMarker;
-      }
-
-      if (cut === -1) {
-        // Hold back potential partial marker at the end.
-        const hold = Math.max(
-          SECTION_MARKER_PREFIX.length,
-          DRAFT_END_MARKER.length,
-        );
-        if (this.buffer.length > hold) {
-          const emitText = this.buffer.slice(0, -hold);
-          this.buffer = this.buffer.slice(-hold);
-          const delta = this.append(emitText);
-          if (delta) {
-            events.push(delta);
-          }
-        }
-        break;
-      }
-
-      const emitText = this.buffer.slice(0, cut);
-      this.buffer = this.buffer.slice(cut);
-      const delta = this.append(emitText);
-      if (delta) {
-        events.push(delta);
-      }
-
-      const closed = this.close();
-      if (closed) {
-        events.push(closed);
-      }
-
-      if (this.buffer.startsWith(DRAFT_END_MARKER)) {
-        this.buffer = this.buffer.slice(DRAFT_END_MARKER.length);
-        break;
-      }
-    }
-
-    return events;
-  }
-
-  finish(): StreamEvent[] {
-    const events: StreamEvent[] = [];
-    if (this.current) {
-      const names = [...DRAFT_SECTIONS, ...META_BLOCKS].join("|");
-      const remaining = this.buffer
-        .split(DRAFT_END_MARKER)
-        .join("")
-        .replace(
-          new RegExp(
-            `${SECTION_MARKER_PREFIX}(${names})${SECTION_MARKER_SUFFIX}`,
-            "g",
-          ),
-          "",
-        );
-      const delta = this.append(remaining);
-      if (delta) {
-        events.push(delta);
-      }
-      const closed = this.close();
-      if (closed) {
-        events.push(closed);
-      }
-    }
-    this.buffer = "";
-    return events;
-  }
-
-  getContent(section: DraftSection) {
-    return (this.contents[section] ?? "").trim();
-  }
-
-  getMeta(block: MetaBlock) {
-    return (this.meta[block] ?? "").trim();
+    return {
+      section:
+        typeof body.section === "string" && isDraftSection(body.section)
+          ? body.section
+          : null,
+      instruction:
+        typeof body.instruction === "string"
+          ? body.instruction.trim().slice(0, 1000)
+          : "",
+      // The editor's latest text, which may not have finished autosaving yet.
+      currentContent:
+        typeof body.currentContent === "string"
+          ? body.currentContent.slice(0, 200_000)
+          : null,
+    };
+  } catch {
+    return { section: null, instruction: "", currentContent: null };
   }
 }
 
-export async function POST(_request: Request, context: RouteContext) {
+/** Runs async jobs with a concurrency cap, preserving result order. */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  run: (item: T, index: number) => Promise<R>,
+) {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await run(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const { userId: clerkId } = await auth();
 
@@ -270,14 +178,48 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
+  const { section: onlySection, instruction, currentContent: editorContent } =
+    await readBody(request);
+  const plannedSections = sectionsForRfp(rfp);
+  if (onlySection && !plannedSections.includes(onlySection)) {
+    return Response.json(
+      { error: "That section is not part of this proposal." },
+      { status: 400 },
+    );
+  }
+  const targets = onlySection ? [onlySection] : plannedSections;
+
   await prisma.rfp.update({
     where: { id: rfp.id },
     data: { status: RfpStatus.drafting },
   });
 
-  const libraryItems = await getLibraryItemsForUser(user.id);
-  const agencyName = user.agencyName ?? "Your agency";
-  const parser = new SectionStreamParser();
+  const [libraryItems, source, existingDrafts] = await Promise.all([
+    getLibraryItemsForUser(user.id),
+    getRfpSourceText(rfp),
+    prisma.draft.findMany({ where: { rfpId: rfp.id } }),
+  ]);
+  if (source.fetched && source.text) {
+    await prisma.rfp.update({
+      where: { id: rfp.id },
+      data: { sourceText: source.text },
+    });
+  }
+
+  const companyName = user.agencyName?.trim() || "Our company";
+  const sharedContext = buildDraftingContext({
+    companyName,
+    rfp,
+    libraryItems,
+    sourceText: source.text,
+  });
+  const currentContent = new Map(
+    existingDrafts.map((draft) => [draft.sectionName, draft.content]),
+  );
+  if (onlySection && editorContent?.trim()) {
+    currentContent.set(onlySection, editorContent);
+  }
+  const questions = editableTextToList(listToEditableText(rfp.extractedQuestionnaire));
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -286,90 +228,166 @@ export async function POST(_request: Request, context: RouteContext) {
         controller.enqueue(encoder.encode(encodeEvent(event)));
       };
 
+      const call = (task: string, maxTokens: number, effort?: LlmEffort) => ({
+        purpose: "drafting" as const,
+        system: DRAFTING_SYSTEM,
+        context: sharedContext,
+        user: task,
+        maxTokens,
+        effort,
+      });
+
       try {
-        const llmStream = streamLlmText({
-          purpose: "drafting",
-          maxTokens: 8192,
-          system: buildDraftingSystemPrompt(agencyName),
-          user: buildDraftingUserPrompt({
-            agencyName,
-            rfp,
-            libraryItems,
+        // 1. Bid plan: buyer details, win themes, required structure. Reused for
+        //    single-section revisions so the proposal stays consistent.
+        send({ type: "phase", phase: "planning" });
+        let plan: DraftPlan;
+        if (onlySection && rfp.draftPlan) {
+          plan = parseDraftPlan(rfp.draftPlan);
+        } else {
+          const raw = await generateLlmText(call(buildPlanTask(), 8000));
+          plan = parseDraftPlan(raw);
+          await prisma.rfp.update({
+            where: { id: rfp.id },
+            data: { draftPlan: plan as unknown as Prisma.InputJsonValue },
+          });
+        }
+
+        // 2. Sections in parallel, each with its own focused brief.
+        send({ type: "phase", phase: "writing" });
+        const revision = (section: DraftSection) =>
+          onlySection
+            ? { currentContent: currentContent.get(section) ?? "", instruction }
+            : undefined;
+
+        const writeSection = async (section: DraftSection) => {
+          send({ type: "section_start", section, label: draftSectionLabel[section] });
+
+          if (section === "responses") {
+            const batches: string[][] = [];
+            for (let i = 0; i < questions.length; i += RESPONSE_BATCH_SIZE) {
+              batches.push(questions.slice(i, i + RESPONSE_BATCH_SIZE));
+            }
+            // Batches run concurrently but are shown in question order.
+            const texts: string[] = new Array(batches.length).fill("");
+            const finished: boolean[] = new Array(batches.length).fill(false);
+            let head = 0;
+            const separator = "\n\n";
+
+            await mapLimit(batches, RESPONSE_BATCH_CONCURRENCY, async (batch, index) => {
+              const rev = revision(section);
+              // A single batch can be revised in place; longer questionnaires
+              // are re-answered batch by batch with the bidder's instruction.
+              const task = buildResponsesTask(
+                plan,
+                batch,
+                rev
+                  ? {
+                      currentContent: batches.length === 1 ? rev.currentContent : "",
+                      instruction: rev.instruction,
+                    }
+                  : undefined,
+              );
+              for await (const text of streamLlmText(
+                call(task, sectionMaxTokens.responses),
+              )) {
+                texts[index] += text;
+                if (index === head) {
+                  send({ type: "delta", section, text });
+                }
+              }
+              finished[index] = true;
+              while (head < batches.length && finished[head]) {
+                head += 1;
+                if (head < batches.length) {
+                  send({ type: "delta", section, text: separator + texts[head] });
+                }
+              }
+            });
+
+            return texts.map(cleanSection).filter(Boolean).join(separator);
+          }
+
+          let text = "";
+          for await (const chunk of streamLlmText(
+            call(buildSectionTask(section, plan, revision(section)), sectionMaxTokens[section]),
+          )) {
+            text += chunk;
+            send({ type: "delta", section, text: chunk });
+          }
+          return cleanSection(text);
+        };
+
+        const outcomes = await Promise.all(
+          targets.map(async (section) => {
+            try {
+              const content = await writeSection(section);
+              if (!content) throw new Error("The model returned an empty section.");
+              await upsertGeneratedDraftSection({ rfpId: rfp.id, sectionName: section, content });
+              currentContent.set(section, content);
+              send({ type: "section_done", section, content });
+              return true;
+            } catch (sectionError) {
+              console.error(`Drafting ${section} failed:`, sectionError);
+              send({
+                type: "section_error",
+                section,
+                message: errorMessage(sectionError, "This section failed to draft."),
+              });
+              return false;
+            }
           }),
-        });
+        );
 
-        for await (const text of llmStream) {
-          const parsed = parser.push(text);
-          for (const item of parsed) {
-            send(item);
-            if (item.type === "section_done") {
-              await upsertGeneratedDraftSection({
-                rfpId: rfp.id,
-                userId: user.id,
-                sectionName: item.section,
-                content: parser.getContent(item.section),
-              });
-            }
-            if (item.type === "meta_done" && item.block === "coverage_map") {
-              await prisma.rfp.update({
-                where: { id: rfp.id },
-                data: { coverageMap: parser.getMeta("coverage_map") },
-              });
-            }
-          }
+        if (!outcomes.some(Boolean)) {
+          throw new Error("Drafting failed for every section. Try again in a moment.");
         }
 
-        const trailing = parser.finish();
-        for (const item of trailing) {
-          send(item);
-          if (item.type === "section_done") {
-            await upsertGeneratedDraftSection({
-              rfpId: rfp.id,
-              userId: user.id,
-              sectionName: item.section,
-              content: parser.getContent(item.section),
-            });
+        // 3. Compliance review of the actual draft against every requirement.
+        send({ type: "phase", phase: "reviewing" });
+        send({ type: "meta_start", block: "coverage_map" });
+        let coverageMap = "";
+        try {
+          const drafted = plannedSections
+            .filter((section) => currentContent.get(section)?.trim())
+            .map((section) => ({
+              label: draftSectionLabel[section],
+              content: currentContent.get(section) ?? "",
+            }));
+          for await (const chunk of streamLlmText(
+            call(buildReviewTask(plan, drafted), 16000, "low"),
+          )) {
+            coverageMap += chunk;
+            send({ type: "meta_delta", block: "coverage_map", text: chunk });
           }
-          if (item.type === "meta_done" && item.block === "coverage_map") {
-            await prisma.rfp.update({
-              where: { id: rfp.id },
-              data: { coverageMap: parser.getMeta("coverage_map") },
-            });
-          }
+        } catch (reviewError) {
+          console.error("Compliance review failed:", reviewError);
         }
+        send({ type: "meta_done", block: "coverage_map" });
 
-        // Ensure any completed section content is persisted even if markers were imperfect.
-        for (const section of DRAFT_SECTIONS) {
-          const content = parser.getContent(section);
-          if (content) {
-            await upsertGeneratedDraftSection({
-              rfpId: rfp.id,
-              userId: user.id,
-              sectionName: section,
-              content,
-            });
-          }
-        }
-
-        const coverageMap = parser.getMeta("coverage_map");
         await prisma.rfp.update({
           where: { id: rfp.id },
           data: {
-            status: RfpStatus.drafted,
-            ...(coverageMap ? { coverageMap } : {}),
+            status:
+              rfp.status === RfpStatus.exported ? RfpStatus.exported : RfpStatus.drafted,
+            ...(coverageMap.trim() ? { coverageMap: coverageMap.trim() } : {}),
           },
         });
 
         send({ type: "done" });
         controller.close();
       } catch (error) {
-        const message = isLlmConfigError(error)
-          ? llmConfigErrorMessage("drafting")
-          : error instanceof Error
-            ? error.message
-            : "Drafting failed.";
         console.error("RFP drafting failed:", error);
-        send({ type: "error", message });
+        await prisma.rfp
+          .update({
+            where: { id: rfp.id },
+            data: {
+              status:
+                currentContent.size > 0 ? RfpStatus.drafted : RfpStatus.extracted,
+            },
+          })
+          .catch(() => undefined);
+        send({ type: "error", message: errorMessage(error, "Drafting failed.") });
         controller.close();
       }
     },

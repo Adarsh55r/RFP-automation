@@ -8,22 +8,22 @@ const steps = [
   {
     icon: Upload,
     title: "Upload",
-    body: "Drop in the RFP as PDF or Word. Scanned pages, corrigenda, and questionnaire exports are expected — not a special case.",
+    body: "Drop in the RFP, ITT, or questionnaire as PDF or Word. Scanned pages, addenda, and spreadsheet exports are expected — not a special case.",
   },
   {
     icon: ListChecks,
     title: "Extract",
-    body: "Requirements, deadlines, evaluation weightage, and questionnaire rows land in a checklist. You edit or drop anything it misread before drafting starts.",
+    body: "Requirements, deadlines, scoring weights, submission rules, and questionnaire rows land in a checklist. You edit or drop anything it misread before drafting starts.",
   },
   {
     icon: Library,
     title: "Draft from your library",
-    body: "Answers cite your case studies, CVs, and stack write-ups. Nothing is invented to look complete. You choose what gets referenced.",
+    body: "Answers cite your case studies, past performance, bios, and saved answers. Nothing is invented to look complete — gaps are flagged for you to fill.",
   },
   {
     icon: FileDown,
     title: "Export",
-    body: "Download a Word file with your section order and, on paid plans, your letterhead. Send it as your agency’s document.",
+    body: "Download a Word or PDF file with a cover page, contents, and clean tables — and, on paid plans, your letterhead. Send it as your company’s document.",
   },
 ] as const;
 

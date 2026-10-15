@@ -24,12 +24,12 @@ export default async function LibraryPage() {
           Content library
         </p>
         <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-          Agency content that drafts can reuse
+          Company content that drafts can reuse
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-          Case studies, team bios, certifications, and your company profile
-          give DraftWin real material to cite — so proposals sound like your
-          agency, not generic AI text.
+          Case studies, team bios, certifications, saved answers, and your
+          company profile give DraftWin real material to cite — so proposals
+          sound like your company, not generic AI text.
         </p>
       </header>
 

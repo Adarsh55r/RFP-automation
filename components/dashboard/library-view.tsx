@@ -6,6 +6,7 @@ import {
   Award,
   Building2,
   FileText,
+  MessageSquareText,
   Pencil,
   Plus,
   Trash2,
@@ -46,6 +47,7 @@ const typeIcons = {
   team_bio: Users,
   certification: Award,
   company_profile: Building2,
+  saved_answer: MessageSquareText,
 } as const;
 
 type EditorState = {
@@ -168,7 +170,7 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
             ? `${libraryTypeSingular[editor.type]} added`
             : `${libraryTypeSingular[editor.type]} updated`,
         description:
-          "Drafts will pull from this when writing agency-specific sections.",
+          "Drafts will pull from this when writing company-specific sections.",
       });
 
       setEditor(null);
@@ -350,7 +352,7 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
                 </DialogTitle>
                 <DialogDescription>
                   {libraryTypeHint[editor.type]} This content is what makes AI
-                  drafts sound like your agency — not generic filler.
+                  drafts sound like your company — not generic filler.
                 </DialogDescription>
               </DialogHeader>
 
@@ -370,12 +372,14 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
                     }
                     placeholder={
                       editor.type === "case_study"
-                        ? "e.g. Fintech KYC portal — 40% faster onboarding"
+                        ? "e.g. County health portal — 40% faster intake"
                         : editor.type === "team_bio"
-                          ? "e.g. Priya Sharma — Delivery Lead"
+                          ? "e.g. Jordan Lee — Delivery Lead"
                           : editor.type === "certification"
-                            ? "e.g. ISO 27001:2022"
-                            : "e.g. About DraftWin Agency"
+                            ? "e.g. SOC 2 Type II (2026)"
+                            : editor.type === "saved_answer"
+                              ? "e.g. Describe your incident response process"
+                              : "e.g. About Acme Consulting"
                     }
                     aria-invalid={Boolean(error && editor.title.trim().length < 2)}
                     disabled={pending}

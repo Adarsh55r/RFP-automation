@@ -52,7 +52,7 @@ export function OnboardingFlow() {
   const goNext = () => {
     const trimmed = agencyName.trim();
     if (trimmed.length < 2) {
-      setError("Enter your agency’s legal or trading name.");
+      setError("Enter your company’s legal or trading name.");
       return;
     }
     setError(null);
@@ -103,7 +103,7 @@ export function OnboardingFlow() {
         Onboarding · step {step} of 2
       </p>
       <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-        {step === 1 ? "What is your agency called?" : "How big is the team?"}
+        {step === 1 ? "What is your company called?" : "How big is the team?"}
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-slate">
         {step === 1
@@ -115,7 +115,7 @@ export function OnboardingFlow() {
         {step === 1 ? (
           <div className="flex flex-col gap-4">
             <label htmlFor="agency-name" className="text-sm font-medium text-ink">
-              Agency name
+              Company name
             </label>
             <Input
               id="agency-name"

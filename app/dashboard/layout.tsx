@@ -19,7 +19,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardShell agencyName={dbUser.agencyName ?? "Your agency"}>
+    <DashboardShell agencyName={dbUser.agencyName ?? "Your company"}>
       {children}
     </DashboardShell>
   );

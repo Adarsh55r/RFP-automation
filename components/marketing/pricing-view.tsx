@@ -17,13 +17,14 @@ import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
 import {
   annualTotal,
-  formatInr,
+  currencies,
+  formatPrice,
   plans,
   pricePerMonth,
   signupHref,
 } from "@/lib/plans";
 import { useAnimatedNumber } from "@/lib/use-animated-number";
-import type { BillingCycle, Plan } from "@/types";
+import type { BillingCycle, Currency, Plan } from "@/types";
 
 const faqs = [
   {
@@ -34,17 +35,17 @@ const faqs = [
   {
     question: "What happens if I go over my RFP limit?",
     answer:
-      "New drafts pause once you hit the monthly proposal cap. Finished proposals stay downloadable. Upgrade in place — Growth and Agency lift the cap immediately — or wait until the next billing month. We will not silently delete work.",
+      "New drafts pause once you hit the monthly proposal cap. Finished proposals stay downloadable. Upgrade in place — Growth and Team lift the cap immediately — or wait until the next billing month. We will not silently delete work.",
   },
   {
-    question: "Do you support GST invoices?",
+    question: "Which currencies and invoices do you support?",
     answer:
-      "Yes. Paid plans get a GST tax invoice with DraftWin’s GSTIN, your billing GSTIN if you add it, and HSN/SAC on the line items. Invoices go to the billing email on the account, usually within one IST business day of payment.",
+      "Plans are priced in US dollars and British pounds. Paid plans are billed by card, with an itemised invoice sent to the billing email on the account. UK and EU businesses can add a VAT number for reverse-charge invoices; US sales tax is added only where it applies.",
   },
   {
     question: "Is my data secure?",
     answer:
-      "RFP files, library items, and drafts are private to your workspace. Seats only see what you invite them to. We do not train public models on your documents. You can export and delete a workspace; deletion removes source files and generated drafts from our systems.",
+      "RFP files, library items, and drafts are private to your workspace. Seats only see what you invite them to. Neither we nor our AI providers train models on your documents. You can export and delete a workspace; deletion removes source files and generated drafts from our systems.",
   },
   {
     question: "Can I switch plans mid-cycle?",
@@ -52,26 +53,45 @@ const faqs = [
       "Upgrades take effect immediately and we charge the difference for the rest of the cycle. Downgrades apply at the next renewal so you keep the higher limits you already paid for. Seats above the new plan’s cap must be removed before the downgrade date.",
   },
   {
-    question: "Do you work with GeM or government tenders?",
+    question: "Does it work for public-sector bids?",
     answer:
-      "No. DraftWin is built for private-sector packs — vendor empanelment, security questionnaires, and agency pitches from enterprise clients. Government tender portals, bid bonds, and GeM workflows are out of scope on purpose.",
+      "Yes. DraftWin handles US state, local, and education (SLED) RFPs and UK public-sector tenders — councils, NHS trusts, universities, Find a Tender and Contracts Finder notices — alongside commercial RFPs and security questionnaires. It drafts and checks your response; it does not log into procurement portals, file bid bonds, or act as a FAR/DFARS compliance tool for US federal contracts.",
+  },
+  {
+    question: "How is this different from Loopio or Responsive?",
+    answer:
+      "Those are built for enterprise proposal teams and are typically sold on annual contracts priced in the tens of thousands. DraftWin is for small teams without a bid manager: upload the RFP, check the compliance checklist, draft from your own library, export to Word. Month-to-month, from $0.",
   },
 ];
 
-function AnimatedPrice({ amount }: { amount: number }) {
+function AnimatedPrice({
+  amount,
+  currency,
+}: {
+  amount: number;
+  currency: Currency;
+}) {
   const value = useAnimatedNumber(amount);
 
   return (
     <span className="font-display text-4xl font-medium text-ink tabular-nums">
-      {formatInr(value)}
+      {formatPrice(value, currency)}
     </span>
   );
 }
 
-function PlanCard({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
-  const monthly = pricePerMonth(plan.monthlyInr, cycle);
-  const yearly = annualTotal(plan.monthlyInr);
-  const paid = plan.monthlyInr > 0;
+function PlanCard({
+  plan,
+  cycle,
+  currency,
+}: {
+  plan: Plan;
+  cycle: BillingCycle;
+  currency: Currency;
+}) {
+  const monthly = pricePerMonth(plan.monthly[currency], cycle);
+  const yearly = annualTotal(plan.monthly[currency]);
+  const paid = plan.monthly[currency] > 0;
 
   return (
     <Card
@@ -90,14 +110,14 @@ function PlanCard({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
 
       <div className="mt-6">
         <div className="flex flex-wrap items-end gap-2">
-          <AnimatedPrice amount={monthly} />
+          <AnimatedPrice amount={monthly} currency={currency} />
           <span className="pb-1 font-sans text-sm font-medium text-slate">
             {paid ? "/mo" : "forever"}
           </span>
         </div>
         <p className="mt-2 min-h-10 font-mono text-xs tracking-wide text-slate">
           {paid && cycle === "annual"
-            ? `${formatInr(yearly)} billed yearly · 2 months free`
+            ? `${formatPrice(yearly, currency)} billed yearly · 2 months free`
             : paid
               ? "Billed monthly"
               : "No card required"}
@@ -130,6 +150,7 @@ function PlanCard({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
 
 export function PricingView() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [currency, setCurrency] = useState<Currency>("usd");
 
   return (
     <>
@@ -138,11 +159,12 @@ export function PricingView() {
           Pricing
         </p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium text-ink md:text-5xl">
-          Four rupee plans. Pick the one that matches how many RFPs you actually answer.
+          Four plans. Pick the one that matches how many RFPs you actually answer.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate md:text-lg">
-          Annual billing is ten months for the price of twelve. GST invoices on
-          every paid plan. No USD seat math.
+          Month-to-month, no annual contract required. Annual billing is ten
+          months for the price of twelve. Priced in US dollars and British
+          pounds.
         </p>
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -174,6 +196,29 @@ export function PricingView() {
               </button>
             ))}
           </div>
+          <div
+            role="group"
+            aria-label="Currency"
+            className="inline-flex rounded-control border border-border bg-surface-raised p-2"
+          >
+            {currencies.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={currency === value}
+                onClick={() => setCurrency(value)}
+                className={cn(
+                  "rounded-control px-4 py-2 text-sm font-semibold transition-colors duration-hover ease-out",
+                  currency === value
+                    ? "bg-brand text-surface-raised"
+                    : "text-slate hover:text-ink",
+                  focusRing,
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {cycle === "annual" ? (
             <p className="font-mono text-xs tracking-wide text-brand">
               2 months free on paid plans
@@ -187,7 +232,12 @@ export function PricingView() {
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} cycle={cycle} />
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              cycle={cycle}
+              currency={currency}
+            />
           ))}
         </div>
       </Section>

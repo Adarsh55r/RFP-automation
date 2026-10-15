@@ -34,7 +34,7 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
   return (
     <AuthShell
       title="Create your DraftWin account"
-      subtitle="Agency name and team size come next — this step is just you."
+      subtitle="Company name and team size come next — this step is just you."
       footer={
         <p>
           Already have an account?{" "}

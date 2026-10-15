@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Section } from "@/components/marketing/section";
 import { cn } from "@/lib/cn";
-import { formatInr, plans, signupHref } from "@/lib/plans";
+import { formatPrice, plans, signupHref } from "@/lib/plans";
 
 export function PricingTeaser() {
   return (
@@ -15,7 +15,7 @@ export function PricingTeaser() {
             Pricing
           </p>
           <h2 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-            Rupee plans. No per-seat surprise in USD.
+            A fraction of what enterprise RFP software costs.
           </h2>
         </div>
         <Button asChild variant="secondary" className="w-full md:w-auto">
@@ -44,9 +44,11 @@ export function PricingTeaser() {
               ) : null}
             </div>
             <p className="mt-6 font-display text-4xl font-medium text-ink">
-              {formatInr(plan.monthlyInr)}
+              {formatPrice(plan.monthly.usd, "usd")}
               <span className="ml-1 font-sans text-sm font-medium text-slate">
-                {plan.monthlyInr === 0 ? "forever" : "/mo"}
+                {plan.monthly.usd === 0
+                  ? "forever"
+                  : `/mo · ${formatPrice(plan.monthly.gbp, "gbp")} UK`}
               </span>
             </p>
             <ul className="mt-6 flex flex-1 flex-col gap-2 text-sm leading-relaxed text-slate">

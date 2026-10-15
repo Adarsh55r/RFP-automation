@@ -51,7 +51,7 @@ function CleanDoc({ ready }: { ready: boolean }) {
       <div className="h-1.5 bg-brand" />
       <div className="flex flex-1 flex-col p-3">
         <p className="font-mono text-[9px] tracking-wide text-slate">
-          PROPOSAL · DOCX
+          PROPOSAL · READY
         </p>
         <p className="mt-2 font-sans text-xs font-semibold text-ink">
           Technical &amp; commercial proposal

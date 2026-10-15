@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { confirmExtraction } from "@/lib/actions/rfp-extraction";
-import { downloadRfpDocx } from "@/lib/download-rfp-docx";
+import { downloadRfpExport } from "@/lib/download-rfp-export";
+import type { ExportFormat } from "@/lib/proposal-document";
 import {
   RFP_DOCUMENT_TYPES,
   isRfpDocumentType,
@@ -40,6 +41,7 @@ type ExtractionFormState = {
   evaluationCriteria: string;
   questionnaireItems: string;
   flaggedForReview: string;
+  submissionRequirements: string;
 };
 
 function formFromRfp(rfp: Rfp): ExtractionFormState {
@@ -54,6 +56,7 @@ function formFromRfp(rfp: Rfp): ExtractionFormState {
     evaluationCriteria: listToEditableText(rfp.extractedEvaluationCriteria),
     questionnaireItems: listToEditableText(rfp.extractedQuestionnaire),
     flaggedForReview: listToEditableText(rfp.extractedFlags),
+    submissionRequirements: listToEditableText(rfp.extractedSubmission),
   };
 }
 
@@ -74,7 +77,7 @@ export function RfpExtractionPanel({
     deadline?: string;
   }>({});
   const [confirmPending, startConfirm] = useTransition();
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
 
   useEffect(() => {
     setStatus(rfp.status);
@@ -127,6 +130,7 @@ export function RfpExtractionPanel({
           evaluationCriteria: string[];
           questionnaireItems?: string[];
           flaggedForReview?: string[];
+          submissionRequirements?: string[];
         };
         status?: RfpStatus;
       };
@@ -153,6 +157,9 @@ export function RfpExtractionPanel({
           flaggedForReview: (payload.extracted.flaggedForReview ?? []).join(
             "\n",
           ),
+          submissionRequirements: (
+            payload.extracted.submissionRequirements ?? []
+          ).join("\n"),
         });
       }
 
@@ -205,6 +212,7 @@ export function RfpExtractionPanel({
         evaluationCriteria: form.evaluationCriteria,
         questionnaireItems: form.questionnaireItems,
         flaggedForReview: form.flaggedForReview,
+        submissionRequirements: form.submissionRequirements,
       });
 
       if (!result.ok) {
@@ -221,16 +229,19 @@ export function RfpExtractionPanel({
     });
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: ExportFormat) => {
     if (exporting) return;
-    setExporting(true);
+    setExporting(format);
     setError(null);
     try {
-      await downloadRfpDocx(rfp.id);
+      await downloadRfpExport(rfp.id, format);
       setStatus("exported");
       toast({
         title: "Proposal exported",
-        description: "Your Word document has downloaded.",
+        description:
+          format === "pdf"
+            ? "Your PDF has downloaded."
+            : "Your Word document has downloaded.",
         variant: "success",
       });
       router.refresh();
@@ -238,10 +249,10 @@ export function RfpExtractionPanel({
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Could not export DOCX.",
+          : "Could not export the proposal.",
       );
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
 
@@ -461,6 +472,26 @@ export function RfpExtractionPanel({
 
           <label className="flex flex-col gap-2">
             <span className="font-sans text-sm font-medium text-ink">
+              Submission requirements
+            </span>
+            <span className="text-xs text-slate">
+              Page limits, formatting, required forms and certifications, Q&amp;A
+              deadline, submission time and portal. One rule per line.
+            </span>
+            <Textarea
+              value={form.submissionRequirements}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  submissionRequirements: event.target.value,
+                }))
+              }
+              rows={5}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
               Questionnaire items
             </span>
             <span className="text-xs text-slate">
@@ -525,14 +556,26 @@ export function RfpExtractionPanel({
                 Open draft
               </Button>
               {canOpenDraft ? (
-                <Button
-                  type="button"
-                  onClick={() => void handleExport()}
-                  disabled={exporting}
-                  className="w-full bg-accent text-ink sm:w-fit"
-                >
-                  {exporting ? "Exporting…" : "Export as DOCX"}
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="accent"
+                    onClick={() => void handleExport("docx")}
+                    disabled={exporting !== null}
+                    className="w-full sm:w-fit"
+                  >
+                    {exporting === "docx" ? "Exporting…" : "Export Word"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void handleExport("pdf")}
+                    disabled={exporting !== null}
+                    className="w-full sm:w-fit"
+                  >
+                    {exporting === "pdf" ? "Exporting…" : "Export PDF"}
+                  </Button>
+                </>
               ) : null}
             </div>
           )}
