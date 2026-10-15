@@ -23,7 +23,7 @@ const steps = [
   {
     icon: FileDown,
     title: "Export",
-    body: "Download a Word file with your section order and, on paid plans, your letterhead. Send it as your company’s document.",
+    body: "Download a Word or PDF file with a cover page, contents, and clean tables — and, on paid plans, your letterhead. Send it as your company’s document.",
   },
 ] as const;
 

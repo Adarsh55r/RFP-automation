@@ -44,6 +44,8 @@ enum DraftSection {
   technical_approach
   team
   pricing
+  cover_letter
+  responses
 }
 
 enum DraftStatus {
@@ -99,6 +101,8 @@ model Rfp {
   extractedQuestionnaire     Json?
   extractedFlags             Json?
   extractedSubmission        Json?
+  sourceText                 String?
+  draftPlan                  Json?
   coverageMap                String?
   createdAt                  DateTime  @default(now())
 

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { RfpStatus } from "@/lib/generated/prisma";
+import { Prisma, RfpStatus } from "@/lib/generated/prisma";
 import { isLlmConfigError, llmConfigErrorMessage } from "@/lib/llm";
 import {
   deadlineToDate,
@@ -83,6 +83,9 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedQuestionnaire: extracted.questionnaireItems,
         extractedFlags: extracted.flaggedForReview,
         extractedSubmission: extracted.submissionRequirements,
+        // Postgres text columns reject NUL bytes, which some PDFs contain.
+        sourceText: documentText.replace(/\u0000/g, ""),
+        draftPlan: Prisma.DbNull,
       },
     });
 

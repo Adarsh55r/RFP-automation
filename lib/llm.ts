@@ -1,4 +1,11 @@
-import { getAnthropicClient, DRAFTING_MODEL, EXTRACTION_MODEL } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
+import {
+  getAnthropicClient,
+  DRAFTING_MODEL,
+  EXTRACTION_MODEL,
+  supportsDefaultFallback,
+  supportsEffort,
+} from "@/lib/anthropic";
 import {
   getGeminiClient,
   GEMINI_DRAFTING_MODEL,
@@ -9,11 +16,19 @@ export type LlmProvider = "gemini" | "anthropic";
 
 export type LlmPurpose = "extraction" | "drafting";
 
+export type LlmEffort = "low" | "medium" | "high";
+
 export type LlmTextRequest = {
   system: string;
+  /**
+   * Large shared prefix (RFP text, library) reused across several calls.
+   * Sent before `user` and prompt-cached on Anthropic.
+   */
+  context?: string;
   user: string;
   maxTokens?: number;
   purpose: LlmPurpose;
+  effort?: LlmEffort;
 };
 
 function normalizeProvider(value: string | undefined): LlmProvider {
@@ -59,21 +74,73 @@ export function isLlmConfigError(error: unknown) {
   );
 }
 
+function anthropicParams(request: LlmTextRequest) {
+  const model = modelFor(request.purpose, "anthropic");
+  const content: Anthropic.Beta.BetaTextBlockParam[] = [];
+  if (request.context) {
+    content.push({
+      type: "text",
+      text: request.context,
+      cache_control: { type: "ephemeral" },
+    });
+  }
+  content.push({ type: "text", text: request.user });
+
+  const effort =
+    request.effort ??
+    (process.env.ANTHROPIC_DRAFTING_EFFORT as LlmEffort | undefined);
+  const fallback = supportsDefaultFallback(model);
+
+  return {
+    model,
+    max_tokens: request.maxTokens ?? 16000,
+    system: [
+      {
+        type: "text" as const,
+        text: request.system,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
+    messages: [{ role: "user" as const, content }],
+    ...(effort && supportsEffort(model) ? { output_config: { effort } } : {}),
+    // On a safety decline, re-run on a fallback model instead of failing the draft.
+    ...(fallback
+      ? {
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default" as const,
+        }
+      : {}),
+  };
+}
+
+function assertNotRefused(message: Anthropic.Beta.BetaMessage) {
+  if (message.stop_reason === "refusal") {
+    throw new Error(
+      "The AI model declined to write this part of the proposal. Edit the requirements or try again.",
+    );
+  }
+}
+
 async function generateTextWithAnthropic(request: LlmTextRequest) {
   const anthropic = getAnthropicClient();
-  const response = await anthropic.messages.create({
-    model: modelFor(request.purpose, "anthropic"),
-    max_tokens: request.maxTokens ?? 4096,
-    system: request.system,
-    messages: [{ role: "user", content: request.user }],
-  });
+  const stream = anthropic.beta.messages.stream(anthropicParams(request));
+  const message = await stream.finalMessage();
+  assertNotRefused(message);
 
-  const block = response.content.find((item) => item.type === "text");
-  if (!block || block.type !== "text") {
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+  if (!text.trim()) {
     throw new Error("Claude returned an empty response.");
   }
+  return text;
+}
 
-  return block.text;
+function geminiPrompt(request: LlmTextRequest) {
+  return request.context
+    ? `${request.context}\n\n${request.user}`
+    : request.user;
 }
 
 async function generateTextWithGemini(request: LlmTextRequest) {
@@ -84,9 +151,9 @@ async function generateTextWithGemini(request: LlmTextRequest) {
   });
 
   const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: request.user }] }],
+    contents: [{ role: "user", parts: [{ text: geminiPrompt(request) }] }],
     generationConfig: {
-      maxOutputTokens: request.maxTokens ?? 4096,
+      maxOutputTokens: request.maxTokens ?? 16000,
     },
   });
 
@@ -98,7 +165,7 @@ async function generateTextWithGemini(request: LlmTextRequest) {
   return text;
 }
 
-/** Non-streaming text generation (extraction, etc.). */
+/** Non-streaming text generation (extraction, bid plan, review). */
 export async function generateLlmText(request: LlmTextRequest) {
   const provider = getLlmProvider();
   if (provider === "anthropic") {
@@ -109,12 +176,7 @@ export async function generateLlmText(request: LlmTextRequest) {
 
 async function* streamTextWithAnthropic(request: LlmTextRequest) {
   const anthropic = getAnthropicClient();
-  const stream = anthropic.messages.stream({
-    model: modelFor(request.purpose, "anthropic"),
-    max_tokens: request.maxTokens ?? 8192,
-    system: request.system,
-    messages: [{ role: "user", content: request.user }],
-  });
+  const stream = anthropic.beta.messages.stream(anthropicParams(request));
 
   for await (const event of stream) {
     if (
@@ -124,6 +186,8 @@ async function* streamTextWithAnthropic(request: LlmTextRequest) {
       yield event.delta.text;
     }
   }
+
+  assertNotRefused(await stream.finalMessage());
 }
 
 async function* streamTextWithGemini(request: LlmTextRequest) {
@@ -134,9 +198,9 @@ async function* streamTextWithGemini(request: LlmTextRequest) {
   });
 
   const result = await model.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: request.user }] }],
+    contents: [{ role: "user", parts: [{ text: geminiPrompt(request) }] }],
     generationConfig: {
-      maxOutputTokens: request.maxTokens ?? 8192,
+      maxOutputTokens: request.maxTokens ?? 16000,
     },
   });
 

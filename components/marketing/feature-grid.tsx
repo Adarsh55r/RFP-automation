@@ -20,7 +20,7 @@ const features = [
   {
     icon: Stamp,
     title: "Export with your letterhead",
-    body: "Paid plans export DOCX with your header, footer, and signatory block. The file should look like it came from your shared drive, not from a vendor portal.",
+    body: "Export to Word or PDF with a cover page, contents, page numbers, and clean tables. Paid plans add your header, footer, and signatory block. The file should look like it came from your shared drive, not from a vendor portal.",
   },
   {
     icon: BadgeDollarSign,

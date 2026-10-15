@@ -1,5 +1,4 @@
 import { generateLlmText } from "@/lib/llm";
-import { getAnthropicClient, EXTRACTION_MODEL } from "@/lib/anthropic";
 import {
   getRfpStorageBucket,
   getSupabaseAdmin,
@@ -218,43 +217,6 @@ export function parseExtractionJson(raw: string): ExtractionResult {
   };
 }
 
-export async function extractRequirementsWithClaude(
-  documentText: string,
-): Promise<ExtractionResult> {
-  const text =
-    documentText.length > MAX_TEXT_CHARS
-      ? `${documentText.slice(0, MAX_TEXT_CHARS)}\n\n[Document truncated for length.]`
-      : documentText;
-
-  if (!text.trim()) {
-    throw new Error("No readable text was found in the document.");
-  }
-
-  const anthropic = getAnthropicClient();
-  const response = await anthropic.messages.create({
-    model: EXTRACTION_MODEL,
-    max_tokens: 8192,
-    system: EXTRACTION_SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: `Extract structured requirements from this document as JSON:\n\n${text}`,
-      },
-    ],
-  });
-
-  const block = response.content.find((item) => item.type === "text");
-  if (!block || block.type !== "text") {
-    throw new Error("Claude returned an empty extraction response.");
-  }
-
-  try {
-    return parseExtractionJson(block.text);
-  } catch {
-    throw new Error("Claude returned invalid JSON for extraction.");
-  }
-}
-
 /** Provider-aware extraction (Gemini for testing, Claude when LLM_PROVIDER=anthropic). */
 export async function extractRequirementsWithLlm(
   documentText: string,
@@ -294,4 +256,28 @@ export function deadlineToDate(deadline: string | null): Date | null {
     Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
   );
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Full text of the uploaded RFP. Stored at extraction time; older RFPs are
+ * re-read from storage once and backfilled.
+ */
+export async function getRfpSourceText(rfp: {
+  sourceText: string | null;
+  originalFileUrl: string | null;
+}): Promise<{ text: string; fetched: boolean }> {
+  if (rfp.sourceText?.trim()) {
+    return { text: rfp.sourceText, fetched: false };
+  }
+  if (!rfp.originalFileUrl) {
+    return { text: "", fetched: false };
+  }
+  try {
+    const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
+    const text = await extractTextFromDocument(buffer, fileName);
+    return { text: text.replace(/\u0000/g, ""), fetched: true };
+  } catch (error) {
+    console.error("Could not read RFP source text for drafting:", error);
+    return { text: "", fetched: false };
+  }
 }

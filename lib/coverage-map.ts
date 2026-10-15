@@ -3,6 +3,7 @@ export type CoverageRow = {
   type: string;
   addressedIn: string;
   status: string;
+  action: string;
 };
 
 export function parseCoverageTable(markdown: string): CoverageRow[] {
@@ -28,6 +29,7 @@ export function parseCoverageTable(markdown: string): CoverageRow[] {
       type: cells[1] ?? "",
       addressedIn: cells[2] ?? "",
       status: cells[3] ?? "",
+      action: cells[4] && cells[4] !== "—" && cells[4] !== "-" ? cells[4] : "",
     });
   }
 
@@ -36,7 +38,7 @@ export function parseCoverageTable(markdown: string): CoverageRow[] {
 
 export function coverageStatusTone(status: string) {
   const value = status.toLowerCase();
-  if (value.includes("gap")) return "danger" as const;
+  if (value.includes("gap") || value.includes("missing")) return "danger" as const;
   if (value.includes("partial")) return "accent" as const;
   if (value.includes("address")) return "success" as const;
   return "draft" as const;

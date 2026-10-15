@@ -23,20 +23,20 @@ export function CoverageMapCard({
             Before you send
           </p>
           <h2 className="mt-2 font-sans text-lg font-semibold text-ink">
-            Coverage map
+            Compliance review
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
-            Every extracted criterion, mapped to a draft section. Gaps need
-            your input before export. This table is not included in the Word
-            file.
+            An evaluator-style check of the draft against every extracted
+            requirement. Fix gaps before you submit — this table is not
+            included in the exported file.
           </p>
         </div>
         {gapCount > 0 ? (
-          <Badge variant="danger" className="w-fit">
+          <Badge variant="danger" className="w-fit shrink-0 whitespace-nowrap">
             {gapCount} gap{gapCount === 1 ? "" : "s"}
           </Badge>
         ) : rows.length > 0 ? (
-          <Badge variant="success" className="w-fit">
+          <Badge variant="success" className="w-fit shrink-0 whitespace-nowrap">
             Criteria mapped
           </Badge>
         ) : null}
@@ -46,7 +46,7 @@ export function CoverageMapCard({
 
       {rows.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+          <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className="py-2 pr-4 font-sans font-semibold text-ink">
@@ -58,7 +58,8 @@ export function CoverageMapCard({
                 <th className="py-2 pr-4 font-sans font-semibold text-ink">
                   Addressed in
                 </th>
-                <th className="py-2 font-sans font-semibold text-ink">Status</th>
+                <th className="py-2 pr-4 font-sans font-semibold text-ink">Status</th>
+                <th className="py-2 font-sans font-semibold text-ink">What to do</th>
               </tr>
             </thead>
             <tbody>
@@ -69,11 +70,12 @@ export function CoverageMapCard({
                     {row.type}
                   </td>
                   <td className="py-3 pr-4 text-slate">{row.addressedIn}</td>
-                  <td className="py-3">
+                  <td className="py-3 pr-4">
                     <Badge variant={coverageStatusTone(row.status)}>
                       {row.status}
                     </Badge>
                   </td>
+                  <td className="py-3 text-slate">{row.action || "—"}</td>
                 </tr>
               ))}
             </tbody>

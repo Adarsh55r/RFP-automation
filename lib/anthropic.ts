@@ -19,8 +19,18 @@ export function getAnthropicClient() {
 
 /** Haiku is enough for structured RFP extraction and keeps cost down. */
 export const EXTRACTION_MODEL =
-  process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-haiku-4-5-20251001";
+  process.env.ANTHROPIC_EXTRACTION_MODEL ?? "claude-haiku-5-5";
 
-/** Sonnet for grounded proposal drafting (quality over cost). */
+/** Opus for proposal drafting — draft quality is the product. */
 export const DRAFTING_MODEL =
-  process.env.ANTHROPIC_DRAFTING_MODEL ?? "claude-sonnet-4-20250514";
+  process.env.ANTHROPIC_DRAFTING_MODEL ?? "claude-opus-5-5";
+
+/** Models that accept `output_config.effort`. */
+export function supportsEffort(model: string) {
+  return /^claude-(opus|sonnet|fable|haiku-5)/.test(model);
+}
+
+/** Models that accept the server-side refusal fallback (`fallbacks: "default"`). */
+export function supportsDefaultFallback(model: string) {
+  return /^claude-(opus-5|sonnet-5-5|fable-5-1)/.test(model);
+}

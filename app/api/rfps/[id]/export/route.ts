@@ -3,10 +3,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import {
-  buildProposalDocxBuffer,
+  buildProposalDocument,
   draftsReadyForExport,
+  isExportFormat,
   proposalExportFileName,
-} from "@/lib/rfp-export";
+} from "@/lib/proposal-document";
+import { buildProposalDocxBuffer } from "@/lib/rfp-export";
+import { buildProposalPdfBuffer } from "@/lib/rfp-export-pdf";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,13 +18,24 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+const contentTypes = {
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pdf: "application/pdf",
+};
+
+export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const { userId: clerkId } = await auth();
 
   if (!clerkId) {
     return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
   }
+
+  const requested = new URL(request.url).searchParams.get("format") ?? "docx";
+  if (!isExportFormat(requested)) {
+    return NextResponse.json({ error: "Format must be docx or pdf." }, { status: 400 });
+  }
+  const format = requested;
 
   const user = await prisma.user.findUnique({
     where: { clerkId },
@@ -49,55 +63,49 @@ export async function POST(_request: Request, context: RouteContext) {
     rfp.status !== RfpStatus.exported
   ) {
     return NextResponse.json(
-      { error: "Generate a draft before exporting to DOCX." },
+      { error: "Generate a draft before exporting." },
       { status: 400 },
     );
   }
 
-  if (!draftsReadyForExport(rfp.drafts)) {
+  if (!draftsReadyForExport(rfp, rfp.drafts)) {
     return NextResponse.json(
-      {
-        error:
-          "All four sections need content before export. Finish drafting first.",
-      },
+      { error: "There is no drafted content to export yet. Finish drafting first." },
       { status: 400 },
     );
   }
 
   try {
-    const buffer = await buildProposalDocxBuffer({
-      agencyName: user.agencyName?.trim() || "Your company",
-      rfpTitle: rfp.title,
+    const doc = buildProposalDocument({
+      companyName: user.agencyName?.trim() || "Your company",
+      rfp,
       drafts: rfp.drafts,
     });
+    const bytes =
+      format === "pdf"
+        ? await buildProposalPdfBuffer(doc)
+        : Buffer.from(await buildProposalDocxBuffer(doc));
 
     await prisma.rfp.update({
       where: { id: rfp.id },
       data: { status: RfpStatus.exported },
     });
 
-    const fileName = proposalExportFileName(rfp.title);
-    const bytes = Buffer.from(buffer);
+    const fileName = proposalExportFileName(doc.rfpTitle, format);
 
-    return new NextResponse(bytes, {
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Type": contentTypes[format],
         "Content-Disposition": `attachment; filename="${fileName}"`,
         "Content-Length": String(bytes.byteLength),
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
-    console.error("RFP DOCX export failed:", error);
+    console.error(`RFP ${format.toUpperCase()} export failed:`, error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Export failed. Try again in a moment.",
-      },
+      { error: "Export failed. Try again in a moment." },
       { status: 500 },
     );
   }

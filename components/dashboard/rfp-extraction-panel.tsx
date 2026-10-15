@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { confirmExtraction } from "@/lib/actions/rfp-extraction";
-import { downloadRfpDocx } from "@/lib/download-rfp-docx";
+import { downloadRfpExport } from "@/lib/download-rfp-export";
+import type { ExportFormat } from "@/lib/proposal-document";
 import {
   RFP_DOCUMENT_TYPES,
   isRfpDocumentType,
@@ -76,7 +77,7 @@ export function RfpExtractionPanel({
     deadline?: string;
   }>({});
   const [confirmPending, startConfirm] = useTransition();
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
 
   useEffect(() => {
     setStatus(rfp.status);
@@ -228,16 +229,19 @@ export function RfpExtractionPanel({
     });
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: ExportFormat) => {
     if (exporting) return;
-    setExporting(true);
+    setExporting(format);
     setError(null);
     try {
-      await downloadRfpDocx(rfp.id);
+      await downloadRfpExport(rfp.id, format);
       setStatus("exported");
       toast({
         title: "Proposal exported",
-        description: "Your Word document has downloaded.",
+        description:
+          format === "pdf"
+            ? "Your PDF has downloaded."
+            : "Your Word document has downloaded.",
         variant: "success",
       });
       router.refresh();
@@ -245,10 +249,10 @@ export function RfpExtractionPanel({
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Could not export DOCX.",
+          : "Could not export the proposal.",
       );
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
 
@@ -552,14 +556,26 @@ export function RfpExtractionPanel({
                 Open draft
               </Button>
               {canOpenDraft ? (
-                <Button
-                  type="button"
-                  onClick={() => void handleExport()}
-                  disabled={exporting}
-                  className="w-full bg-accent text-ink sm:w-fit"
-                >
-                  {exporting ? "Exporting…" : "Export as DOCX"}
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="accent"
+                    onClick={() => void handleExport("docx")}
+                    disabled={exporting !== null}
+                    className="w-full sm:w-fit"
+                  >
+                    {exporting === "docx" ? "Exporting…" : "Export Word"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void handleExport("pdf")}
+                    disabled={exporting !== null}
+                    className="w-full sm:w-fit"
+                  >
+                    {exporting === "pdf" ? "Exporting…" : "Export PDF"}
+                  </Button>
+                </>
               ) : null}
             </div>
           )}

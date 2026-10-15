@@ -93,39 +93,3 @@ export async function saveDraftSection(input: {
     },
   };
 }
-
-export async function upsertGeneratedDraftSection(input: {
-  rfpId: string;
-  userId: string;
-  sectionName: DraftSection;
-  content: string;
-}) {
-  const content = input.content.trim();
-  if (!content) {
-    return;
-  }
-
-  const existing = await prisma.draft.findFirst({
-    where: { rfpId: input.rfpId, sectionName: input.sectionName },
-  });
-
-  if (existing) {
-    await prisma.draft.update({
-      where: { id: existing.id },
-      data: {
-        content,
-        status: DraftStatus.generated,
-      },
-    });
-    return;
-  }
-
-  await prisma.draft.create({
-    data: {
-      rfpId: input.rfpId,
-      sectionName: input.sectionName,
-      content,
-      status: DraftStatus.generated,
-    },
-  });
-}

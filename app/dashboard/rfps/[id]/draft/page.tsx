@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
+import { sectionsForRfp } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 
 type DraftPageProps = {
@@ -84,10 +85,10 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
               Write the proposal
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
-              Draft from your extracted fields and Content Library — case
-              studies, bios, certifications, and company profile. The coverage
-              map is for you only; export still writes the four proposal
-              sections to Word.
+              Drafts come from the full RFP, your extracted requirements, and
+              your Content Library. The checklist and compliance review are for
+              you only — they are never included in the exported Word or PDF
+              file.
             </p>
           </div>
           <Badge variant={rfpStatusVariant[rfp.status]} className="w-fit">
@@ -99,6 +100,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
       <RfpDraftView
         rfpId={rfp.id}
         rfpTitle={rfp.title}
+        sections={sectionsForRfp(rfp)}
         initialDrafts={drafts}
         initialCoverageMap={rfp.coverageMap}
         autoStart={autoStart}
