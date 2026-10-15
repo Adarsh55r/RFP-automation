@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     template: "%s · DraftWin",
   },
   description:
-    "Turn private-sector RFPs into proposals your IT services agency can send. Vendor empanelment, security questionnaires, and pitch decks — not GeM tenders.",
+    "AI RFP response software for small businesses in the US and UK. Turn commercial RFPs, public-sector tenders, and security questionnaires into compliant, on-brand proposals — without a bid team.",
 };
 
 export default function RootLayout({

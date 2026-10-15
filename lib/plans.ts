@@ -1,99 +1,111 @@
-import type { BillingCycle, Plan, PlanId } from "@/types";
+import type { BillingCycle, Currency, Plan, PlanId } from "@/types";
 
 /**
  * Canonical tier breakdown for DraftWin.
+ * Prices are set per currency (not FX-converted) so each market sees round numbers.
  * Annual billing = 10 × monthly (2 months free).
  */
 export const plans: Plan[] = [
   {
     id: "free",
     name: "Free",
-    monthlyInr: 0,
-    summary: "Run one live RFP end-to-end and see if the workflow fits.",
+    monthly: { usd: 0, gbp: 0 },
+    summary: "Run one live bid end-to-end and see if the workflow fits.",
     ctaLabel: "Start free",
     features: [
       "1 proposal per month",
       "1 seat",
       "Upload PDF or Word RFPs, including scans",
-      "Editable requirement extraction",
-      "Library for 3 case studies or bios",
+      "Editable compliance checklist",
+      "Library for 3 case studies, bios, or saved answers",
       "DOCX export with a DraftWin footer",
-      "Email support within 2 IST business days",
-      "Private-sector RFPs only — not GeM or tenders",
+      "Email support within 2 business days",
     ],
   },
   {
     id: "starter",
     name: "Starter",
-    monthlyInr: 1999,
-    summary: "A two-person pre-sales desk answering a few packs a month.",
+    monthly: { usd: 49, gbp: 39 },
+    summary: "A founder or sales lead answering a few RFPs a month.",
     ctaLabel: "Choose plan",
     features: [
       "5 proposals per month",
       "2 seats",
       "Upload PDF or Word RFPs, including scans",
-      "Editable requirement extraction",
-      "Library for 10 case studies, bios, and stack pages",
+      "Editable compliance checklist",
+      "Library for 25 case studies, bios, and saved answers",
       "Clean DOCX export — no DraftWin footer",
       "90-day proposal history",
-      "Email support next IST business day",
-      "Private-sector RFPs only — not GeM or tenders",
+      "Email support next business day",
     ],
   },
   {
     id: "growth",
     name: "Growth",
-    monthlyInr: 5999,
-    summary: "The usual plan for a delivery-led IT services agency.",
+    monthly: { usd: 149, gbp: 119 },
+    summary: "The usual plan for a small team that bids every week.",
     ctaLabel: "Choose plan",
     highlighted: true,
     features: [
       "20 proposals per month",
-      "3 seats",
+      "5 seats",
       "Upload PDF or Word RFPs, including scans",
-      "Editable requirement extraction",
-      "Unlimited library items",
+      "Editable compliance checklist",
+      "Unlimited library and saved answers",
       "DOCX export with your letterhead, header, and footer",
       "12-month proposal history",
       "Shared comments on a draft before export",
-      "Same-day email support on IST business days",
-      "Private-sector RFPs only — not GeM or tenders",
+      "Same-day email support (US & UK hours)",
     ],
   },
   {
     id: "agency",
-    name: "Agency",
-    monthlyInr: 11999,
-    summary: "Several pursuit teams sharing one library and brand kit.",
+    name: "Team",
+    monthly: { usd: 349, gbp: 279 },
+    summary: "Several bid owners sharing one library and brand kit.",
     ctaLabel: "Choose plan",
     features: [
       "Unlimited proposals",
-      "10 seats",
+      "15 seats",
       "Upload PDF or Word RFPs, including scans",
-      "Editable requirement extraction",
+      "Editable compliance checklist",
       "Shared library with folders and per-team access",
       "DOCX export with your letterhead, header, and footer",
       "Full proposal history",
       "Shared comments plus a simple approver step",
-      "Priority email support on IST hours",
-      "Onboarding call for your pre-sales lead",
-      "Private-sector RFPs only — not GeM or tenders",
+      "Priority support (US & UK hours)",
+      "Onboarding call for your bid lead",
     ],
   },
 ];
 
-export function formatInr(amount: number) {
-  return `₹${amount.toLocaleString("en-IN")}`;
+export const currencies: { value: Currency; label: string }[] = [
+  { value: "usd", label: "USD $" },
+  { value: "gbp", label: "GBP £" },
+];
+
+const currencyLocale: Record<Currency, { locale: string; code: string }> = {
+  usd: { locale: "en-US", code: "USD" },
+  gbp: { locale: "en-GB", code: "GBP" },
+};
+
+export function formatPrice(amount: number, currency: Currency) {
+  const { locale, code } = currencyLocale[currency];
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: code,
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
-export function pricePerMonth(monthlyInr: number, cycle: BillingCycle) {
-  if (monthlyInr === 0) return 0;
-  if (cycle === "monthly") return monthlyInr;
-  return Math.round((monthlyInr * 10) / 12);
+export function pricePerMonth(monthly: number, cycle: BillingCycle) {
+  if (monthly === 0) return 0;
+  if (cycle === "monthly") return monthly;
+  return Math.round((monthly * 10) / 12);
 }
 
-export function annualTotal(monthlyInr: number) {
-  return monthlyInr * 10;
+export function annualTotal(monthly: number) {
+  return monthly * 10;
 }
 
 export function signupHref(planId: PlanId) {

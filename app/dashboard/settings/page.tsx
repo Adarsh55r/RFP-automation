@@ -21,7 +21,7 @@ export default async function SettingsPage() {
           Settings
         </p>
         <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-          Agency profile
+          Company profile
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
           This name appears on proposal cover pages. Team size only shapes

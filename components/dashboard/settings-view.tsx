@@ -33,7 +33,7 @@ export function SettingsView({
   const handleSave = () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
-      setError("Enter your agency’s legal or trading name (at least 2 characters).");
+      setError("Enter your company’s legal or trading name (at least 2 characters).");
       setSaved(false);
       return;
     }
@@ -71,7 +71,7 @@ export function SettingsView({
 
       <div className="flex flex-col gap-2">
         <label htmlFor="settings-agency" className="text-sm font-medium text-ink">
-          Agency name
+          Company name
         </label>
         <Input
           id="settings-agency"

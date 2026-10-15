@@ -29,7 +29,7 @@ export async function completeOnboarding(payload: OnboardingPayload) {
 
   const agencyName = payload.agencyName.trim();
   if (agencyName.length < 2) {
-    return { ok: false as const, error: "Enter a valid agency name." };
+    return { ok: false as const, error: "Enter a valid company name." };
   }
 
   if (!isTeamSize(payload.teamSize)) {

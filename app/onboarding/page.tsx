@@ -12,7 +12,7 @@ import { parsePlanId } from "@/lib/intended-plan";
 import type { TeamSize } from "@/lib/onboarding";
 
 export const metadata: Metadata = {
-  title: "Set up your agency",
+  title: "Set up your company",
   robots: { index: false, follow: false },
 };
 

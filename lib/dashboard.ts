@@ -58,7 +58,7 @@ export async function getDashboardHomeData() {
   const remaining = rfpsRemaining(tier, rfpsThisMonth);
 
   return {
-    agencyName: user.agencyName ?? "Your agency",
+    agencyName: user.agencyName ?? "Your company",
     tier,
     stats: {
       rfpsThisMonth,

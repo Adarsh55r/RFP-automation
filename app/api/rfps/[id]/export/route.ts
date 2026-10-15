@@ -66,7 +66,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   try {
     const buffer = await buildProposalDocxBuffer({
-      agencyName: user.agencyName?.trim() || "Your agency",
+      agencyName: user.agencyName?.trim() || "Your company",
       rfpTitle: rfp.title,
       drafts: rfp.drafts,
     });

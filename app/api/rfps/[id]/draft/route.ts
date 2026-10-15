@@ -276,7 +276,7 @@ export async function POST(_request: Request, context: RouteContext) {
   });
 
   const libraryItems = await getLibraryItemsForUser(user.id);
-  const agencyName = user.agencyName ?? "Your agency";
+  const agencyName = user.agencyName ?? "Your company";
   const parser = new SectionStreamParser();
 
   const stream = new ReadableStream({
@@ -289,7 +289,8 @@ export async function POST(_request: Request, context: RouteContext) {
       try {
         const llmStream = streamLlmText({
           purpose: "drafting",
-          maxTokens: 8192,
+          // Room for long questionnaire responses on top of the four sections.
+          maxTokens: 16000,
           system: buildDraftingSystemPrompt(agencyName),
           user: buildDraftingUserPrompt({
             agencyName,

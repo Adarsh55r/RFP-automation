@@ -27,7 +27,7 @@ export function CoverageMapCard({
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
             Every extracted criterion, mapped to a draft section. Gaps need
-            agency input before export. This table is not included in the Word
+            your input before export. This table is not included in the Word
             file.
           </p>
         </div>

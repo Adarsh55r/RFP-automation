@@ -1,16 +1,21 @@
-import { BookMarked, IndianRupee, PencilLine, Stamp } from "lucide-react";
+import { BadgeDollarSign, BookMarked, ListChecks, ShieldCheck, Stamp } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 
 const features = [
   {
     icon: BookMarked,
-    title: "Your own content library",
-    body: "Keep case studies, leadership bios, tech-stack pages, and rate-card language in one place. New drafts pull from that library instead of writing proof you do not have.",
+    title: "Your own answer library",
+    body: "Keep case studies, past performance, team bios, certifications, and approved answers in one place. New drafts pull from that library instead of writing proof you do not have — and the 40th security questionnaire takes minutes, not days.",
   },
   {
-    icon: PencilLine,
-    title: "Extraction you can edit",
-    body: "Every requirement is a row you can rewrite, split, or ignore. Drafting waits until the checklist matches the RFP you actually intend to answer.",
+    icon: ListChecks,
+    title: "A compliance checklist you can edit",
+    body: "Mandatory requirements, scoring weights, page limits, required forms, Q&A deadlines, and addenda land in one checklist. Most small-business bids are thrown out on compliance, not quality — this is where you stop that.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Public sector and security reviews included",
+    body: "Works for US state, local, and education RFPs, UK tenders with Social Value questions, and vendor security questionnaires (SOC 2, ISO 27001, Cyber Essentials, HIPAA). Drafts follow the buyer’s spelling, currency, and terminology.",
   },
   {
     icon: Stamp,
@@ -18,9 +23,9 @@ const features = [
     body: "Paid plans export DOCX with your header, footer, and signatory block. The file should look like it came from your shared drive, not from a vendor portal.",
   },
   {
-    icon: IndianRupee,
-    title: "India-first pricing",
-    body: "Rupee plans sized for boutique and mid-size IT agencies — not USD enterprise seats. Start at ₹0. Most teams land on Growth at ₹5,999 / month.",
+    icon: BadgeDollarSign,
+    title: "Small-business pricing",
+    body: "Enterprise RFP platforms are sold on five-figure annual contracts. DraftWin starts at $0, month-to-month. Most teams land on Growth at $149 (£119) a month.",
   },
 ] as const;
 
@@ -31,7 +36,7 @@ export function FeatureGrid() {
         Product
       </p>
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
-        Built around how pre-sales teams in India actually chase RFPs.
+        Built for teams where the founder, a sales lead, or an ops manager writes the proposal.
       </h2>
       <ul className="mt-12 divide-y divide-border border-y border-border">
         {features.map((feature) => {

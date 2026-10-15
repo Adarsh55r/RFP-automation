@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { monthlyRfpLimit } from "@/lib/plan-limits";
-import { formatInr, plans } from "@/lib/plans";
+import { formatPrice, plans } from "@/lib/plans";
 import { getRfpUploadQuota } from "@/lib/rfps";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
 
@@ -47,7 +47,7 @@ export default async function BillingPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
           Paid checkout is not live yet. You can review your current plan and
-          compare rupee tiers on the public pricing page.
+          compare plans in USD or GBP on the public pricing page.
         </p>
       </header>
 
@@ -71,15 +71,17 @@ export default async function BillingPage() {
           </div>
 
           <p className="font-display text-4xl font-medium text-ink">
-            {formatInr(plan.monthlyInr)}
+            {formatPrice(plan.monthly.usd, "usd")}
             <span className="ml-1 font-sans text-sm font-medium text-slate">
-              {plan.monthlyInr === 0 ? "forever" : "/mo"}
+              {plan.monthly.usd === 0
+                ? "forever"
+                : `/mo · ${formatPrice(plan.monthly.gbp, "gbp")}/mo in the UK`}
             </span>
           </p>
 
           <p className="font-mono text-xs tracking-wide text-slate">
             {limit === null
-              ? `${quota.usedThisMonth} RFPs uploaded this month · unlimited on Agency`
+              ? `${quota.usedThisMonth} RFPs uploaded this month · unlimited on Team`
               : `${quota.usedThisMonth} of ${quota.limit} RFPs used this month`}
           </p>
 
@@ -91,7 +93,7 @@ export default async function BillingPage() {
         <EmptyState
           icon={Receipt}
           headline="No invoices yet"
-          description="GST invoices will appear here after a paid plan is charged. Until checkout is connected, nothing is billed."
+          description="Invoices and receipts (with VAT or sales tax where it applies) will appear here after a paid plan is charged. Until checkout is connected, nothing is billed."
         />
       </div>
     </div>

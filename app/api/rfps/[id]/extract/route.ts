@@ -82,6 +82,7 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedDesirable: extracted.desirableCriteria,
         extractedQuestionnaire: extracted.questionnaireItems,
         extractedFlags: extracted.flaggedForReview,
+        extractedSubmission: extracted.submissionRequirements,
       },
     });
 
@@ -97,6 +98,7 @@ export async function POST(_request: Request, context: RouteContext) {
         evaluationCriteria: extracted.evaluationCriteria,
         questionnaireItems: extracted.questionnaireItems,
         flaggedForReview: extracted.flaggedForReview,
+        submissionRequirements: extracted.submissionRequirements,
       },
     });
   } catch (error) {

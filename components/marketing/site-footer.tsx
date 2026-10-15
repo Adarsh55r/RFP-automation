@@ -21,8 +21,7 @@ export function SiteFooter() {
             <Logo />
           </SmoothLink>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-surface-raised/70">
-            Proposals for private-sector RFPs. Built for IT services agencies in
-            India.
+            RFP responses for small businesses in the US, UK, and beyond.
           </p>
         </div>
         <ul className="flex flex-wrap gap-2">
@@ -57,7 +56,7 @@ export function SiteFooter() {
               Privacy policy
             </Link>
             <p className="text-surface-raised/80">
-              Not affiliated with GeM or any tender portal.
+              Not affiliated with any government procurement portal.
             </p>
           </div>
         </div>

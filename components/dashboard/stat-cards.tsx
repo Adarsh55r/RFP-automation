@@ -29,7 +29,7 @@ export function StatCards({
       value: remainingLabel,
       hint:
         rfpsRemaining === null
-          ? "Agency plan — no monthly cap"
+          ? "Team plan — no monthly cap"
           : "Resets on the 1st of each month",
     },
     {

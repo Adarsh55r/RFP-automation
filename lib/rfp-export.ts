@@ -223,7 +223,7 @@ function sectionContentMap(drafts: Draft[]) {
 }
 
 function coverPage(agencyName: string, rfpTitle: string) {
-  const today = new Intl.DateTimeFormat("en-IN", {
+  const today = new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -249,7 +249,7 @@ function coverPage(agencyName: string, rfpTitle: string) {
       },
       children: [
         new TextRun({
-          text: "  [ Agency logo ]  ",
+          text: "  [ Company logo ]  ",
           font: "Calibri",
           size: 20,
           color: SLATE,

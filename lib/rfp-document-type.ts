@@ -1,6 +1,7 @@
 export const RFP_DOCUMENT_TYPES = [
   "rfp",
-  "vendor_empanelment",
+  "public_tender",
+  "rfi",
   "security_questionnaire",
   "pitch_request",
   "other",
@@ -9,10 +10,11 @@ export const RFP_DOCUMENT_TYPES = [
 export type RfpDocumentType = (typeof RFP_DOCUMENT_TYPES)[number];
 
 export const rfpDocumentTypeLabel: Record<RfpDocumentType, string> = {
-  rfp: "Traditional RFP",
-  vendor_empanelment: "Vendor empanelment",
+  rfp: "Commercial RFP",
+  public_tender: "Public-sector RFP / tender",
+  rfi: "RFI / supplier questionnaire",
   security_questionnaire: "Security questionnaire",
-  pitch_request: "Pitch request",
+  pitch_request: "Pitch / proposal request",
   other: "Other pack",
 };
 

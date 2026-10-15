@@ -40,6 +40,7 @@ type ExtractionFormState = {
   evaluationCriteria: string;
   questionnaireItems: string;
   flaggedForReview: string;
+  submissionRequirements: string;
 };
 
 function formFromRfp(rfp: Rfp): ExtractionFormState {
@@ -54,6 +55,7 @@ function formFromRfp(rfp: Rfp): ExtractionFormState {
     evaluationCriteria: listToEditableText(rfp.extractedEvaluationCriteria),
     questionnaireItems: listToEditableText(rfp.extractedQuestionnaire),
     flaggedForReview: listToEditableText(rfp.extractedFlags),
+    submissionRequirements: listToEditableText(rfp.extractedSubmission),
   };
 }
 
@@ -127,6 +129,7 @@ export function RfpExtractionPanel({
           evaluationCriteria: string[];
           questionnaireItems?: string[];
           flaggedForReview?: string[];
+          submissionRequirements?: string[];
         };
         status?: RfpStatus;
       };
@@ -153,6 +156,9 @@ export function RfpExtractionPanel({
           flaggedForReview: (payload.extracted.flaggedForReview ?? []).join(
             "\n",
           ),
+          submissionRequirements: (
+            payload.extracted.submissionRequirements ?? []
+          ).join("\n"),
         });
       }
 
@@ -205,6 +211,7 @@ export function RfpExtractionPanel({
         evaluationCriteria: form.evaluationCriteria,
         questionnaireItems: form.questionnaireItems,
         flaggedForReview: form.flaggedForReview,
+        submissionRequirements: form.submissionRequirements,
       });
 
       if (!result.ok) {
@@ -456,6 +463,26 @@ export function RfpExtractionPanel({
                 }))
               }
               rows={6}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-sans text-sm font-medium text-ink">
+              Submission requirements
+            </span>
+            <span className="text-xs text-slate">
+              Page limits, formatting, required forms and certifications, Q&amp;A
+              deadline, submission time and portal. One rule per line.
+            </span>
+            <Textarea
+              value={form.submissionRequirements}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  submissionRequirements: event.target.value,
+                }))
+              }
+              rows={5}
             />
           </label>
 

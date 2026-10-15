@@ -18,6 +18,7 @@ export type ConfirmExtractionPayload = {
   evaluationCriteria: string;
   questionnaireItems: string;
   flaggedForReview: string;
+  submissionRequirements: string;
 };
 
 export async function confirmExtraction(payload: ConfirmExtractionPayload) {
@@ -60,6 +61,9 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
   const evaluationCriteria = editableTextToList(payload.evaluationCriteria);
   const questionnaireItems = editableTextToList(payload.questionnaireItems);
   const flaggedForReview = editableTextToList(payload.flaggedForReview);
+  const submissionRequirements = editableTextToList(
+    payload.submissionRequirements,
+  );
 
   if (
     !scope &&
@@ -102,6 +106,7 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
       extractedEvaluationCriteria: evaluationCriteria,
       extractedQuestionnaire: questionnaireItems,
       extractedFlags: flaggedForReview,
+      extractedSubmission: submissionRequirements,
       status: nextStatus,
     },
   });
