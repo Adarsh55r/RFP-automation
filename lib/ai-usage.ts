@@ -22,9 +22,13 @@ const PRICES: { match: RegExp; rates: [number, number, number] }[] = [
 /** Unknown models are costed at GPT-4.1 rates so caps err on the safe side. */
 const FALLBACK_RATES: [number, number, number] = [2, 0.5, 8];
 
+/** [input, cached input, output] US dollars per million tokens for a model. */
+export function modelRates(model: string): [number, number, number] {
+  return PRICES.find((entry) => entry.match.test(model))?.rates ?? FALLBACK_RATES;
+}
+
 export function usageCostMicros(usage: LlmUsage) {
-  const [input, cached, output] =
-    PRICES.find((entry) => entry.match.test(usage.model))?.rates ?? FALLBACK_RATES;
+  const [input, cached, output] = modelRates(usage.model);
   const uncached = Math.max(usage.inputTokens - usage.cachedInputTokens, 0);
   // rate is $ per 1M tokens, so tokens × rate is already in micro-dollars.
   return Math.round(uncached * input + usage.cachedInputTokens * cached + usage.outputTokens * output);
