@@ -12,6 +12,13 @@ type DashboardSidebarProps = {
   className?: string;
 };
 
+/** Secondary links below the main navigation: plans, the public site, legal. */
+const footerLinks = [
+  { href: "/pricing", label: "Pricing & plans" },
+  { href: "/", label: "DraftWin website" },
+  { href: "/privacy", label: "Privacy policy" },
+];
+
 export function DashboardSidebar({
   onNavigate,
   className,
@@ -60,16 +67,19 @@ export function DashboardSidebar({
         })}
       </nav>
       <div className="border-t border-surface-raised/10 p-4">
-        <Link
-          href="/privacy"
-          onClick={onNavigate}
-          className={cn(
-            "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/70 transition-colors duration-hover ease-out hover:text-surface-raised",
-            focusRingOnDark,
-          )}
-        >
-          Privacy policy
-        </Link>
+        {footerLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            onClick={onNavigate}
+            className={cn(
+              "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/70 transition-colors duration-hover ease-out hover:text-surface-raised",
+              focusRingOnDark,
+            )}
+          >
+            {link.label}
+          </Link>
+        ))}
       </div>
     </aside>
   );

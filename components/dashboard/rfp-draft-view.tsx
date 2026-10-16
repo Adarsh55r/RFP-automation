@@ -661,7 +661,7 @@ export function RfpDraftView({
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="danger"
             onClick={() => void runExport("pdf")}
             disabled={!canExport || exportPhase === "generating"}
             className="w-full gap-2 sm:w-fit"
