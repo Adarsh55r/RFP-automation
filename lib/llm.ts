@@ -39,20 +39,58 @@ export type LlmTextRequest = {
   json?: boolean;
 };
 
-function normalizeProvider(value: string | undefined): LlmProvider {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "anthropic" || normalized === "claude") {
-    return "anthropic";
-  }
-  if (normalized === "openai" || normalized === "gpt") {
-    return "openai";
-  }
-  // Default to Gemini for local/testing cost control.
-  return "gemini";
+function hasKey(name: string) {
+  return Boolean(process.env[name]?.trim());
 }
 
+/**
+ * OpenAI (GPT-4.1) is the product's AI provider: whenever OPENAI_API_KEY is
+ * set it is used, whatever LLM_PROVIDER says. LLM_PROVIDER only chooses
+ * between the other providers when no OpenAI key is configured.
+ */
 export function getLlmProvider(): LlmProvider {
-  return normalizeProvider(process.env.LLM_PROVIDER);
+  if (hasKey("OPENAI_API_KEY")) {
+    return "openai";
+  }
+  const requested = process.env.LLM_PROVIDER?.trim().toLowerCase();
+  if ((requested === "anthropic" || requested === "claude") && hasKey("ANTHROPIC_API_KEY")) {
+    return "anthropic";
+  }
+  if (requested === "gemini" && hasKey("GEMINI_API_KEY")) {
+    return "gemini";
+  }
+  if (hasKey("ANTHROPIC_API_KEY")) return "anthropic";
+  if (hasKey("GEMINI_API_KEY")) return "gemini";
+  // Nothing configured: report the OpenAI key as the one to add.
+  return "openai";
+}
+
+let loggedProvider = false;
+
+function logProviderOnce(purpose: LlmPurpose) {
+  if (loggedProvider) return;
+  loggedProvider = true;
+  const provider = getLlmProvider();
+  console.info(`[llm] Using ${provider} (${modelFor(purpose, provider)}) for AI requests.`);
+}
+
+/** Turns provider outages and rate limits into a message a user can act on. */
+export function friendlyLlmError(error: unknown, purpose: LlmPurpose, fallback: string) {
+  if (isLlmConfigError(error)) {
+    return llmConfigErrorMessage(purpose);
+  }
+  const message = error instanceof Error ? error.message : "";
+  const status = (error as { status?: number } | null)?.status;
+  if (status === 429 || /\b429\b|rate limit|quota/i.test(message)) {
+    return "The AI service is rate-limiting this account right now. Wait a minute and try again. If it keeps happening, raise your OpenAI usage tier.";
+  }
+  if ((status && status >= 500) || /\b50[0-4]\b|overloaded|high demand|unavailable/i.test(message)) {
+    return "The AI service is temporarily busy. Please try again in a minute.";
+  }
+  if (status === 401 || /incorrect api key|invalid api key|\b401\b/i.test(message)) {
+    return "The AI service rejected the API key. Check OPENAI_API_KEY in your environment settings.";
+  }
+  return message || fallback;
 }
 
 function modelFor(purpose: LlmPurpose, provider: LlmProvider) {
@@ -241,6 +279,7 @@ async function generateTextWithGemini(request: LlmTextRequest) {
 
 /** Non-streaming text generation (extraction, bid plan, review). */
 export async function generateLlmText(request: LlmTextRequest) {
+  logProviderOnce(request.purpose);
   const provider = getLlmProvider();
   if (provider === "anthropic") {
     return generateTextWithAnthropic(request);
@@ -291,6 +330,7 @@ async function* streamTextWithGemini(request: LlmTextRequest) {
 
 /** Streaming text generation for progressive draft sections. */
 export async function* streamLlmText(request: LlmTextRequest) {
+  logProviderOnce(request.purpose);
   const provider = getLlmProvider();
   if (provider === "anthropic") {
     yield* streamTextWithAnthropic(request);

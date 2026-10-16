@@ -4,8 +4,7 @@ import { upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
   generateLlmText,
-  isLlmConfigError,
-  llmConfigErrorMessage,
+  friendlyLlmError,
   streamLlmText,
   type LlmEffort,
 } from "@/lib/llm";
@@ -84,8 +83,7 @@ function cleanSection(text: string) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  if (isLlmConfigError(error)) return llmConfigErrorMessage("drafting");
-  return error instanceof Error ? error.message : fallback;
+  return friendlyLlmError(error, "drafting", fallback);
 }
 
 async function readBody(request: Request) {
