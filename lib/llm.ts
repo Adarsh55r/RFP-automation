@@ -35,6 +35,8 @@ export type LlmTextRequest = {
   maxTokens?: number;
   purpose: LlmPurpose;
   effort?: LlmEffort;
+  /** The response must be a single JSON object (bid plan, extraction). */
+  json?: boolean;
 };
 
 function normalizeProvider(value: string | undefined): LlmProvider {
@@ -160,6 +162,7 @@ function openAIParams(request: LlmTextRequest) {
   // prompt caching reuses it across the parallel drafting calls.
   return {
     model: modelFor(request.purpose, "openai"),
+    ...(request.json ? { response_format: { type: "json_object" as const } } : {}),
     max_completion_tokens: Math.min(request.maxTokens ?? 16000, OPENAI_MAX_OUTPUT_TOKENS),
     messages: [
       { role: "system" as const, content: request.system },
@@ -224,6 +227,7 @@ async function generateTextWithGemini(request: LlmTextRequest) {
     contents: [{ role: "user", parts: [{ text: geminiPrompt(request) }] }],
     generationConfig: {
       maxOutputTokens: request.maxTokens ?? 16000,
+      ...(request.json ? { responseMimeType: "application/json" } : {}),
     },
   });
 

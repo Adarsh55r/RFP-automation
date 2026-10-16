@@ -329,7 +329,15 @@ export function columnWeights(header: InlineRun[][], rows: InlineRun[][][]) {
       .map((cell) => runsToPlainText(cell as InlineRun[]).length);
     const longest = Math.max(...lengths, 1);
     const average = lengths.reduce((sum, value) => sum + value, 0) / Math.max(lengths.length, 1);
-    weights.push(Math.min(Math.max((longest + average) / 2, 6), 60));
+    // Never narrower than the longest single word, so words don't break mid-way.
+    const longestWord = Math.max(
+      ...[header[column], ...rows.map((row) => row[column])]
+        .filter(Boolean)
+        .flatMap((cell) => runsToPlainText(cell as InlineRun[]).split(/\s+/))
+        .map((word) => word.length),
+      1,
+    );
+    weights.push(Math.max(Math.min(Math.max((longest + average) / 2, 6), 60), longestWord + 2));
   }
   const total = weights.reduce((sum, value) => sum + value, 0);
   return weights.map((value) => value / total);

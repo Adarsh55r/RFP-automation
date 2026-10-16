@@ -1,8 +1,13 @@
 import type { ExportFormat } from "@/lib/proposal-document";
 
 /** Requests an export and saves it through a temporary download link. */
-export async function downloadRfpExport(rfpId: string, format: ExportFormat) {
-  const response = await fetch(`/api/rfps/${rfpId}/export?format=${format}`, {
+export async function downloadRfpExport(
+  rfpId: string,
+  format: ExportFormat,
+  options: { complianceMatrix?: boolean } = {},
+) {
+  const matrix = options.complianceMatrix ? "&matrix=1" : "";
+  const response = await fetch(`/api/rfps/${rfpId}/export?format=${format}${matrix}`, {
     method: "POST",
   });
 

@@ -14,6 +14,7 @@ import {
   TableCell,
   TableLayoutType,
   TableRow,
+  TabStopType,
   TextRun,
   WidthType,
   convertInchesToTwip,
@@ -21,6 +22,7 @@ import {
 import {
   columnWeights,
   relativeHeadingLevel,
+  runsToPlainText,
   type InlineRun,
   type MdBlock,
   type TableAlign,
@@ -28,23 +30,32 @@ import {
 import type { ProposalDocument } from "@/lib/proposal-document";
 
 const FONT = "Calibri";
-const INK = "0B1F33";
+const NAVY = "0B1F33";
+const INK = "1C2836";
 const BRAND = "0F6E5B";
-const SLATE = "445566";
-const BORDER = "C9D3CE";
-const HEADER_FILL = "E8F1EE";
-const STRIPE_FILL = "F7FAF9";
-const BODY_SIZE = 22; // half-points → 11pt
+const SLATE = "5A6878";
+const RULE = "D5DDD9";
+const TINT = "EEF5F2";
+const STRIPE = "F6F9F8";
+const BODY_SIZE = 21; // half-points → 10.5pt
 
 const PAGE = {
   letter: { width: 12240, height: 15840 },
   a4: { width: 11906, height: 16838 },
 };
-const MARGIN = convertInchesToTwip(1);
+const MARGIN = convertInchesToTwip(0.95);
+/** Paragraphs shorter than this are kept on one page. */
+const KEEP_TOGETHER_CHARS = 700;
 
 type Block = Paragraph | Table;
 
-function textRuns(runs: InlineRun[], base: { size?: number; color?: string; bold?: boolean } = {}) {
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER };
+
+function textRuns(
+  runs: InlineRun[],
+  base: { size?: number; color?: string; bold?: boolean } = {},
+) {
   if (runs.length === 0) {
     return [new TextRun({ text: "" })];
   }
@@ -66,61 +77,86 @@ function textRuns(runs: InlineRun[], base: { size?: number; color?: string; bold
   );
 }
 
+function plain(text: string, opts: { size?: number; color?: string; bold?: boolean; italics?: boolean; allCaps?: boolean } = {}) {
+  return new TextRun({
+    text,
+    font: FONT,
+    size: opts.size ?? BODY_SIZE,
+    color: opts.color ?? INK,
+    bold: opts.bold,
+    italics: opts.italics,
+    allCaps: opts.allCaps,
+  });
+}
+
 function alignment(align: TableAlign) {
   if (align === "center") return AlignmentType.CENTER;
   if (align === "right") return AlignmentType.RIGHT;
   return AlignmentType.LEFT;
 }
 
+function plainLength(block: MdBlock): number {
+  switch (block.type) {
+    case "heading":
+    case "paragraph":
+      return runsToPlainText(block.runs).length;
+    case "list":
+      return block.items.flat().reduce((sum, inner) => sum + plainLength(inner), 0);
+    case "quote":
+      return block.blocks.reduce((sum, inner) => sum + plainLength(inner), 0);
+    default:
+      return 0;
+  }
+}
+
 type RenderContext = {
   contentWidth: number;
   headingLevel: (level: number) => number;
+  sectionNumber: string | null;
+  subheadingCount: number;
   nextListInstance: () => number;
 };
 
-function tableBlock(
-  block: Extract<MdBlock, { type: "table" }>,
-  ctx: RenderContext,
-  indent: number,
+function dataTable(
+  header: InlineRun[][],
+  rows: InlineRun[][][],
+  align: TableAlign[],
+  width: number,
+  indent = 0,
 ): Table {
-  const width = ctx.contentWidth - indent;
-  const weights = columnWeights(block.header, block.rows);
-  const minWidth = 900;
-  const widths = weights.map((weight) => Math.max(Math.round(weight * width), minWidth));
-  // Re-balance so the columns add up to exactly the available width.
+  const weights = columnWeights(header, rows);
+  const widths = weights.map((weight) => Math.max(Math.round(weight * width), 800));
   const overflow = widths.reduce((sum, value) => sum + value, 0) - width;
   if (overflow !== 0) {
-    const widest = widths.indexOf(Math.max(...widths));
-    widths[widest] -= overflow;
+    widths[widths.indexOf(Math.max(...widths))] -= overflow;
   }
 
-  const border = { style: BorderStyle.SINGLE, size: 4, color: BORDER };
+  const rule = { style: BorderStyle.SINGLE, size: 4, color: RULE };
   const cell = (runs: InlineRun[], column: number, kind: "header" | "body", stripe: boolean) =>
     new TableCell({
       width: { size: widths[column], type: WidthType.DXA },
-      margins: { top: 60, bottom: 60, left: 100, right: 100 },
+      margins: { top: 70, bottom: 70, left: 100, right: 100 },
       shading: {
         type: ShadingType.CLEAR,
         color: "auto",
-        fill: kind === "header" ? HEADER_FILL : stripe ? STRIPE_FILL : "FFFFFF",
+        fill: kind === "header" ? BRAND : stripe ? STRIPE : "FFFFFF",
       },
-      borders: { top: border, bottom: border, left: border, right: border },
+      borders: { top: rule, bottom: rule, left: NO_BORDER, right: NO_BORDER },
       children: [
         new Paragraph({
-          alignment: alignment(block.align[column] ?? null),
-          spacing: { before: 0, after: 0, line: 252 },
+          alignment: alignment(align[column] ?? null),
+          spacing: { before: 0, after: 0, line: 250 },
           children: textRuns(runs, {
             size: 19,
             bold: kind === "header",
-            color: kind === "header" ? BRAND : INK,
+            color: kind === "header" ? "FFFFFF" : INK,
           }),
         }),
       ],
     });
 
   const columns = widths.length;
-  const pad = (row: InlineRun[][]) =>
-    Array.from({ length: columns }, (_, index) => row[index] ?? []);
+  const pad = (row: InlineRun[][]) => Array.from({ length: columns }, (_, index) => row[index] ?? []);
 
   return new Table({
     width: { size: width, type: WidthType.DXA },
@@ -131,56 +167,60 @@ function tableBlock(
       new TableRow({
         tableHeader: true,
         cantSplit: true,
-        children: pad(block.header).map((runs, column) => cell(runs, column, "header", false)),
+        children: pad(header).map((runs, column) => cell(runs, column, "header", false)),
       }),
-      ...block.rows.map(
+      ...rows.map(
         (row, rowIndex) =>
           new TableRow({
             cantSplit: true,
-            children: pad(row).map((runs, column) =>
-              cell(runs, column, "body", rowIndex % 2 === 1),
-            ),
+            children: pad(row).map((runs, column) => cell(runs, column, "body", rowIndex % 2 === 1)),
           }),
       ),
     ],
   });
 }
 
+function headingParagraph(block: Extract<MdBlock, { type: "heading" }>, ctx: RenderContext) {
+  const level = ctx.headingLevel(block.level);
+  if (level === 1) {
+    const number = ctx.sectionNumber ? `${ctx.sectionNumber}.${(ctx.subheadingCount += 1)}` : null;
+    return new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      keepNext: true,
+      keepLines: true,
+      children: [
+        ...(number ? [plain(`${number}   `, { size: 27, bold: true, color: BRAND })] : []),
+        ...textRuns(block.runs, { size: 27, bold: true, color: NAVY }),
+      ],
+    });
+  }
+  return new Paragraph({
+    heading: level === 2 ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_4,
+    keepNext: true,
+    keepLines: true,
+    children: textRuns(block.runs, { size: level === 2 ? 23 : 21, bold: true, color: INK }),
+  });
+}
+
 function renderBlocks(
   blocks: MdBlock[],
   ctx: RenderContext,
-  list?: { ordered: boolean; level: number; instance: number },
+  list?: { level: number },
 ): Block[] {
   const out: Block[] = [];
-  const indent = list ? convertInchesToTwip(0.25 * (list.level + 1)) : 0;
+  const indent = list ? convertInchesToTwip(0.3 * (list.level + 1)) : 0;
 
   for (const block of blocks) {
     switch (block.type) {
-      case "heading": {
-        const level = ctx.headingLevel(block.level);
-        out.push(
-          new Paragraph({
-            heading:
-              level === 1
-                ? HeadingLevel.HEADING_2
-                : level === 2
-                  ? HeadingLevel.HEADING_3
-                  : HeadingLevel.HEADING_4,
-            keepNext: true,
-            children: textRuns(block.runs, {
-              size: level === 1 ? 28 : level === 2 ? 24 : 22,
-              bold: true,
-              color: level === 1 ? BRAND : INK,
-            }),
-          }),
-        );
+      case "heading":
+        out.push(headingParagraph(block, ctx));
         break;
-      }
       case "paragraph":
         out.push(
           new Paragraph({
-            spacing: { after: 140, line: 276 },
+            spacing: { after: list ? 60 : 160, line: 288 },
             indent: indent ? { left: indent } : undefined,
+            keepLines: plainLength(block) < KEEP_TOGETHER_CHARS,
             children: textRuns(block.runs),
           }),
         );
@@ -198,33 +238,46 @@ function renderBlocks(
                 level,
                 ...(block.ordered ? { instance } : {}),
               },
-              spacing: { after: 60, line: 264 },
+              spacing: { after: 70, line: 276 },
+              keepLines: true,
               children: textRuns(firstRuns),
             }),
           );
           const remaining = first && first.type === "paragraph" ? rest : item;
-          out.push(
-            ...renderBlocks(remaining, ctx, { ordered: block.ordered, level, instance }),
-          );
+          out.push(...renderBlocks(remaining, ctx, { level }));
         }
-        // Breathing room after the outermost list.
-        if (!list) out.push(new Paragraph({ spacing: { after: 60 }, children: [] }));
+        if (!list) out.push(new Paragraph({ spacing: { after: 80 }, children: [] }));
         break;
       }
       case "table":
-        out.push(tableBlock(block, ctx, indent));
-        out.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+        out.push(dataTable(block.header, block.rows, block.align, ctx.contentWidth - indent, indent));
+        out.push(new Paragraph({ spacing: { after: 140 }, children: [] }));
         break;
-      case "quote":
-        for (const inner of renderBlocks(block.blocks, ctx, list)) {
-          out.push(inner);
-        }
+      case "quote": {
+        // Theme statements render as a tinted call-out with a brand-colored rule.
+        const paragraphs = block.blocks.flatMap((inner) =>
+          inner.type === "paragraph" ? [inner.runs] : inner.type === "heading" ? [inner.runs] : [],
+        );
+        paragraphs.forEach((runs, index) => {
+          out.push(
+            new Paragraph({
+              spacing: { before: index === 0 ? 60 : 0, after: index === paragraphs.length - 1 ? 200 : 60, line: 276 },
+              indent: { left: convertInchesToTwip(0.12) + indent, right: convertInchesToTwip(0.1) },
+              keepLines: true,
+              keepNext: index < paragraphs.length - 1,
+              shading: { type: ShadingType.CLEAR, color: "auto", fill: TINT },
+              border: { left: { style: BorderStyle.SINGLE, size: 24, color: BRAND, space: 8 } },
+              children: textRuns(runs),
+            }),
+          );
+        });
         break;
+      }
       case "code":
         out.push(
           new Paragraph({
             spacing: { after: 140 },
-            shading: { type: ShadingType.CLEAR, color: "auto", fill: STRIPE_FILL },
+            shading: { type: ShadingType.CLEAR, color: "auto", fill: STRIPE },
             children: textRuns([{ text: block.text, code: true }], { size: 18 }),
           }),
         );
@@ -233,7 +286,7 @@ function renderBlocks(
         out.push(
           new Paragraph({
             spacing: { after: 140 },
-            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: BORDER, space: 1 } },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE, space: 1 } },
             children: [],
           }),
         );
@@ -244,144 +297,238 @@ function renderBlocks(
   return out;
 }
 
-function centered(text: string, size: number, opts: { bold?: boolean; color?: string; before?: number; after?: number; italics?: boolean } = {}) {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { before: opts.before ?? 0, after: opts.after ?? 120 },
-    children: [
-      new TextRun({
-        text,
-        font: FONT,
-        size,
-        bold: opts.bold,
-        italics: opts.italics,
-        color: opts.color ?? INK,
-      }),
-    ],
-  });
-}
-
-function coverPage(doc: ProposalDocument): Paragraph[] {
-  const meta: Paragraph[] = [];
-  if (doc.solicitationNumber) {
-    meta.push(centered(`Solicitation No. ${doc.solicitationNumber}`, 22, { color: SLATE, after: 60 }));
-  }
-  if (doc.dueDate) {
-    meta.push(centered(`Due ${doc.dueDate}`, 22, { color: SLATE, after: 60 }));
-  }
-
+function sectionHeading(text: string) {
   return [
     new Paragraph({
-      spacing: { after: 1800 },
-      border: { top: { style: BorderStyle.SINGLE, size: 36, color: BRAND, space: 1 } },
-      children: [],
+      heading: HeadingLevel.HEADING_1,
+      pageBreakBefore: true,
+      keepNext: true,
+      spacing: { after: 120 },
+      children: [plain(text, { size: 40, bold: true, color: NAVY })],
     }),
-    centered("PROPOSAL", 22, { bold: true, color: BRAND, after: 240 }),
-    centered(doc.rfpTitle, 44, { bold: true, after: 360 }),
-    ...(doc.buyerName
-      ? [
-          centered("Prepared for", 20, { color: SLATE, after: 40 }),
-          centered(doc.buyerName, 30, { bold: true, after: 240 }),
-        ]
-      : []),
-    ...meta,
+    // Short brand-colored accent rule under the section title.
     new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 360, after: 360 },
-      border: { top: { style: BorderStyle.SINGLE, size: 8, color: BORDER, space: 8 } },
-      children: [],
-    }),
-    centered("Submitted by", 20, { color: SLATE, after: 40 }),
-    centered(doc.companyName, 30, { bold: true, after: 120 }),
-    centered(doc.dateLabel, 22, { color: SLATE, after: 1400 }),
-    centered("This proposal contains confidential and proprietary information.", 18, {
-      italics: true,
-      color: SLATE,
+      spacing: { after: 280 },
+      keepNext: true,
+      children: [plain("▬▬▬", { size: 20, color: BRAND })],
     }),
   ];
 }
 
-function contentsPage(doc: ProposalDocument): Paragraph[] {
+function label(text: string) {
+  return new Paragraph({
+    spacing: { after: 80 },
+    children: [plain(text, { size: 16, bold: true, color: BRAND, allCaps: true })],
+  });
+}
+
+function line(text: string, opts: { bold?: boolean; size?: number; color?: string; placeholder?: boolean } = {}) {
+  return new Paragraph({
+    spacing: { after: 40 },
+    children: opts.placeholder
+      ? textRuns([{ text, placeholder: true }], { size: opts.size })
+      : [plain(text, { size: opts.size ?? 21, bold: opts.bold, color: opts.color ?? INK })],
+  });
+}
+
+function twoColumns(left: Paragraph[], right: Paragraph[], width: number) {
+  const half = Math.floor(width / 2);
+  const column = (children: Paragraph[]) =>
+    new TableCell({
+      width: { size: half, type: WidthType.DXA },
+      borders: NO_BORDERS,
+      margins: { top: 0, bottom: 0, left: 0, right: 200 },
+      children: children.length ? children : [new Paragraph({ children: [] })],
+    });
+  return new Table({
+    width: { size: width, type: WidthType.DXA },
+    columnWidths: [half, width - half],
+    layout: TableLayoutType.FIXED,
+    borders: { ...NO_BORDERS, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+    rows: [new TableRow({ children: [column(left), column(right)] })],
+  });
+}
+
+function coverPage(doc: ProposalDocument, contentWidth: number): Block[] {
+  const { cover } = doc;
+  const contact = [
+    cover.contactName && cover.contactTitle
+      ? `${cover.contactName}, ${cover.contactTitle}`
+      : cover.contactName || cover.contactTitle,
+    cover.contactEmail,
+    cover.contactPhone,
+  ].filter(Boolean);
+
+  const band = new Table({
+    width: { size: contentWidth, type: WidthType.DXA },
+    columnWidths: [contentWidth],
+    layout: TableLayoutType.FIXED,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: contentWidth, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, color: "auto", fill: NAVY },
+            borders: { ...NO_BORDERS, bottom: { style: BorderStyle.SINGLE, size: 24, color: BRAND } },
+            margins: { top: 420, bottom: 420, left: 360, right: 360 },
+            children: [
+              new Paragraph({ spacing: { after: 80 }, children: [plain(cover.bidderName, { size: 30, bold: true, color: "FFFFFF" })] }),
+              new Paragraph({ children: [plain("Response to Request for Proposal", { size: 17, bold: true, color: "BFD9D0", allCaps: true })] }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
   return [
+    band,
+    new Paragraph({ spacing: { before: 1400, after: 160 }, children: [plain(cover.projectTitle, { size: 52, bold: true, color: NAVY })] }),
     new Paragraph({
-      pageBreakBefore: true,
-      heading: HeadingLevel.HEADING_1,
-      spacing: { after: 240 },
-      children: [new TextRun({ text: "Contents", font: FONT, size: 32, bold: true, color: INK })],
+      spacing: { after: 700 },
+      children: cover.solicitationNumber
+        ? [plain(`Solicitation No. ${cover.solicitationNumber}`, { size: 22, color: SLATE })]
+        : [],
     }),
-    ...doc.sections.map(
-      (section) =>
-        new Paragraph({
-          spacing: { after: 120 },
-          border: { bottom: { style: BorderStyle.DOTTED, size: 4, color: BORDER, space: 4 } },
-          children: [
-            new TextRun({
-              text: section.number ? `${section.number}.  ` : "",
-              font: FONT,
-              size: 24,
-              bold: true,
-              color: BRAND,
-            }),
-            new TextRun({ text: section.title, font: FONT, size: 24, color: INK }),
-          ],
-        }),
+    twoColumns(
+      [
+        label("Prepared for"),
+        cover.buyerName
+          ? line(cover.buyerName, { bold: true, size: 24 })
+          : line("[Buyer name]", { size: 24, placeholder: true }),
+        ...(cover.buyerAddress ? [line(cover.buyerAddress, { color: SLATE })] : []),
+      ],
+      [
+        label("Submitted by"),
+        line(cover.bidderName, { bold: true, size: 24 }),
+        ...contact.map((value) => line(value, { color: SLATE })),
+      ],
+      contentWidth,
     ),
+    new Paragraph({
+      spacing: { before: 500, after: 200 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE, space: 1 } },
+      children: [],
+    }),
+    twoColumns(
+      [label("Submission date"), line(doc.dateLabel)],
+      cover.dueDate ? [label("Response due"), line(cover.dueDate)] : [],
+      contentWidth,
+    ),
+    new Paragraph({
+      spacing: { before: 1600 },
+      children: [
+        plain(
+          `Confidential and proprietary to ${cover.bidderName.replace(/\.$/, "")}. Provided solely for the evaluation of this solicitation.`,
+          { size: 16, italics: true, color: SLATE },
+        ),
+      ],
+    }),
+  ];
+}
+
+/** Section and subsection headings, collected for the contents page. */
+function outline(doc: ProposalDocument) {
+  return doc.sections.map((section) => {
+    const level = relativeHeadingLevel(section.blocks);
+    const subheadings = section.numberSubheadings
+      ? section.blocks
+          .filter((block): block is Extract<MdBlock, { type: "heading" }> => block.type === "heading" && level(block.level) === 1)
+          .map((block, index) => `${section.number}.${index + 1}   ${runsToPlainText(block.runs)}`)
+      : [];
+    return {
+      title: section.number ? `${section.number}.  ${section.title}` : section.title,
+      subheadings,
+    };
+  });
+}
+
+function contentsPage(doc: ProposalDocument): Paragraph[] {
+  const entries = outline(doc);
+  if (doc.complianceMatrix) entries.push({ title: "Appendix A.  Compliance Matrix", subheadings: [] });
+  return [
+    ...sectionHeading("Contents"),
+    ...entries.flatMap((entry) => [
+      new Paragraph({
+        spacing: { before: 160, after: 60 },
+        keepNext: entry.subheadings.length > 0,
+        children: [plain(entry.title, { size: 22, bold: true, color: INK })],
+      }),
+      ...entry.subheadings.map(
+        (title) =>
+          new Paragraph({
+            spacing: { after: 40 },
+            indent: { left: convertInchesToTwip(0.3) },
+            children: [plain(title, { size: 19, color: SLATE })],
+          }),
+      ),
+    ]),
   ];
 }
 
 export function buildProposalDocx(doc: ProposalDocument) {
   const page = PAGE[doc.pageSize];
   const contentWidth = page.width - MARGIN * 2;
+  const { cover } = doc;
   let listInstance = 0;
+  const reference = cover.solicitationNumber ? `Response to ${cover.solicitationNumber}` : cover.projectTitle;
 
-  const body: Block[] = [...coverPage(doc), ...contentsPage(doc)];
+  const body: Block[] = [...coverPage(doc, contentWidth), ...contentsPage(doc)];
 
   for (const section of doc.sections) {
     body.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        pageBreakBefore: true,
-        spacing: { after: 280 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BRAND, space: 8 } },
-        children: [
-          new TextRun({
-            text: section.number ? `${section.number}. ${section.title}` : section.title,
-            font: FONT,
-            size: 34,
-            bold: true,
-            color: INK,
-          }),
-        ],
-      }),
+      ...sectionHeading(section.number ? `${section.number}.  ${section.title}` : section.title),
       ...renderBlocks(section.blocks, {
         contentWidth,
         headingLevel: relativeHeadingLevel(section.blocks),
+        sectionNumber: section.numberSubheadings ? section.number : null,
+        subheadingCount: 0,
         nextListInstance: () => (listInstance += 1),
       }),
     );
   }
 
-  const small = (text: string) =>
-    new TextRun({ text, font: FONT, size: 16, color: SLATE });
+  if (doc.complianceMatrix) {
+    body.push(
+      ...sectionHeading("Appendix A.  Compliance Matrix"),
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [plain("Each requirement of the solicitation and where this proposal responds to it.", { color: SLATE })],
+      }),
+      dataTable(
+        [[{ text: "#" }], [{ text: "Requirement" }], [{ text: "Type" }], [{ text: "Proposal reference" }]],
+        doc.complianceMatrix.map((row, index) => [
+          [{ text: String(index + 1) }],
+          [{ text: row.requirement }],
+          [{ text: row.type }],
+          [{ text: row.reference.replace(/^\[\[(.*)\]\]$/, "[$1]"), placeholder: row.reference.startsWith("[[") }],
+        ]),
+        ["left", "left", "left", "left"],
+        contentWidth,
+      ),
+    );
+  }
+
+  const rightTab = [{ type: TabStopType.RIGHT, position: contentWidth }];
 
   return new Document({
-    creator: doc.companyName,
-    title: `${doc.rfpTitle} — Proposal`,
-    description: `Proposal from ${doc.companyName}`,
+    creator: cover.bidderName,
+    title: `${cover.projectTitle} — Proposal`,
+    description: `Proposal from ${cover.bidderName}`,
     styles: {
       default: {
         document: { run: { font: FONT, size: BODY_SIZE, color: INK } },
-        heading1: { run: { font: FONT, size: 34, bold: true, color: INK } },
+        heading1: { run: { font: FONT, size: 40, bold: true, color: NAVY } },
         heading2: {
-          run: { font: FONT, size: 28, bold: true, color: BRAND },
-          paragraph: { spacing: { before: 280, after: 120 } },
+          run: { font: FONT, size: 27, bold: true, color: NAVY },
+          paragraph: { spacing: { before: 320, after: 120 } },
         },
         heading3: {
-          run: { font: FONT, size: 24, bold: true, color: INK },
-          paragraph: { spacing: { before: 220, after: 100 } },
+          run: { font: FONT, size: 23, bold: true, color: INK },
+          paragraph: { spacing: { before: 240, after: 100 } },
         },
         heading4: {
-          run: { font: FONT, size: 22, bold: true, color: INK },
+          run: { font: FONT, size: 21, bold: true, color: INK },
           paragraph: { spacing: { before: 180, after: 80 } },
         },
       },
@@ -432,8 +579,12 @@ export function buildProposalDocx(doc: ProposalDocument) {
           default: new Header({
             children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [small(`${doc.companyName}  |  ${doc.rfpTitle}`)],
+                tabStops: rightTab,
+                border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: RULE, space: 4 } },
+                children: [
+                  plain(cover.bidderName, { size: 16, bold: true, color: NAVY }),
+                  plain(`\t${reference}`, { size: 16, color: SLATE }),
+                ],
               }),
             ],
           }),
@@ -443,13 +594,15 @@ export function buildProposalDocx(doc: ProposalDocument) {
           default: new Footer({
             children: [
               new Paragraph({
-                alignment: AlignmentType.CENTER,
+                tabStops: rightTab,
+                border: { top: { style: BorderStyle.SINGLE, size: 4, color: RULE, space: 4 } },
                 children: [
+                  plain("Confidential", { size: 16, color: SLATE }),
                   new TextRun({
                     font: FONT,
                     size: 16,
                     color: SLATE,
-                    children: ["Page ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES],
+                    children: ["\tPage ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES],
                   }),
                 ],
               }),

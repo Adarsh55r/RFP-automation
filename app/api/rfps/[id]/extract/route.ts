@@ -9,6 +9,7 @@ import {
   extractRequirementsWithLlm,
   extractTextFromDocument,
 } from "@/lib/rfp-extract";
+import { resetPlanKeepingCover } from "@/lib/rfp-draft";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -85,7 +86,7 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedSubmission: extracted.submissionRequirements,
         // Postgres text columns reject NUL bytes, which some PDFs contain.
         sourceText: documentText.replace(/\u0000/g, ""),
-        draftPlan: Prisma.DbNull,
+        draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       },
     });
 

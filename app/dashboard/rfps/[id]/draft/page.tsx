@@ -9,7 +9,12 @@ import { prisma } from "@/lib/db";
 import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
-import { sectionsForRfp } from "@/lib/rfp-draft";
+import {
+  hasModelPlan,
+  parseDraftPlan,
+  resolveCover,
+  sectionsForRfp,
+} from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 
 type DraftPageProps = {
@@ -58,6 +63,12 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
     orderBy: { createdAt: "asc" },
   });
 
+  const plan = parseDraftPlan(rfp.draftPlan);
+  const cover = resolveCover(plan, {
+    companyName: user.agencyName?.trim() || "Your company",
+    rfpTitle: rfp.title,
+  });
+
   const autoStart =
     drafts.length === 0 &&
     (rfp.status === "extracted" || rfp.status === "drafting");
@@ -87,8 +98,8 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
               Drafts come from the full RFP, your extracted requirements, and
               your Content Library. The checklist and compliance review are for
-              you only — they are never included in the exported Word or PDF
-              file.
+              your eyes only; the optional compliance matrix appendix lists each
+              requirement and where your proposal answers it.
             </p>
           </div>
           <Badge variant={rfpStatusVariant[rfp.status]} className="w-fit">
@@ -104,6 +115,8 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         initialDrafts={drafts}
         initialCoverageMap={rfp.coverageMap}
         autoStart={autoStart}
+        cover={cover}
+        legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
       />
     </div>
   );
