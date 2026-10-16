@@ -576,7 +576,7 @@ export function RfpExtractionPanel({
                   </Button>
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="danger"
                     onClick={() => void handleExport("pdf")}
                     disabled={exporting !== null}
                     className="w-full sm:w-fit"
