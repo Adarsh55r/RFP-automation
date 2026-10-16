@@ -1,5 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { beginAiOperation } from "@/lib/ai-guard";
+import { usageRecorder } from "@/lib/ai-usage";
 import { upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
@@ -139,7 +141,10 @@ export async function POST(request: Request, context: RouteContext) {
     return Response.json({ error: "You must be signed in." }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({ where: { clerkId } });
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    include: { subscription: { select: { tier: true } } },
+  });
   if (!user) {
     return Response.json(
       { error: "Complete onboarding before drafting." },
@@ -187,44 +192,74 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
   const targets = onlySection ? [onlySection] : plannedSections;
+  const operation = onlySection ? "revision" : "full_draft";
 
-  await prisma.rfp.update({
-    where: { id: rfp.id },
-    data: { status: RfpStatus.drafting },
+  const guard = await beginAiOperation({
+    user,
+    tier: user.subscription?.tier ?? "free",
+    rfpId: rfp.id,
+    operation,
   });
+  if (!guard.ok) {
+    return Response.json({ error: guard.error }, { status: guard.status });
+  }
+  const onUsage = usageRecorder({ userId: user.id, rfpId: rfp.id, action: operation });
 
-  const [libraryItems, source, existingDrafts] = await Promise.all([
-    getLibraryItemsForUser(user.id),
-    getRfpSourceText(rfp),
-    prisma.draft.findMany({ where: { rfpId: rfp.id } }),
-  ]);
-  if (source.fetched && source.text) {
+  // Everything before streaming starts must release the AI lock if it fails.
+  const prepare = async () => {
     await prisma.rfp.update({
       where: { id: rfp.id },
-      data: { sourceText: source.text },
+      data: { status: RfpStatus.drafting },
     });
-  }
 
-  const companyName = user.agencyName?.trim() || "Our company";
-  const sharedContext = buildDraftingContext({
-    companyName,
-    rfp,
-    libraryItems,
-    sourceText: source.text,
-  });
-  const currentContent = new Map(
-    existingDrafts.map((draft) => [draft.sectionName, draft.content]),
-  );
-  if (onlySection && editorContent?.trim()) {
-    currentContent.set(onlySection, editorContent);
+    const [libraryItems, source, existingDrafts] = await Promise.all([
+      getLibraryItemsForUser(user.id),
+      getRfpSourceText(rfp),
+      prisma.draft.findMany({ where: { rfpId: rfp.id } }),
+    ]);
+    if (source.fetched && source.text) {
+      await prisma.rfp.update({
+        where: { id: rfp.id },
+        data: { sourceText: source.text },
+      });
+    }
+
+    const companyName = user.agencyName?.trim() || "Our company";
+    const sharedContext = buildDraftingContext({
+      companyName,
+      rfp,
+      libraryItems,
+      sourceText: source.text,
+    });
+    const currentContent = new Map(
+      existingDrafts.map((draft) => [draft.sectionName, draft.content]),
+    );
+    if (onlySection && editorContent?.trim()) {
+      currentContent.set(onlySection, editorContent);
+    }
+    const questions = editableTextToList(listToEditableText(rfp.extractedQuestionnaire));
+    return { sharedContext, currentContent, questions };
+  };
+
+  let prepared: Awaited<ReturnType<typeof prepare>>;
+  try {
+    prepared = await prepare();
+  } catch (error) {
+    await guard.release();
+    console.error("RFP drafting setup failed:", error);
+    return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
-  const questions = editableTextToList(listToEditableText(rfp.extractedQuestionnaire));
+  const { sharedContext, currentContent, questions } = prepared;
 
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
       const send = (event: StreamEvent) => {
-        controller.enqueue(encoder.encode(encodeEvent(event)));
+        try {
+          controller.enqueue(encoder.encode(encodeEvent(event)));
+        } catch {
+          // The browser disconnected; keep going so finished sections are still saved.
+        }
       };
 
       const call = (task: string, maxTokens: number, effort?: LlmEffort, json?: boolean) => ({
@@ -235,6 +270,7 @@ export async function POST(request: Request, context: RouteContext) {
         maxTokens,
         effort,
         json,
+        onUsage,
       });
 
       try {
@@ -377,7 +413,11 @@ export async function POST(request: Request, context: RouteContext) {
         });
 
         send({ type: "done" });
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Already closed by a disconnect.
+        }
       } catch (error) {
         console.error("RFP drafting failed:", error);
         await prisma.rfp
@@ -390,7 +430,13 @@ export async function POST(request: Request, context: RouteContext) {
           })
           .catch(() => undefined);
         send({ type: "error", message: errorMessage(error, "Drafting failed.") });
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Already closed by a disconnect.
+        }
+      } finally {
+        await guard.release();
       }
     },
   });

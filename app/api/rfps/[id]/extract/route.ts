@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma, RfpStatus } from "@/lib/generated/prisma";
+import { beginAiOperation } from "@/lib/ai-guard";
+import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
 import {
   deadlineToDate,
@@ -28,6 +30,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const user = await prisma.user.findUnique({
     where: { clerkId },
+    include: { subscription: { select: { tier: true } } },
   });
 
   if (!user) {
@@ -59,6 +62,16 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
+  const guard = await beginAiOperation({
+    user,
+    tier: user.subscription?.tier ?? "free",
+    rfpId: rfp.id,
+    operation: "extract",
+  });
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const previousStatus = rfp.status;
 
   await prisma.rfp.update({
@@ -69,7 +82,10 @@ export async function POST(_request: Request, context: RouteContext) {
   try {
     const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
     const documentText = await extractTextFromDocument(buffer, fileName);
-    const extracted = await extractRequirementsWithLlm(documentText);
+    const extracted = await extractRequirementsWithLlm(
+      documentText,
+      usageRecorder({ userId: user.id, rfpId: rfp.id, action: "extract" }),
+    );
 
     const updated = await prisma.rfp.update({
       where: { id: rfp.id },
@@ -117,5 +133,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
     console.error("RFP extraction failed:", error);
     return NextResponse.json({ error: message }, { status: 500 });
+  } finally {
+    await guard.release();
   }
 }

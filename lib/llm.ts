@@ -6,6 +6,7 @@ import {
   supportsDefaultFallback,
   supportsEffort,
 } from "@/lib/anthropic";
+import type { LlmUsage } from "@/lib/ai-usage";
 import {
   getOpenAIClient,
   OPENAI_DRAFTING_MODEL,
@@ -37,7 +38,50 @@ export type LlmTextRequest = {
   effort?: LlmEffort;
   /** The response must be a single JSON object (bid plan, extraction). */
   json?: boolean;
+  /** Called once per model call with its token usage (for metering). */
+  onUsage?: (usage: LlmUsage) => void;
 };
+
+function reportUsage(
+  request: LlmTextRequest,
+  provider: LlmProvider,
+  usage: { input?: number | null; cached?: number | null; output?: number | null } | null | undefined,
+) {
+  if (!request.onUsage || !usage) return;
+  request.onUsage({
+    provider,
+    model: modelFor(request.purpose, provider),
+    inputTokens: usage.input ?? 0,
+    cachedInputTokens: usage.cached ?? 0,
+    outputTokens: usage.output ?? 0,
+  });
+}
+
+function anthropicUsage(message: Anthropic.Beta.BetaMessage) {
+  const usage = message.usage;
+  const cached = usage.cache_read_input_tokens ?? 0;
+  return {
+    input: usage.input_tokens + cached + (usage.cache_creation_input_tokens ?? 0),
+    cached,
+    output: usage.output_tokens,
+  };
+}
+
+type GeminiUsageMetadata = {
+  promptTokenCount?: number;
+  cachedContentTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+};
+
+function geminiUsage(metadata: GeminiUsageMetadata | undefined) {
+  if (!metadata) return null;
+  return {
+    input: metadata.promptTokenCount,
+    cached: metadata.cachedContentTokenCount,
+    output: (metadata.candidatesTokenCount ?? 0) + (metadata.thoughtsTokenCount ?? 0),
+  };
+}
 
 function hasKey(name: string) {
   return Boolean(process.env[name]?.trim());
@@ -183,6 +227,7 @@ async function generateTextWithAnthropic(request: LlmTextRequest) {
   const anthropic = getAnthropicClient();
   const stream = anthropic.beta.messages.stream(anthropicParams(request));
   const message = await stream.finalMessage();
+  reportUsage(request, "anthropic", anthropicUsage(message));
   assertNotRefused(message);
 
   const text = message.content
@@ -215,6 +260,11 @@ function openAIParams(request: LlmTextRequest) {
 async function generateTextWithOpenAI(request: LlmTextRequest) {
   const openai = getOpenAIClient();
   const completion = await openai.chat.completions.create(openAIParams(request));
+  reportUsage(request, "openai", completion.usage && {
+    input: completion.usage.prompt_tokens,
+    cached: completion.usage.prompt_tokens_details?.cached_tokens,
+    output: completion.usage.completion_tokens,
+  });
   const message = completion.choices[0]?.message;
   if (message?.refusal) {
     throw new Error(
@@ -233,9 +283,18 @@ async function* streamTextWithOpenAI(request: LlmTextRequest) {
   const stream = await openai.chat.completions.create({
     ...openAIParams(request),
     stream: true,
+    stream_options: { include_usage: true },
   });
 
   for await (const chunk of stream) {
+    // The final chunk carries usage and no choices.
+    if (chunk.usage) {
+      reportUsage(request, "openai", {
+        input: chunk.usage.prompt_tokens,
+        cached: chunk.usage.prompt_tokens_details?.cached_tokens,
+        output: chunk.usage.completion_tokens,
+      });
+    }
     const delta = chunk.choices[0]?.delta;
     if (delta?.refusal) {
       throw new Error(
@@ -269,6 +328,7 @@ async function generateTextWithGemini(request: LlmTextRequest) {
     },
   });
 
+  reportUsage(request, "gemini", geminiUsage(result.response.usageMetadata as GeminiUsageMetadata | undefined));
   const text = result.response.text();
   if (!text?.trim()) {
     throw new Error("Gemini returned an empty response.");
@@ -303,7 +363,9 @@ async function* streamTextWithAnthropic(request: LlmTextRequest) {
     }
   }
 
-  assertNotRefused(await stream.finalMessage());
+  const final = await stream.finalMessage();
+  reportUsage(request, "anthropic", anthropicUsage(final));
+  assertNotRefused(final);
 }
 
 async function* streamTextWithGemini(request: LlmTextRequest) {
@@ -326,6 +388,9 @@ async function* streamTextWithGemini(request: LlmTextRequest) {
       yield text;
     }
   }
+
+  const final = await result.response;
+  reportUsage(request, "gemini", geminiUsage(final.usageMetadata as GeminiUsageMetadata | undefined));
 }
 
 /** Streaming text generation for progressive draft sections. */

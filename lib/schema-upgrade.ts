@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db";
 
 /**
  * Brings a database created before the US/UK release up to the current
- * schema (migrations 20261015120000_us_uk_market and
- * 20261016090000_proposal_quality), using the app's own DATABASE_URL so it
+ * schema (migrations 20261015120000_us_uk_market,
+ * 20261016090000_proposal_quality, and 20261017090000_ai_usage_limits), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -50,6 +50,33 @@ BEGIN
     ALTER TABLE "Subscription" RENAME COLUMN "razorpaySubscriptionId" TO "stripeSubscriptionId";
   END IF;
 
+  -- AI usage metering, per-proposal allowances, and the one-task-at-a-time lock.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "extractCount" INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "fullDraftCount" INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "lastFullDraftAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "revisionCount" INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "aiAlertMonth" TEXT;
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "aiBusyUntil" TIMESTAMP(3);
+  CREATE TABLE IF NOT EXISTS "AiUsage" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rfpId" TEXT,
+    "action" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "model" TEXT NOT NULL,
+    "inputTokens" INTEGER NOT NULL DEFAULT 0,
+    "cachedInputTokens" INTEGER NOT NULL DEFAULT 0,
+    "outputTokens" INTEGER NOT NULL DEFAULT 0,
+    "costMicros" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AiUsage_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "AiUsage_userId_createdAt_idx" ON "AiUsage"("userId", "createdAt");
+  CREATE INDEX IF NOT EXISTS "AiUsage_rfpId_idx" ON "AiUsage"("rfpId");
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AiUsage_userId_fkey') THEN
+    ALTER TABLE "AiUsage" ADD CONSTRAINT "AiUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -57,7 +84,8 @@ BEGIN
     SELECT gen_random_uuid()::text, m.checksum, now(), m.name, NULL, NULL, now(), 1
     FROM (VALUES
       ('20261015120000_us_uk_market', '6309163e29f44cdb05ae7758576caefed729f1d7ee1347ae094b7ebb7b06c371'),
-      ('20261016090000_proposal_quality', '6e82dcd09d60e036fe723f1c6ef5a0e598abc472485b6beede362d55eadc4ab4')
+      ('20261016090000_proposal_quality', '6e82dcd09d60e036fe723f1c6ef5a0e598abc472485b6beede362d55eadc4ab4'),
+      ('20261017090000_ai_usage_limits', '291108a67b31cfa6b1eed95c210e49c5fe9164c48cca825ff4c69c8498ec0141')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
       SELECT 1 FROM "_prisma_migrations" p
@@ -86,6 +114,11 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
     WHERE t.typname = 'DraftSection' AND e.enumlabel = 'responses'
+  )
+  OR to_regclass('"AiUsage"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'aiBusyUntil'
   ) AS "needsUpgrade"
 `;
 
