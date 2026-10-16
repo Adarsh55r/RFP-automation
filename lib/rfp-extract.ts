@@ -1,3 +1,4 @@
+import type { LlmUsage } from "@/lib/ai-usage";
 import { generateLlmText } from "@/lib/llm";
 import {
   getRfpStorageBucket,
@@ -220,6 +221,7 @@ export function parseExtractionJson(raw: string): ExtractionResult {
 /** Provider-aware extraction (Gemini for testing, Claude when LLM_PROVIDER=anthropic). */
 export async function extractRequirementsWithLlm(
   documentText: string,
+  onUsage?: (usage: LlmUsage) => void,
 ): Promise<ExtractionResult> {
   const text =
     documentText.length > MAX_TEXT_CHARS
@@ -233,6 +235,7 @@ export async function extractRequirementsWithLlm(
   const raw = await generateLlmText({
     purpose: "extraction",
     json: true,
+    onUsage,
     maxTokens: 8192,
     system: EXTRACTION_SYSTEM,
     user: `Extract structured requirements from this document as JSON:\n\n${text}`,

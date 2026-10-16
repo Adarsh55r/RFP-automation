@@ -62,8 +62,11 @@ function formFromRfp(rfp: Rfp): ExtractionFormState {
 
 export function RfpExtractionPanel({
   rfp,
+  extractLimit,
 }: {
   rfp: Rfp;
+  /** Requirement extractions allowed for this proposal on the user's plan. */
+  extractLimit: number;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -327,16 +330,21 @@ export function RfpExtractionPanel({
                 {rfpDocumentTypeLabel[form.documentType]}
               </Badge>
               {status === "extracted" || canOpenDraft ? (
+                <>
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={handleExtract}
-                  disabled={!canExtract}
+                  disabled={!canExtract || rfp.extractCount >= extractLimit}
                   className="w-full sm:w-auto"
                 >
                   Re-run extraction
                 </Button>
+                <span className="font-mono text-xs tracking-wide text-slate">
+                  {Math.max(extractLimit - rfp.extractCount, 0)} of {extractLimit} extractions left
+                </span>
+                </>
               ) : null}
             </div>
           </div>

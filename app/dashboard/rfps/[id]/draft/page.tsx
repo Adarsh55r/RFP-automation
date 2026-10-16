@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
+import { proposalAllowance } from "@/lib/ai-guard";
 import {
   hasModelPlan,
   parseDraftPlan,
@@ -69,6 +70,8 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
     rfpTitle: rfp.title,
   });
 
+  const limits = proposalAllowance(user.subscription?.tier ?? "free");
+
   const autoStart =
     drafts.length === 0 &&
     (rfp.status === "extracted" || rfp.status === "drafting");
@@ -117,6 +120,10 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         autoStart={autoStart}
         cover={cover}
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
+        allowance={{
+          fullDrafts: { used: rfp.fullDraftCount, limit: limits.full_draft },
+          revisions: { used: rfp.revisionCount, limit: limits.revision },
+        }}
       />
     </div>
   );

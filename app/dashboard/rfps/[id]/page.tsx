@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
+import { proposalAllowance } from "@/lib/ai-guard";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { requireDashboardUser } from "@/lib/dashboard";
@@ -113,7 +114,10 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         )}
       </Card>
 
-      <RfpExtractionPanel rfp={rfp} />
+      <RfpExtractionPanel
+        rfp={rfp}
+        extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
+      />
     </div>
   );
 }

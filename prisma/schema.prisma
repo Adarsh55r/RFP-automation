@@ -63,48 +63,57 @@ enum RfpDocumentType {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  clerkId    String   @unique
-  email      String
-  agencyName String?
-  teamSize   String?
-  createdAt  DateTime @default(now())
+  id           String    @id @default(cuid())
+  clerkId      String    @unique
+  email        String
+  agencyName   String?
+  teamSize     String?
+  createdAt    DateTime  @default(now())
+  /// Set while an AI task runs, so an account runs one at a time. Expires on its own.
+  aiBusyUntil  DateTime?
+  /// Month ("2026-10") the spend-cap alert was last sent, so it fires once per month.
+  aiAlertMonth String?
 
   subscription Subscription?
   rfps         Rfp[]
   libraryItems LibraryItem[]
+  aiUsage      AiUsage[]
 }
 
 model Subscription {
-  id                     String             @id @default(cuid())
-  userId                 String             @unique
-  tier                   SubscriptionTier   @default(free)
-  status                 SubscriptionStatus @default(active)
-  stripeSubscriptionId   String?
-  currentPeriodEnd       DateTime?
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  tier                 SubscriptionTier   @default(free)
+  status               SubscriptionStatus @default(active)
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Rfp {
-  id                         String    @id @default(cuid())
-  userId                     String
-  title                      String
-  originalFileUrl            String?
-  status                     RfpStatus @default(uploaded)
-  extractedScope             Json?
-  extractedDeadline          DateTime?
-  extractedEligibility       Json?
+  id                          String           @id @default(cuid())
+  userId                      String
+  title                       String
+  originalFileUrl             String?
+  status                      RfpStatus        @default(uploaded)
+  extractedScope              Json?
+  extractedDeadline           DateTime?
+  extractedEligibility        Json?
   extractedEvaluationCriteria Json?
-  extractedDocumentType      RfpDocumentType?
-  extractedDesirable         Json?
-  extractedQuestionnaire     Json?
-  extractedFlags             Json?
-  extractedSubmission        Json?
-  sourceText                 String?
-  draftPlan                  Json?
-  coverageMap                String?
-  createdAt                  DateTime  @default(now())
+  extractedDocumentType       RfpDocumentType?
+  extractedDesirable          Json?
+  extractedQuestionnaire      Json?
+  extractedFlags              Json?
+  extractedSubmission         Json?
+  sourceText                  String?
+  draftPlan                   Json?
+  extractCount                Int              @default(0)
+  fullDraftCount              Int              @default(0)
+  revisionCount               Int              @default(0)
+  lastFullDraftAt             DateTime?
+  coverageMap                 String?
+  createdAt                   DateTime         @default(now())
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   drafts Draft[]
@@ -136,5 +145,27 @@ model Draft {
 
   rfp Rfp @relation(fields: [rfpId], references: [id], onDelete: Cascade)
 
+  @@index([rfpId])
+}
+
+/// One row per AI model call, for spend caps, rate limits, and cost reporting.
+model AiUsage {
+  id                String   @id @default(cuid())
+  userId            String
+  /// Kept without a foreign key so spend history survives RFP deletion.
+  rfpId             String?
+  action            String
+  provider          String
+  model             String
+  inputTokens       Int      @default(0)
+  cachedInputTokens Int      @default(0)
+  outputTokens      Int      @default(0)
+  /// Cost in millionths of a US dollar.
+  costMicros        Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
   @@index([rfpId])
 }

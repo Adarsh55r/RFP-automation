@@ -91,6 +91,7 @@ function DraftSectionCard({
   section,
   state,
   busy,
+  revisionsLeft,
   mode,
   onModeChange,
   onContentChange,
@@ -100,6 +101,7 @@ function DraftSectionCard({
   section: DraftSection;
   state: SectionState;
   busy: boolean;
+  revisionsLeft: number;
   mode: "preview" | "edit";
   onModeChange: (mode: "preview" | "edit") => void;
   onContentChange: (section: DraftSection, content: string) => void;
@@ -208,7 +210,8 @@ function DraftSectionCard({
                 size="sm"
                 variant="secondary"
                 className="gap-1.5"
-                disabled={busy}
+                disabled={busy || revisionsLeft <= 0}
+                title={revisionsLeft <= 0 ? "No section revisions left for this proposal" : undefined}
                 onClick={() => setReviseOpen((open) => !open)}
                 aria-expanded={reviseOpen}
               >
@@ -378,6 +381,7 @@ export function RfpDraftView({
   autoStart,
   cover,
   legacyDraft,
+  allowance,
 }: {
   rfpId: string;
   rfpTitle: string;
@@ -388,6 +392,11 @@ export function RfpDraftView({
   cover: CoverDetails;
   /** Drafted before bid plans existed: no cover letter, plan, or new structure. */
   legacyDraft: boolean;
+  /** Per-proposal AI allowances: how many were used and the plan's limit. */
+  allowance: {
+    fullDrafts: { used: number; limit: number };
+    revisions: { used: number; limit: number };
+  };
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -409,6 +418,7 @@ export function RfpDraftView({
     (section) => sections[section].content.trim().length > 0,
   );
   const canExport = !generating && hasAnyContent;
+  const fullDraftsLeft = allowance.fullDrafts.limit - allowance.fullDrafts.used;
   const placeholderTotal = plannedSections.reduce(
     (sum, section) => sum + findPlaceholders(sections[section].content).length,
     0,
@@ -583,7 +593,7 @@ export function RfpDraftView({
   };
 
   useEffect(() => {
-    if (!autoStart || startedRef.current || hasAnyContent) return;
+    if (!autoStart || startedRef.current || hasAnyContent || fullDraftsLeft <= 0) return;
     startedRef.current = true;
     void runGeneration();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- start once on mount when empty
@@ -628,7 +638,7 @@ export function RfpDraftView({
               }
               void runGeneration();
             }}
-            disabled={generating || exportPhase === "generating"}
+            disabled={generating || exportPhase === "generating" || fullDraftsLeft <= 0}
             className="w-full gap-2 sm:w-fit"
           >
             {generating ? (
@@ -672,6 +682,12 @@ export function RfpDraftView({
             Include a compliance matrix appendix (recommended for public-sector bids)
           </label>
         ) : null}
+
+        <p className="font-mono text-xs tracking-wide text-slate">
+          Full drafts: {allowance.fullDrafts.used} of {allowance.fullDrafts.limit} used ·
+          Section revisions: {allowance.revisions.used} of {allowance.revisions.limit} used
+          {fullDraftsLeft <= 0 ? " · Use “Revise with AI” on individual sections" : ""}
+        </p>
 
         {phase ? (
           <p
@@ -768,6 +784,7 @@ export function RfpDraftView({
             section={section}
             state={sections[section]}
             busy={generating}
+            revisionsLeft={allowance.revisions.limit - allowance.revisions.used}
             mode={modes[section] ?? "preview"}
             onModeChange={(mode) => setModes((current) => ({ ...current, [section]: mode }))}
             onRevise={(name, instruction) => void runGeneration({ section: name, instruction })}
