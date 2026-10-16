@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma, RfpStatus } from "@/lib/generated/prisma";
-import { isLlmConfigError, llmConfigErrorMessage } from "@/lib/llm";
+import { friendlyLlmError } from "@/lib/llm";
 import {
   deadlineToDate,
   downloadRfpFile,
@@ -113,11 +113,7 @@ export async function POST(_request: Request, context: RouteContext) {
       })
       .catch(() => undefined);
 
-    const message = isLlmConfigError(error)
-      ? llmConfigErrorMessage("extraction")
-      : error instanceof Error
-        ? error.message
-        : "Extraction failed. Try again in a moment.";
+    const message = friendlyLlmError(error, "extraction", "Extraction failed. Try again in a moment.");
 
     console.error("RFP extraction failed:", error);
     return NextResponse.json({ error: message }, { status: 500 });
