@@ -1,0 +1,179 @@
+/* DraftWin admin — "command center" theme. Scoped to .admin-root so it never
+   leaks into the customer app. */
+
+.admin-root {
+  color-scheme: dark;
+  --a-bg: #060a13;
+  --a-surface: #0d1422;
+  --a-surface-2: #121b2c;
+  --a-border: rgb(255 255 255 / 0.07);
+  --a-border-strong: rgb(255 255 255 / 0.14);
+  --a-text: #e8edf5;
+  --a-text-2: #a3aec0;
+  --a-muted: #6b778a;
+  --a-teal: #2dd4bf;
+  --a-teal-deep: #0f6e5b;
+  --a-amber: #f5b547;
+  --a-red: #f0705f;
+  --a-green: #34d399;
+  /* Chart series, validated for colour-blind separation on --a-surface. */
+  --a-series-1: #3987e5;
+  --a-series-2: #d95926;
+  --a-series-3: #199e70;
+  --a-series-4: #c98500;
+
+  background: var(--a-bg);
+  color: var(--a-text);
+  min-height: 100vh;
+}
+
+/* Slow-drifting aurora behind everything. */
+.admin-aurora {
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 35% at 20% 15%, rgb(45 212 191 / 0.12), transparent 70%),
+    radial-gradient(35% 30% at 85% 10%, rgb(57 135 229 / 0.12), transparent 70%),
+    radial-gradient(30% 30% at 70% 85%, rgb(245 181 71 / 0.06), transparent 70%);
+  filter: blur(20px);
+  animation: admin-aurora 26s ease-in-out infinite alternate;
+}
+
+.admin-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 75%);
+}
+
+@keyframes admin-aurora {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-4%, 3%, 0) scale(1.08);
+  }
+}
+
+/* Glass card with a cursor-following spotlight (driven by --mx / --my). */
+.admin-card {
+  position: relative;
+  border: 1px solid var(--a-border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.01)), var(--a-surface);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
+  transition:
+    border-color 240ms ease,
+    transform 240ms ease,
+    box-shadow 240ms ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.admin-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgb(45 212 191 / 0.12), transparent 60%);
+}
+
+.admin-card[data-interactive="true"]:hover {
+  border-color: rgb(45 212 191 / 0.3);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.05) inset,
+    0 24px 48px -20px rgb(0 0 0 / 0.7),
+    0 0 0 1px rgb(45 212 191 / 0.08);
+}
+
+.admin-card[data-interactive="true"]:hover::before {
+  opacity: 1;
+}
+
+/* Skeleton shimmer for loading states. */
+.admin-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.05);
+  border-radius: 10px;
+}
+
+.admin-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
+  animation: admin-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes admin-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Live pulse dot. */
+.admin-pulse {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--a-green);
+}
+
+.admin-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--a-green);
+  animation: admin-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes admin-ping {
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.admin-gradient-text {
+  background: linear-gradient(90deg, #e8edf5, #2dd4bf 60%, #3987e5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.admin-root ::selection {
+  background: rgb(45 212 191 / 0.3);
+}
+
+.admin-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.admin-scroll::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.1);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-aurora,
+  .admin-shimmer::after,
+  .admin-pulse::after {
+    animation: none;
+  }
+}
