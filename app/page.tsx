@@ -1,4 +1,5 @@
 import {
+  ClosingCta,
   FeatureGrid,
   HashScroll,
   Hero,
@@ -20,6 +21,7 @@ export default function Home() {
         <HowItWorks />
         <FeatureGrid />
         <PricingTeaser />
+        <ClosingCta />
       </main>
       <SiteFooter />
     </>

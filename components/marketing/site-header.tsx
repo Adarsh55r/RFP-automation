@@ -13,7 +13,7 @@ import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
 
 const publicLinks = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#product", label: "Product" },
+  { href: "/#product", label: "Why DraftWin" },
   { href: "/#pricing", label: "Pricing" },
 ];
 
@@ -90,7 +90,7 @@ export function SiteHeader() {
                 Log in
               </Link>
               <Button asChild className="ml-2">
-                <Link href="/sign-up?plan=free">Start free</Link>
+                <Link href="/sign-up?plan=free">Try it free</Link>
               </Button>
             </>
           )}
@@ -101,7 +101,7 @@ export function SiteHeader() {
             <UserButton appearance={clerkAppearance} />
           ) : (
             <Button asChild size="sm">
-              <Link href="/sign-up?plan=free">Start free</Link>
+              <Link href="/sign-up?plan=free">Try it free</Link>
             </Button>
           )}
           <button

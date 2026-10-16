@@ -10,7 +10,7 @@ export const plans: Plan[] = [
     id: "free",
     name: "Free",
     monthly: { usd: 0, gbp: 0 },
-    summary: "Run one live bid end-to-end and see if the workflow fits.",
+    summary: "Answer one real RFP end to end and see the results.",
     ctaLabel: "Start free",
     features: [
       "1 proposal per month",
@@ -26,8 +26,8 @@ export const plans: Plan[] = [
     id: "starter",
     name: "Starter",
     monthly: { usd: 49, gbp: 39 },
-    summary: "A founder or sales lead answering a few RFPs a month.",
-    ctaLabel: "Choose plan",
+    summary: "For founders and sales leads answering a few RFPs a month.",
+    ctaLabel: "Get started",
     features: [
       "5 proposals per month",
       "2 seats",
@@ -43,8 +43,8 @@ export const plans: Plan[] = [
     id: "growth",
     name: "Growth",
     monthly: { usd: 149, gbp: 119 },
-    summary: "The usual plan for a small team that bids every week.",
-    ctaLabel: "Choose plan",
+    summary: "For small teams that bid every week.",
+    ctaLabel: "Get started",
     highlighted: true,
     features: [
       "20 proposals per month",
@@ -62,8 +62,8 @@ export const plans: Plan[] = [
     id: "agency",
     name: "Team",
     monthly: { usd: 349, gbp: 279 },
-    summary: "Several bid owners sharing one library and brand kit.",
-    ctaLabel: "Choose plan",
+    summary: "For multiple bid owners sharing one library and brand.",
+    ctaLabel: "Get started",
     features: [
       "Unlimited proposals",
       "15 seats",

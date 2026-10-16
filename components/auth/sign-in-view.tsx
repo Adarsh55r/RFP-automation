@@ -10,8 +10,8 @@ import { textLink } from "@/lib/focus";
 export function SignInView() {
   return (
     <AuthShell
-      title="Log in"
-      subtitle="Pick up where you left your last RFP draft."
+      title="Welcome back"
+      subtitle="Log in to pick up your proposals where you left off."
       footer={
         <p>
           New to DraftWin?{" "}

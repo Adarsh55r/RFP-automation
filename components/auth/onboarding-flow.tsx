@@ -107,7 +107,7 @@ export function OnboardingFlow() {
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-slate">
         {step === 1
-          ? "We use this on proposals and invoices. You can change it later."
+          ? "It appears on your proposal cover pages and invoices. You can change it later."
           : "Helps us pick defaults for seats and library folders. Not a hard limit."}
       </p>
 
@@ -122,7 +122,7 @@ export function OnboardingFlow() {
               name="agency-name"
               autoFocus
               autoComplete="organization"
-              placeholder="e.g. Northbeam Digital Pvt Ltd"
+              placeholder="e.g. Northbeam Digital LLC"
               value={agencyName}
               aria-invalid={Boolean(error && step === 1)}
               onChange={(event) => setAgencyName(event.target.value)}

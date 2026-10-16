@@ -30,11 +30,12 @@ export default async function NewRfpPage() {
           New RFP
         </p>
         <h1 className="mt-4 font-display text-3xl font-medium text-ink">
-          Upload an RFP pack
+          Upload an RFP
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-          Drop a private-sector RFP in PDF or Word format. DraftWin stores the
-          original file and prepares it for requirement extraction.
+          Add any RFP, tender, or security questionnaire in PDF or Word.
+          Next, DraftWin pulls out every requirement for you to check before
+          drafting.
         </p>
       </header>
 

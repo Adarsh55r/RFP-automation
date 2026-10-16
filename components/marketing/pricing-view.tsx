@@ -28,6 +28,16 @@ import type { BillingCycle, Currency, Plan } from "@/types";
 
 const faqs = [
   {
+    question: "Will the AI make things up?",
+    answer:
+      "No — and that is the point. DraftWin writes only from the RFP and your own library (case studies, bios, certifications, saved answers). When a fact is missing, such as a price, a reference contact, or an insurance limit, it leaves a highlighted placeholder for you to fill instead of inventing one. A compliance review then shows which requirements are covered and which still need you.",
+  },
+  {
+    question: "How long does a first draft take?",
+    answer:
+      "Usually one to three minutes after you confirm the requirements. Then you review it, fill the highlighted gaps, and export — instead of writing every section from a blank page.",
+  },
+  {
     question: "Can I cancel anytime?",
     answer:
       "Yes. Monthly plans stop at the end of the current billing month. Annual plans are prepaid for the year; you can cancel renewal and keep access until that year runs out. We do not lock you into a multi-year contract.",
@@ -105,7 +115,7 @@ function PlanCard({
           <h2 className="font-sans text-lg font-semibold text-ink">{plan.name}</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">{plan.summary}</p>
         </div>
-        {plan.highlighted ? <Badge variant="accent">Most popular</Badge> : null}
+        {plan.highlighted ? <Badge variant="accent">Recommended</Badge> : null}
       </div>
 
       <div className="mt-6">
@@ -159,12 +169,12 @@ export function PricingView() {
           Pricing
         </p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium text-ink md:text-5xl">
-          Four plans. Pick the one that matches how many RFPs you actually answer.
+          Simple pricing for small teams that bid.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate md:text-lg">
-          Month-to-month, no annual contract required. Annual billing is ten
-          months for the price of twelve. Priced in US dollars and British
-          pounds.
+          Start free with one full proposal. Upgrade when RFPs become a weekly
+          habit. Month-to-month, cancel anytime — or pay annually and get two
+          months free. Priced in US dollars and British pounds.
         </p>
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -244,7 +254,7 @@ export function PricingView() {
 
       <Section className="pt-0 md:pt-0">
         <h2 className="font-display text-3xl font-medium text-ink md:text-4xl">
-          Questions teams ask before they pick a plan
+          Questions small teams ask before they start
         </h2>
         <div className="mt-8 rounded-card border border-border bg-surface-raised px-6">
           <Accordion type="single" collapsible>

@@ -7,23 +7,23 @@ import { Section } from "@/components/marketing/section";
 const steps = [
   {
     icon: Upload,
-    title: "Upload",
-    body: "Drop in the RFP, ITT, or questionnaire as PDF or Word. Scanned pages, addenda, and spreadsheet exports are expected — not a special case.",
+    title: "Upload the RFP",
+    body: "Drop in any RFP, tender, or security questionnaire as PDF or Word — scanned pages and addenda included.",
   },
   {
     icon: ListChecks,
-    title: "Extract",
-    body: "Requirements, deadlines, scoring weights, submission rules, and questionnaire rows land in a checklist. You edit or drop anything it misread before drafting starts.",
+    title: "Check every requirement",
+    body: "Mandatory items, scoring weights, deadlines, page limits, and required forms land in one checklist you confirm before a word is written.",
   },
   {
     icon: Library,
-    title: "Draft from your library",
-    body: "Answers cite your case studies, past performance, bios, and saved answers. Nothing is invented to look complete — gaps are flagged for you to fill.",
+    title: "Get a first draft in minutes",
+    body: "Cover letter, executive summary, approach, team, pricing, and question-by-question answers — written from your past work, never invented.",
   },
   {
     icon: FileDown,
-    title: "Export",
-    body: "Download a Word or PDF file with a cover page, contents, and clean tables — and, on paid plans, your letterhead. Send it as your company’s document.",
+    title: "Review, fill gaps, submit",
+    body: "Fill the highlighted gaps, revise any section with one click, and export a polished Word or PDF proposal that’s ready to send.",
   },
 ] as const;
 
@@ -36,7 +36,7 @@ export function HowItWorks() {
         How it works
       </p>
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
-        Four steps from inbox PDF to a proposal you can send.
+        From RFP to ready-to-send proposal in four steps.
       </h2>
       <motion.ol
         className="relative mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8"
