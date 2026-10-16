@@ -2,6 +2,7 @@ import { cache } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
+import { rfpListSelect } from "@/lib/rfps";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
 
 function startOfMonth() {
@@ -21,7 +22,9 @@ export const requireDashboardUser = cache(async () => {
 
   return prisma.user.findUnique({
     where: { clerkId },
-    include: { subscription: true },
+    include: {
+      subscription: { select: { tier: true, status: true, currentPeriodEnd: true } },
+    },
   });
 });
 
@@ -51,6 +54,7 @@ export async function getDashboardHomeData() {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 8,
+      select: rfpListSelect,
     }),
   ]);
 
