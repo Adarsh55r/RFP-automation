@@ -15,11 +15,15 @@ export function PricingTeaser() {
             Pricing
           </p>
           <h2 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-            A fraction of what enterprise RFP software costs.
+            Priced for small teams, not enterprise budgets.
           </h2>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-slate">
+            Start free with a full proposal. Upgrade when RFPs become a weekly
+            habit. Month-to-month — cancel anytime.
+          </p>
         </div>
         <Button asChild variant="secondary" className="w-full md:w-auto">
-          <Link href="/pricing">See full pricing</Link>
+          <Link href="/pricing">Compare all plans</Link>
         </Button>
       </div>
 
@@ -40,7 +44,7 @@ export function PricingTeaser() {
                 <p className="mt-2 text-sm text-slate">{plan.summary}</p>
               </div>
               {plan.highlighted ? (
-                <Badge variant="accent">Most popular</Badge>
+                <Badge variant="accent">Recommended</Badge>
               ) : null}
             </div>
             <p className="mt-6 font-display text-4xl font-medium text-ink">

@@ -3,29 +3,29 @@ import { Section } from "@/components/marketing/section";
 
 const features = [
   {
-    icon: BookMarked,
-    title: "Your own answer library",
-    body: "Keep case studies, past performance, team bios, certifications, and approved answers in one place. New drafts pull from that library instead of writing proof you do not have — and the 40th security questionnaire takes minutes, not days.",
+    icon: ListChecks,
+    title: "Never miss a requirement",
+    body: "Every mandatory item, scoring weight, deadline, page limit, and required form goes into one checklist. After drafting, an evaluator-style review shows exactly what’s covered and what still needs you — before the buyer finds it.",
   },
   {
-    icon: ListChecks,
-    title: "A compliance checklist you can edit",
-    body: "Mandatory requirements, scoring weights, page limits, required forms, Q&A deadlines, and addenda land in one checklist. Most small-business bids are thrown out on compliance, not quality — this is where you stop that.",
+    icon: BookMarked,
+    title: "Sounds like you — not like AI",
+    body: "Drafts are built from your case studies, team bios, certifications, and approved answers, and cite the buyer’s own requirements by name. When a fact is missing, DraftWin flags it for you instead of making it up.",
   },
   {
     icon: ShieldCheck,
-    title: "Public sector and security reviews included",
-    body: "Works for US state, local, and education RFPs, UK tenders with Social Value questions, and vendor security questionnaires (SOC 2, ISO 27001, Cyber Essentials, HIPAA). Drafts follow the buyer’s spelling, currency, and terminology.",
+    title: "Ready for public sector and security reviews",
+    body: "Handles US state and local RFPs, UK tenders with Social Value questions, and security questionnaires (SOC 2, ISO 27001, Cyber Essentials, HIPAA). Every draft matches the buyer’s spelling, currency, and terminology.",
   },
   {
     icon: Stamp,
-    title: "Export with your letterhead",
-    body: "Export to Word or PDF with a cover page, contents, page numbers, and clean tables. Paid plans add your header, footer, and signatory block. The file should look like it came from your shared drive, not from a vendor portal.",
+    title: "Submission-ready Word and PDF",
+    body: "Export a professional proposal with cover page, contents, page numbers, and clean tables — no reformatting at midnight. Paid plans add your letterhead and signatory block.",
   },
   {
     icon: BadgeDollarSign,
-    title: "Small-business pricing",
-    body: "Enterprise RFP platforms are sold on five-figure annual contracts. DraftWin starts at $0, month-to-month. Most teams land on Growth at $149 (£119) a month.",
+    title: "Priced for small teams",
+    body: "Enterprise RFP platforms sell five-figure annual contracts. DraftWin starts free and runs month-to-month. Growth, at $149 (£119) a month, covers a team that bids every week.",
   },
 ] as const;
 
@@ -33,10 +33,10 @@ export function FeatureGrid() {
   return (
     <Section id="product" className="bg-surface">
       <p className="font-mono text-xs tracking-wide text-slate uppercase">
-        Product
+        Why DraftWin
       </p>
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
-        Built for teams where the founder, a sales lead, or an ops manager writes the proposal.
+        Everything a bid manager does — at a small-business price.
       </h2>
       <ul className="mt-12 divide-y divide-border border-y border-border">
         {features.map((feature) => {

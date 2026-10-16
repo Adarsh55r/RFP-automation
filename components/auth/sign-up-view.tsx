@@ -33,8 +33,8 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
 
   return (
     <AuthShell
-      title="Create your DraftWin account"
-      subtitle="Company name and team size come next — this step is just you."
+      title="Start winning more RFPs"
+      subtitle="Create your free account — your first draft is minutes away. No credit card needed."
       footer={
         <p>
           Already have an account?{" "}
@@ -57,7 +57,7 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
               {plan.name}
             </p>
           </div>
-          {plan.highlighted ? <Badge variant="accent">Most popular</Badge> : null}
+          {plan.highlighted ? <Badge variant="accent">Recommended</Badge> : null}
         </div>
       ) : null}
 

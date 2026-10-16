@@ -10,3 +10,4 @@ export { PricingView } from "./pricing-view";
 export { Section } from "./section";
 export { SiteFooter } from "./site-footer";
 export { SiteHeader } from "./site-header";
+export { ClosingCta } from "./closing-cta";

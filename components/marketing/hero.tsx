@@ -20,25 +20,28 @@ export function Hero() {
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <p className="font-mono text-xs tracking-wide text-slate uppercase">
-            RFP software for small businesses · US & UK
+            AI proposal software for small businesses
           </p>
           <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl md:text-6xl md:leading-[1.15]">
-            Win RFPs without hiring a bid team.
+            Win more RFPs — without a bid team.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-slate sm:text-lg">
-            Upload a commercial RFP, a state or council tender, or a security
-            questionnaire. DraftWin pulls out every requirement and deadline,
-            drafts answers from your own case studies and saved answers, and
-            exports a compliant Word proposal on your letterhead.
+            Upload any RFP and get a compliant first draft in minutes — written
+            from your own past work, checked against every requirement, with
+            every gap flagged for you. Review it, fill in the blanks, and export
+            a polished Word or PDF proposal.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button asChild size="lg" variant="accent">
-              <Link href="/sign-up?plan=free">Start free</Link>
+              <Link href="/sign-up?plan=free">Draft my first proposal free</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
               <SmoothLink href="/#how-it-works">See how it works</SmoothLink>
             </Button>
           </div>
+          <p className="mt-4 text-sm text-slate">
+            Free plan · No credit card · Works with PDF and Word RFPs
+          </p>
         </motion.div>
 
         <div className="relative">

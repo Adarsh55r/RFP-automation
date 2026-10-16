@@ -46,8 +46,8 @@ export default async function RfpsPage() {
       ) : (
         <EmptyState
           icon={Inbox}
-          headline="No RFPs yet"
-          description="Upload a private-sector RFP pack — PDF or Word — and DraftWin will extract requirements you can edit before drafting."
+          headline="Upload your first RFP"
+          description="Drop in any RFP, tender, or security questionnaire (PDF or Word). DraftWin pulls out every requirement for you to check, then drafts your proposal in minutes."
           action={
             <Button asChild>
               <Link href="/dashboard/rfps/new">Upload your first RFP</Link>

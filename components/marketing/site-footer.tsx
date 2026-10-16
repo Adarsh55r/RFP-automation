@@ -6,10 +6,10 @@ import { cn } from "@/lib/cn";
 
 const links = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#product", label: "Product" },
+  { href: "/#product", label: "Why DraftWin" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/sign-in", label: "Log in" },
-  { href: "/sign-up?plan=free", label: "Start free" },
+  { href: "/sign-up?plan=free", label: "Try it free" },
 ];
 
 export function SiteFooter() {
@@ -21,7 +21,8 @@ export function SiteFooter() {
             <Logo />
           </SmoothLink>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-surface-raised/70">
-            RFP responses for small businesses in the US, UK, and beyond.
+            The AI bid team for small businesses. Win more RFPs in a fraction
+            of the time.
           </p>
         </div>
         <ul className="flex flex-wrap gap-2">

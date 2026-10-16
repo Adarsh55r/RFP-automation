@@ -28,11 +28,18 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "DraftWin",
+    default: "DraftWin — AI RFP Response Software for Small Businesses",
     template: "%s · DraftWin",
   },
   description:
-    "AI RFP response software for small businesses in the US and UK. Turn commercial RFPs, public-sector tenders, and security questionnaires into compliant, on-brand proposals — without a bid team.",
+    "Win more RFPs without a bid team. DraftWin turns any RFP, tender, or security questionnaire into a compliant first-draft proposal in minutes — written from your own past work. Export to Word or PDF. Start free.",
+  openGraph: {
+    title: "DraftWin — Win more RFPs, without a bid team",
+    description:
+      "AI proposal software for small businesses: every requirement checked, drafts written from your own work, export to Word or PDF. Start free.",
+    type: "website",
+    siteName: "DraftWin",
+  },
 };
 
 export default function RootLayout({
