@@ -15,12 +15,13 @@ import {
 } from "lucide-react";
 import { ExportDocumentMoment } from "@/components/dashboard/export-document-moment";
 import { CoverageMapCard } from "@/components/dashboard/coverage-map-card";
+import { CoverDetailsCard } from "@/components/dashboard/cover-details-card";
 import { MarkdownPreview } from "@/components/dashboard/markdown-preview";
 import { saveDraftSection } from "@/lib/actions/rfp-draft";
 import { downloadRfpExport } from "@/lib/download-rfp-export";
 import { findPlaceholders } from "@/lib/markdown";
 import type { ExportFormat } from "@/lib/proposal-document";
-import { DRAFT_SECTIONS, draftSectionLabel } from "@/lib/rfp-draft";
+import { DRAFT_SECTIONS, draftSectionLabel, type CoverDetails } from "@/lib/rfp-draft";
 import type { Draft, DraftSection } from "@/lib/generated/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -375,6 +376,8 @@ export function RfpDraftView({
   initialDrafts,
   initialCoverageMap,
   autoStart,
+  cover,
+  legacyDraft,
 }: {
   rfpId: string;
   rfpTitle: string;
@@ -382,6 +385,9 @@ export function RfpDraftView({
   initialDrafts: Draft[];
   initialCoverageMap?: string | null;
   autoStart: boolean;
+  cover: CoverDetails;
+  /** Drafted before bid plans existed: no cover letter, plan, or new structure. */
+  legacyDraft: boolean;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -396,6 +402,7 @@ export function RfpDraftView({
   const [exportFormat, setExportFormat] = useState<ExportFormat>("docx");
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
+  const [includeMatrix, setIncludeMatrix] = useState(true);
   const startedRef = useRef(false);
 
   const hasAnyContent = plannedSections.some(
@@ -558,7 +565,12 @@ export function RfpDraftView({
     }, 280);
 
     try {
-      await Promise.all([downloadRfpExport(rfpId, format), wait(reduceMotion ? 0 : 1600)]);
+      await Promise.all([
+        downloadRfpExport(rfpId, format, {
+          complianceMatrix: includeMatrix && coverageMap.trim().length > 0,
+        }),
+        wait(reduceMotion ? 0 : 1600),
+      ]);
       setExportProgress(100);
       setExportPhase("ready");
       router.refresh();
@@ -649,6 +661,18 @@ export function RfpDraftView({
           </Button>
         </div>
 
+        {coverageMap.trim() && !coverageStreaming ? (
+          <label className="inline-flex w-fit items-center gap-2 text-sm text-slate">
+            <input
+              type="checkbox"
+              checked={includeMatrix}
+              onChange={(event) => setIncludeMatrix(event.target.checked)}
+              className="h-4 w-4 accent-[var(--brand)]"
+            />
+            Include a compliance matrix appendix (recommended for public-sector bids)
+          </label>
+        ) : null}
+
         {phase ? (
           <p
             className="inline-flex items-center gap-2 font-mono text-xs tracking-wide text-brand"
@@ -706,7 +730,19 @@ export function RfpDraftView({
         </Card>
       ) : null}
 
+      {legacyDraft && hasAnyContent && !generating ? (
+        <div className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm leading-relaxed text-ink">
+          <strong>This draft was written by an earlier version of DraftWin.</strong> Click
+          “Regenerate all” to get the cover letter, bid plan, benefit call-outs, compliance
+          review, and the current proposal structure.
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-6">
+        {hasAnyContent && !generating ? (
+          <CoverDetailsCard key={JSON.stringify(cover)} rfpId={rfpId} initialCover={cover} />
+        ) : null}
+
         {hasAnyContent && !generating ? (
           <InputChecklist sections={plannedSections} state={sections} onJump={jumpTo} />
         ) : null}

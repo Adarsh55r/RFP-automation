@@ -66,8 +66,40 @@ export type MetaBlock = (typeof META_BLOCKS)[number];
 /* Bid plan                                                            */
 /* ------------------------------------------------------------------ */
 
-export type DraftPlan = {
+/**
+ * What prints on the cover page and in the running header. Filled from the
+ * bid plan, then editable by the bidder; edits survive regeneration.
+ */
+export type CoverDetails = {
+  projectTitle: string;
+  solicitationNumber: string;
   buyerName: string;
+  buyerAddress: string;
+  dueDate: string;
+  bidderName: string;
+  contactName: string;
+  contactTitle: string;
+  contactEmail: string;
+  contactPhone: string;
+};
+
+export const COVER_FIELDS: (keyof CoverDetails)[] = [
+  "projectTitle",
+  "solicitationNumber",
+  "buyerName",
+  "buyerAddress",
+  "dueDate",
+  "bidderName",
+  "contactName",
+  "contactTitle",
+  "contactEmail",
+  "contactPhone",
+];
+
+export type DraftPlan = {
+  bidderName: string;
+  buyerName: string;
+  buyerAddress: string;
   buyerContact: string;
   solicitationNumber: string;
   projectTitle: string;
@@ -79,10 +111,16 @@ export type DraftPlan = {
   requiredStructure: string[];
   keyFacts: string[];
   lengthGuidance: string;
+  /** Which library evidence each section should feature, so proof is not repeated everywhere. */
+  evidencePlan: Record<string, string[]>;
+  /** The bidder's own cover edits. Not produced by the model. */
+  cover: Partial<CoverDetails>;
 };
 
 export const emptyDraftPlan: DraftPlan = {
+  bidderName: "",
   buyerName: "",
+  buyerAddress: "",
   buyerContact: "",
   solicitationNumber: "",
   projectTitle: "",
@@ -94,6 +132,8 @@ export const emptyDraftPlan: DraftPlan = {
   requiredStructure: [],
   keyFacts: [],
   lengthGuidance: "",
+  evidencePlan: {},
+  cover: {},
 };
 
 function str(value: unknown) {
@@ -135,8 +175,25 @@ export function parseDraftPlan(value: unknown): DraftPlan {
         .filter((item) => item.theme)
     : [];
 
+  const evidencePlan: Record<string, string[]> = {};
+  if (raw.evidencePlan && typeof raw.evidencePlan === "object") {
+    for (const [key, items] of Object.entries(raw.evidencePlan as Record<string, unknown>)) {
+      const list = strList(items);
+      if (list.length) evidencePlan[key] = list;
+    }
+  }
+  const cover: Partial<CoverDetails> = {};
+  if (raw.cover && typeof raw.cover === "object") {
+    for (const field of COVER_FIELDS) {
+      const value = (raw.cover as Record<string, unknown>)[field];
+      if (typeof value === "string") cover[field] = value.trim().slice(0, 500);
+    }
+  }
+
   return {
+    bidderName: str(raw.bidderName),
     buyerName: str(raw.buyerName),
+    buyerAddress: str(raw.buyerAddress),
     buyerContact: str(raw.buyerContact),
     solicitationNumber: str(raw.solicitationNumber),
     projectTitle: str(raw.projectTitle),
@@ -148,6 +205,52 @@ export function parseDraftPlan(value: unknown): DraftPlan {
     requiredStructure: strList(raw.requiredStructure),
     keyFacts: strList(raw.keyFacts),
     lengthGuidance: str(raw.lengthGuidance),
+    evidencePlan,
+    cover,
+  };
+}
+
+/** A plan reset after requirements change: drop model output, keep the bidder's cover edits. */
+export function resetPlanKeepingCover(stored: unknown) {
+  const cover = parseDraftPlan(stored).cover;
+  return Object.keys(cover).length > 0 ? { cover } : null;
+}
+
+/** Whether a stored plan came from the model (not just saved cover edits). */
+export function hasModelPlan(plan: DraftPlan) {
+  return Boolean(plan.buyerName || plan.projectTitle || plan.winThemes.length);
+}
+
+/** "RFP Empanelment_SW_2022" -> "RFP Empanelment SW 2022" for titles taken from file names. */
+export function tidyTitle(title: string) {
+  return title
+    .replace(/\.(pdf|docx?)$/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The cover as it will print: the bidder's edits, then the bid plan, then safe fallbacks. */
+export function resolveCover(
+  plan: DraftPlan,
+  fallback: { companyName: string; rfpTitle: string },
+): CoverDetails {
+  const pick = (field: keyof CoverDetails, ...candidates: string[]) => {
+    const edited = plan.cover[field];
+    if (edited !== undefined) return edited;
+    return candidates.find((value) => value && value.trim()) ?? "";
+  };
+  return {
+    projectTitle: pick("projectTitle", plan.projectTitle, tidyTitle(fallback.rfpTitle)),
+    solicitationNumber: pick("solicitationNumber", plan.solicitationNumber),
+    buyerName: pick("buyerName", plan.buyerName),
+    buyerAddress: pick("buyerAddress", plan.buyerAddress),
+    dueDate: pick("dueDate", plan.dueDate),
+    bidderName: pick("bidderName", plan.bidderName, fallback.companyName),
+    contactName: pick("contactName"),
+    contactTitle: pick("contactTitle"),
+    contactEmail: pick("contactEmail"),
+    contactPhone: pick("contactPhone"),
   };
 }
 
@@ -188,6 +291,17 @@ When a fact the evaluator needs is missing from the sources, write the sentence 
 - Saved answers in the library are pre-approved: reuse them closely when they fit a question, adapting only names and specifics.
 - Mirror the RFP's terminology (if they say "transition plan," do not call it an "onboarding roadmap").
 </conventions>
+
+<professional_voice>
+Write like an experienced bid team, not like an AI assistant:
+- Refer to the bidder only by the bid plan's bidderName, spelled exactly the same every time.
+- Speak to the buyer as "you"/"your" and about the bidder as "we"/"our". Be confident and direct: "We will…", never "We believe we could…" or "We acknowledge…".
+- Structure claims as feature → benefit → proof: what we do, why it matters to this buyer, and the evidence.
+- Feature the evidence the bid plan's evidencePlan assigns to this section. Mention other case studies only in passing; never retell the same project in detail in more than one section.
+- After each major "##" subsection of narrative sections, add one theme statement as a blockquote, e.g. "> **Benefit to <buyer>:** <one sentence on the outcome for them>". It renders as a highlighted call-out. Do not add one after tables-only subsections, in the cover letter, or in question responses.
+- Never draw diagrams with brackets, arrows, pipes, or ASCII art. Show phases or flows as a table or a numbered list.
+- No meta-commentary about the document ("This section outlines…", "As mentioned above…").
+</professional_voice>
 
 <formatting>
 Output GitHub-flavored Markdown only — no preamble, no closing remarks, no code fences, and never a top-level "#" heading (the section title is added for you). Use "##" for subheadings and "###" below that. Use tables only for genuinely tabular content (schedules, staffing, pricing, risks, compliance); keep tables to at most 5 columns, one line per cell, no lists or line breaks inside cells, and always include the header separator row. Use bullet lists for scannable items and short paragraphs (2-4 sentences) for argument.
@@ -278,7 +392,9 @@ export function buildPlanTask() {
 
 Return ONLY a JSON object (no code fences, no commentary) with exactly these keys:
 {
+  "bidderName": "the bidder's full legal or trading name as written in the company profile; if there is no profile, the name in <bidder>",
   "buyerName": "the issuing organization's name as written in the RFP",
+  "buyerAddress": "the buyer's postal address for submissions or the issuing office, as one line, else empty string",
   "buyerContact": "procurement contact name, title, and address/email if stated, else empty string",
   "solicitationNumber": "RFP / tender reference number if stated, else empty string",
   "projectTitle": "the RFP's own title for the project",
@@ -289,10 +405,15 @@ Return ONLY a JSON object (no code fences, no commentary) with exactly these key
   "winThemes": [{"theme": "a differentiator for THIS bid", "evidence": "the specific library facts that prove it, or 'needs evidence' if none"}],
   "requiredStructure": ["the response outline / tabs / numbered questions the RFP requires, in order — empty if it prescribes none"],
   "keyFacts": ["specifics the proposal must reflect: term, volumes, sites, systems, integrations, service levels, budget signals, key dates"],
-  "lengthGuidance": "page or word limits and how to split them across the proposal, or 'none stated'"
+  "lengthGuidance": "page or word limits and how to split them across the proposal, or 'none stated'",
+  "evidencePlan": {
+    "exec_summary": ["1-2 strongest proof points, by library title"],
+    "technical_approach": ["case studies or credentials that prove the method"],
+    "team": ["people and the 2-3 most comparable past projects"]
+  }
 }
 
-Give 2-3 win themes, chosen from what the library can actually prove against the highest-weighted evaluation criteria.`;
+Give 2-3 win themes, chosen from what the library can actually prove against the highest-weighted evaluation criteria. In evidencePlan, spread the library across sections so each project is told in depth only once.`;
 }
 
 function planBlock(plan: DraftPlan) {
@@ -314,6 +435,7 @@ Do not use subheadings.`,
 - "## Our understanding": what success looks like for the buyer, citing their stated priorities.
 - "## Our solution": the approach in 3-5 sentences — what will be delivered, how, and by when.
 - "## Why {bidder}": 3-4 bullets, each a win theme backed by a specific proof point from the library.
+- "## At a glance": a two-column table | Item | Detail | with 4-6 rows of facts the library supports (e.g. years in business, team size, certifications, comparable projects, office locations). Omit any row the library cannot support — do not use placeholders here.
 - Close with one confident, specific sentence of fit.`,
   technical_approach: `Write the TECHNICAL APPROACH — the core of the proposal and usually the highest-weighted part.
 - If the bid plan's requiredStructure prescribes how the technical response must be organized, follow that outline, headings, and numbering exactly. Otherwise use: "## Understanding of requirements", "## Approach and methodology", "## Work plan and schedule", "## Project management and communication", "## Quality assurance", "## Risk management", and "## Social value" only when it is evaluated.

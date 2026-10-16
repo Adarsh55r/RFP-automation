@@ -129,7 +129,7 @@ function Blocks({
             );
           case "quote":
             return (
-              <blockquote key={index} className="mb-3 border-l-2 border-brand/40 pl-4 text-slate italic">
+              <blockquote key={index} className="mb-4 rounded-r-control border-l-4 border-brand bg-brand/5 px-4 py-3 text-ink">
                 <Blocks blocks={block.blocks} level={level} />
               </blockquote>
             );

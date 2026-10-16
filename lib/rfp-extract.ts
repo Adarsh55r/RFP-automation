@@ -232,6 +232,7 @@ export async function extractRequirementsWithLlm(
 
   const raw = await generateLlmText({
     purpose: "extraction",
+    json: true,
     maxTokens: 8192,
     system: EXTRACTION_SYSTEM,
     user: `Extract structured requirements from this document as JSON:\n\n${text}`,

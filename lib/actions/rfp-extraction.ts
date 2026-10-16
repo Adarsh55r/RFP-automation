@@ -7,6 +7,7 @@ import { Prisma, RfpStatus } from "@/lib/generated/prisma";
 import { isRfpDocumentType } from "@/lib/rfp-extract";
 import { editableTextToList } from "@/lib/rfp-extract-form";
 import { deadlineToDate } from "@/lib/rfp-extract";
+import { resetPlanKeepingCover } from "@/lib/rfp-draft";
 
 export type ConfirmExtractionPayload = {
   rfpId: string;
@@ -107,8 +108,9 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
       extractedQuestionnaire: questionnaireItems,
       extractedFlags: flaggedForReview,
       extractedSubmission: submissionRequirements,
-      // Requirements changed, so the bid plan must be rebuilt on the next draft.
-      draftPlan: Prisma.DbNull,
+      // Requirements changed, so the bid plan is rebuilt on the next draft
+      // (the bidder's cover-page edits are kept).
+      draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       status: nextStatus,
     },
   });

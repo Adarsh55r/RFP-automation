@@ -31,7 +31,9 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
   }
 
-  const requested = new URL(request.url).searchParams.get("format") ?? "docx";
+  const params = new URL(request.url).searchParams;
+  const requested = params.get("format") ?? "docx";
+  const includeComplianceMatrix = params.get("matrix") === "1";
   if (!isExportFormat(requested)) {
     return NextResponse.json({ error: "Format must be docx or pdf." }, { status: 400 });
   }
@@ -80,6 +82,7 @@ export async function POST(request: Request, context: RouteContext) {
       companyName: user.agencyName?.trim() || "Your company",
       rfp,
       drafts: rfp.drafts,
+      includeComplianceMatrix,
     });
     const bytes =
       format === "pdf"
@@ -91,7 +94,7 @@ export async function POST(request: Request, context: RouteContext) {
       data: { status: RfpStatus.exported },
     });
 
-    const fileName = proposalExportFileName(doc.rfpTitle, format);
+    const fileName = proposalExportFileName(doc.cover.projectTitle, format);
 
     return new NextResponse(new Uint8Array(bytes), {
       status: 200,

@@ -18,6 +18,7 @@ import {
   buildSectionTask,
   draftSectionLabel,
   DRAFTING_SYSTEM,
+  hasModelPlan,
   isDraftSection,
   parseDraftPlan,
   RESPONSE_BATCH_SIZE,
@@ -228,13 +229,14 @@ export async function POST(request: Request, context: RouteContext) {
         controller.enqueue(encoder.encode(encodeEvent(event)));
       };
 
-      const call = (task: string, maxTokens: number, effort?: LlmEffort) => ({
+      const call = (task: string, maxTokens: number, effort?: LlmEffort, json?: boolean) => ({
         purpose: "drafting" as const,
         system: DRAFTING_SYSTEM,
         context: sharedContext,
         user: task,
         maxTokens,
         effort,
+        json,
       });
 
       try {
@@ -242,11 +244,13 @@ export async function POST(request: Request, context: RouteContext) {
         //    single-section revisions so the proposal stays consistent.
         send({ type: "phase", phase: "planning" });
         let plan: DraftPlan;
-        if (onlySection && rfp.draftPlan) {
-          plan = parseDraftPlan(rfp.draftPlan);
+        const storedPlan = parseDraftPlan(rfp.draftPlan);
+        if (onlySection && hasModelPlan(storedPlan)) {
+          plan = storedPlan;
         } else {
-          const raw = await generateLlmText(call(buildPlanTask(), 8000));
-          plan = parseDraftPlan(raw);
+          const raw = await generateLlmText(call(buildPlanTask(), 8000, undefined, true));
+          // Keep the bidder's own cover-page edits across regenerations.
+          plan = { ...parseDraftPlan(raw), cover: storedPlan.cover };
           await prisma.rfp.update({
             where: { id: rfp.id },
             data: { draftPlan: plan as unknown as Prisma.InputJsonValue },
