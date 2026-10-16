@@ -7,12 +7,18 @@ import {
   supportsEffort,
 } from "@/lib/anthropic";
 import {
+  getOpenAIClient,
+  OPENAI_DRAFTING_MODEL,
+  OPENAI_EXTRACTION_MODEL,
+  OPENAI_MAX_OUTPUT_TOKENS,
+} from "@/lib/openai";
+import {
   getGeminiClient,
   GEMINI_DRAFTING_MODEL,
   GEMINI_EXTRACTION_MODEL,
 } from "@/lib/gemini";
 
-export type LlmProvider = "gemini" | "anthropic";
+export type LlmProvider = "gemini" | "anthropic" | "openai";
 
 export type LlmPurpose = "extraction" | "drafting";
 
@@ -36,6 +42,9 @@ function normalizeProvider(value: string | undefined): LlmProvider {
   if (normalized === "anthropic" || normalized === "claude") {
     return "anthropic";
   }
+  if (normalized === "openai" || normalized === "gpt") {
+    return "openai";
+  }
   // Default to Gemini for local/testing cost control.
   return "gemini";
 }
@@ -47,6 +56,9 @@ export function getLlmProvider(): LlmProvider {
 function modelFor(purpose: LlmPurpose, provider: LlmProvider) {
   if (provider === "anthropic") {
     return purpose === "extraction" ? EXTRACTION_MODEL : DRAFTING_MODEL;
+  }
+  if (provider === "openai") {
+    return purpose === "extraction" ? OPENAI_EXTRACTION_MODEL : OPENAI_DRAFTING_MODEL;
   }
   return purpose === "extraction"
     ? GEMINI_EXTRACTION_MODEL
@@ -60,6 +72,11 @@ export function llmConfigErrorMessage(purpose: LlmPurpose) {
       ? "AI extraction is not configured yet. Add ANTHROPIC_API_KEY."
       : "AI drafting is not configured yet. Add ANTHROPIC_API_KEY.";
   }
+  if (provider === "openai") {
+    return purpose === "extraction"
+      ? "AI extraction is not configured yet. Add OPENAI_API_KEY."
+      : "AI drafting is not configured yet. Add OPENAI_API_KEY.";
+  }
   return purpose === "extraction"
     ? "AI extraction is not configured yet. Add GEMINI_API_KEY."
     : "AI drafting is not configured yet. Add GEMINI_API_KEY.";
@@ -70,6 +87,7 @@ export function isLlmConfigError(error: unknown) {
     error instanceof Error &&
     (error.message.includes("Anthropic is not configured") ||
       error.message.includes("Gemini is not configured") ||
+      error.message.includes("OpenAI is not configured") ||
       error.message.includes("LLM provider is not configured"))
   );
 }
@@ -137,6 +155,58 @@ async function generateTextWithAnthropic(request: LlmTextRequest) {
   return text;
 }
 
+function openAIParams(request: LlmTextRequest) {
+  // Shared context goes first in the user message so OpenAI's automatic
+  // prompt caching reuses it across the parallel drafting calls.
+  return {
+    model: modelFor(request.purpose, "openai"),
+    max_completion_tokens: Math.min(request.maxTokens ?? 16000, OPENAI_MAX_OUTPUT_TOKENS),
+    messages: [
+      { role: "system" as const, content: request.system },
+      {
+        role: "user" as const,
+        content: request.context ? `${request.context}\n\n${request.user}` : request.user,
+      },
+    ],
+  };
+}
+
+async function generateTextWithOpenAI(request: LlmTextRequest) {
+  const openai = getOpenAIClient();
+  const completion = await openai.chat.completions.create(openAIParams(request));
+  const message = completion.choices[0]?.message;
+  if (message?.refusal) {
+    throw new Error(
+      "The AI model declined to write this part of the proposal. Edit the requirements or try again.",
+    );
+  }
+  const text = message?.content ?? "";
+  if (!text.trim()) {
+    throw new Error("OpenAI returned an empty response.");
+  }
+  return text;
+}
+
+async function* streamTextWithOpenAI(request: LlmTextRequest) {
+  const openai = getOpenAIClient();
+  const stream = await openai.chat.completions.create({
+    ...openAIParams(request),
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta;
+    if (delta?.refusal) {
+      throw new Error(
+        "The AI model declined to write this part of the proposal. Edit the requirements or try again.",
+      );
+    }
+    if (delta?.content) {
+      yield delta.content;
+    }
+  }
+}
+
 function geminiPrompt(request: LlmTextRequest) {
   return request.context
     ? `${request.context}\n\n${request.user}`
@@ -170,6 +240,9 @@ export async function generateLlmText(request: LlmTextRequest) {
   const provider = getLlmProvider();
   if (provider === "anthropic") {
     return generateTextWithAnthropic(request);
+  }
+  if (provider === "openai") {
+    return generateTextWithOpenAI(request);
   }
   return generateTextWithGemini(request);
 }
@@ -217,6 +290,10 @@ export async function* streamLlmText(request: LlmTextRequest) {
   const provider = getLlmProvider();
   if (provider === "anthropic") {
     yield* streamTextWithAnthropic(request);
+    return;
+  }
+  if (provider === "openai") {
+    yield* streamTextWithOpenAI(request);
     return;
   }
   yield* streamTextWithGemini(request);
