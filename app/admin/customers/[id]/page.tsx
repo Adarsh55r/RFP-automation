@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlanBadge, capTone } from "@/components/admin/badges";
 import { Meter, TrendChart } from "@/components/admin/charts";
-import { PlanSwitcher, ResetAllowanceButton, UnlockAiButton } from "@/components/admin/customer-actions";
+import { PlanSwitcher, ResetAllowanceButton, ResetReviewPromptButton, UnlockAiButton } from "@/components/admin/customer-actions";
 import { KpiCard } from "@/components/admin/kpi-card";
 import { SpotlightCard, Stagger } from "@/components/admin/spotlight-card";
 import { AllClear, CardHeader } from "@/components/admin/ui";
@@ -212,6 +212,9 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
             <PlanSwitcher userId={user.id} tier={user.tier} />
             <p className="mb-2 mt-5 text-xs uppercase tracking-[0.12em] text-(--a-muted)">AI task lock</p>
             <UnlockAiButton userId={user.id} locked={user.aiLocked} />
+            <p className="mb-2 mt-5 text-xs uppercase tracking-[0.12em] text-(--a-muted)">Review request</p>
+            <ResetReviewPromptButton userId={user.id} asked={user.reviewPromptCount > 0 || Boolean(user.reviewResponse)} />
+            <p className="mt-2 text-xs text-(--a-muted)">Shows the review card again after their next export. Handy for testing on your own account.</p>
           </SpotlightCard>
 
           <SpotlightCard className="p-5">

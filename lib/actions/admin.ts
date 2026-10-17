@@ -51,3 +51,13 @@ export async function adminUnlockAi(userId: string) {
     await prisma.user.update({ where: { id: userId }, data: { aiBusyUntil: null } });
   }, [`/admin/customers/${userId}`, "/admin/alerts"]);
 }
+
+/** Lets an account see the review request again (e.g. to test it on your own account). */
+export async function adminResetReviewPrompt(userId: string) {
+  return run(async () => {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { reviewPromptCount: 0, reviewPromptedAt: null, reviewResponse: null, reviewRespondedAt: null },
+    });
+  }, [`/admin/customers/${userId}`, "/admin"]);
+}
