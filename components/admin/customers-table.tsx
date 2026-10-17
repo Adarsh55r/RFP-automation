@@ -61,6 +61,7 @@ function toCsv(rows: CustomerRow[]) {
     "ai_cap_usd",
     "est_revenue_usd",
     "est_margin_usd",
+    "review_prompt",
     "flags",
   ];
   const escape = (value: unknown) => {
@@ -84,6 +85,7 @@ function toCsv(rows: CustomerRow[]) {
       row.capUsd,
       row.revenueUsd,
       row.marginUsd.toFixed(2),
+      row.reviewResponse ?? "",
       row.flags.join(" "),
     ]
       .map(escape)

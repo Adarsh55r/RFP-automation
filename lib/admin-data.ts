@@ -93,6 +93,7 @@ export async function getAdminOverview() {
     proposals,
     cost,
     funnelRows,
+    reviewClicks,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: since7 } } }),
@@ -114,6 +115,7 @@ export async function getAdminOverview() {
         COUNT(DISTINCT "userId") FILTER (WHERE status::text IN ('drafted', 'exported') OR "fullDraftCount" > 0)::int AS drafted,
         COUNT(DISTINCT "userId") FILTER (WHERE status::text = 'exported')::int AS exported
       FROM "Rfp"`,
+    prisma.user.count({ where: { reviewResponse: "reviewed" } }),
   ]);
 
   const planMix = TIER_ORDER.map((tier) => ({
@@ -153,6 +155,7 @@ export async function getAdminOverview() {
       { stage: "Uploaded an RFP", value: funnel.uploaded },
       { stage: "Generated a draft", value: funnel.drafted },
       { stage: "Exported a proposal", value: funnel.exported },
+      { stage: "Clicked the review link", value: reviewClicks },
     ],
   };
 }
@@ -180,6 +183,7 @@ export type CustomerRow = {
   capPct: number;
   revenueUsd: number;
   marginUsd: number;
+  reviewResponse: string | null;
   flags: ("near-cap" | "at-cap" | "inactive" | "power-user" | "upsell")[];
 };
 
@@ -197,6 +201,7 @@ export async function getCustomers(): Promise<CustomerRow[]> {
         agencyName: true,
         teamSize: true,
         createdAt: true,
+        reviewResponse: true,
         subscription: { select: { tier: true, status: true } },
         _count: { select: { rfps: true, libraryItems: true } },
       },
@@ -256,6 +261,7 @@ export async function getCustomers(): Promise<CustomerRow[]> {
       capPct,
       revenueUsd,
       marginUsd: revenueUsd - aiCostMonthUsd,
+      reviewResponse: user.reviewResponse,
       flags,
     };
   });
@@ -280,6 +286,10 @@ export async function getCustomerDetail(userId: string) {
       teamSize: true,
       createdAt: true,
       aiBusyUntil: true,
+      reviewPromptCount: true,
+      reviewPromptedAt: true,
+      reviewResponse: true,
+      reviewRespondedAt: true,
       subscription: { select: { tier: true, status: true, currentPeriodEnd: true } },
     },
   });

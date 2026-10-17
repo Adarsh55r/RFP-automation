@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
         : "Upload failed. Try again in a moment.";
 
     console.error("RFP upload failed:", error);
+    reportError(error, { area: "upload", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
