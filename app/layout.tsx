@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 import { Fraunces, IBM_Plex_Mono, Manrope } from "next/font/google";
+import { SentryUser } from "@/components/sentry-user";
 import { ToastProvider } from "@/components/ui/toast";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
@@ -63,6 +65,8 @@ export default function RootLayout({
             Skip to content
           </a>
           <ToastProvider>{children}</ToastProvider>
+          <SentryUser />
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>

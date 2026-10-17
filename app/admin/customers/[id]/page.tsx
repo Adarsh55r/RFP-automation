@@ -16,6 +16,13 @@ const ACTION_LABELS: Record<string, string> = {
   revision: "Revision",
 };
 
+const REVIEW_LABELS: Record<string, string> = {
+  reviewed: "Clicked “Leave a review”",
+  feedback: "Sent private feedback",
+  later: "Chose “Maybe later”",
+  declined: "Chose “Don’t ask again”",
+};
+
 const LIBRARY_LABELS: Record<string, string> = {
   case_study: "Case studies",
   team_bio: "Team bios",
@@ -281,6 +288,16 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
               <div className="flex justify-between gap-3">
                 <dt className="text-(--a-text-2)">Last AI call</dt>
                 <dd className="text-(--a-text)">{relativeTime(detail.recentCalls[0]?.createdAt ?? null)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="shrink-0 text-(--a-text-2)">Review request</dt>
+                <dd className="text-right text-(--a-text)">
+                  {user.reviewResponse
+                    ? `${REVIEW_LABELS[user.reviewResponse] ?? user.reviewResponse} · ${relativeTime(user.reviewRespondedAt)}`
+                    : user.reviewPromptCount > 0
+                      ? `Shown ${relativeTime(user.reviewPromptedAt)}, no answer`
+                      : "Not asked yet"}
+                </dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="shrink-0 text-(--a-text-2)">Clerk ID</dt>

@@ -30,6 +30,7 @@ const sections = [
       "Workspace content: RFP files you upload, the requirements DraftWin extracts, library items (case studies, bios, certifications, saved answers, company profile), and generated drafts.",
       "Billing data: plan tier, subscription status, and invoice details such as billing address and VAT number. We do not store full card numbers on DraftWin servers. Our payment processor handles card data under its own policies and PCI DSS.",
       "Usage data: basic logs such as IP address, browser type, and timestamps, used for security and debugging.",
+      "Product analytics and error reports: privacy-friendly, cookie-free page-view statistics (Vercel Web Analytics) and technical error reports (Sentry). Error reports include your account ID, the page, and the technical error, never your RFP files, library content, or drafts.",
     ],
   },
   {
@@ -51,7 +52,7 @@ const sections = [
   {
     title: "Who we share it with",
     body: [
-      "Subprocessors that host and run DraftWin: authentication (Clerk), database hosting, file storage, and AI model providers that process document text to extract requirements and draft sections under terms that prohibit training on your data.",
+      "Subprocessors that host and run DraftWin: hosting and analytics (Vercel), error monitoring (Sentry), authentication (Clerk), database hosting, file storage, and AI model providers that process document text to extract requirements and draft sections under terms that prohibit training on your data.",
       "Payment and invoicing partners, when you are on a paid plan, to collect fees and issue invoices.",
       "Authorities, when we are legally required to, and only to the extent required.",
       "We do not share your workspace with other DraftWin customers. Teammates only see what your company account is set up to show them.",
@@ -119,7 +120,7 @@ export default function PrivacyPage() {
             Privacy policy
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-            Last updated October 15, 2026. This is how DraftWin handles personal
+            Last updated October 17, 2026. This is how DraftWin handles personal
             and company data. It is written in plain language for businesses in
             the US, UK, and elsewhere. It is not legal advice.
           </p>

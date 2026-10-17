@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -107,6 +108,7 @@ export async function POST(request: Request, context: RouteContext) {
     });
   } catch (error) {
     console.error(`RFP ${format.toUpperCase()} export failed:`, error);
+    reportError(error, { area: "export", userId: user.id, rfpId: rfp.id, extra: { format } });
     return NextResponse.json(
       { error: "Export failed. Try again in a moment." },
       { status: 500 },

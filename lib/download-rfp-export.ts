@@ -1,4 +1,5 @@
 import type { ExportFormat } from "@/lib/proposal-document";
+import { EXPORTED_EVENT } from "@/lib/review-prompt";
 
 /** Requests an export and saves it through a temporary download link. */
 export async function downloadRfpExport(
@@ -31,6 +32,7 @@ export async function downloadRfpExport(
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+  window.dispatchEvent(new CustomEvent(EXPORTED_EVENT, { detail: { rfpId, format } }));
 
   return fileName;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardTopbar } from "@/components/dashboard/dashboard-topbar";
+import { ReviewPrompt } from "@/components/dashboard/review-prompt";
 import { cn } from "@/lib/cn";
 
 type DashboardShellProps = {
@@ -61,6 +62,7 @@ export function DashboardShell({ agencyName, children }: DashboardShellProps) {
           {children}
         </main>
       </div>
+      <ReviewPrompt />
     </div>
   );
 }

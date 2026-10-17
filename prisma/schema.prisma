@@ -63,16 +63,22 @@ enum RfpDocumentType {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  clerkId      String    @unique
-  email        String
-  agencyName   String?
-  teamSize     String?
-  createdAt    DateTime  @default(now())
+  id                String    @id @default(cuid())
+  clerkId           String    @unique
+  email             String
+  agencyName        String?
+  teamSize          String?
+  createdAt         DateTime  @default(now())
   /// Set while an AI task runs, so an account runs one at a time. Expires on its own.
-  aiBusyUntil  DateTime?
+  aiBusyUntil       DateTime?
   /// Month ("2026-10") the spend-cap alert was last sent, so it fires once per month.
-  aiAlertMonth String?
+  aiAlertMonth      String?
+  /// Review request shown after an export: how many times, when, and the answer
+  /// ("reviewed" | "feedback" | "later" | "declined").
+  reviewPromptCount Int       @default(0)
+  reviewPromptedAt  DateTime?
+  reviewResponse    String?
+  reviewRespondedAt DateTime?
 
   subscription Subscription?
   rfps         Rfp[]

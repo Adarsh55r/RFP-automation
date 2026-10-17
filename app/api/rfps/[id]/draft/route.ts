@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { beginAiOperation } from "@/lib/ai-guard";
@@ -247,6 +248,7 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     await guard.release();
     console.error("RFP drafting setup failed:", error);
+    reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
   const { sharedContext, currentContent, questions } = prepared;
@@ -367,6 +369,7 @@ export async function POST(request: Request, context: RouteContext) {
               return true;
             } catch (sectionError) {
               console.error(`Drafting ${section} failed:`, sectionError);
+              reportError(sectionError, { area: "draft-section", userId: user.id, rfpId: rfp.id, extra: { section } });
               send({
                 type: "section_error",
                 section,
@@ -400,6 +403,7 @@ export async function POST(request: Request, context: RouteContext) {
           }
         } catch (reviewError) {
           console.error("Compliance review failed:", reviewError);
+          reportError(reviewError, { area: "draft-review", userId: user.id, rfpId: rfp.id });
         }
         send({ type: "meta_done", block: "coverage_map" });
 
@@ -420,6 +424,7 @@ export async function POST(request: Request, context: RouteContext) {
         }
       } catch (error) {
         console.error("RFP drafting failed:", error);
+        reportError(error, { area: "draft", userId: user.id, rfpId: rfp.id });
         await prisma.rfp
           .update({
             where: { id: rfp.id },
