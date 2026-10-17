@@ -1,12 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, LockOpen, RotateCcw } from "lucide-react";
+import { Loader2, LockOpen, MessageSquareHeart, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PLAN_COLORS } from "@/components/admin/badges";
 import { useToast } from "@/components/ui/toast";
-import { adminResetAllowance, adminSetPlan, adminUnlockAi } from "@/lib/actions/admin";
+import { adminResetAllowance, adminResetReviewPrompt, adminSetPlan, adminUnlockAi } from "@/lib/actions/admin";
 import { cn } from "@/lib/cn";
 
 const PLANS = [
@@ -143,6 +143,21 @@ export function ResetAllowanceButton({ userId, rfpId, disabled }: { userId: stri
     >
       {pending ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw aria-hidden className="size-3 transition-transform duration-500 group-hover:-rotate-180" />}
       Reset
+    </button>
+  );
+}
+
+export function ResetReviewPromptButton({ userId, asked }: { userId: string; asked: boolean }) {
+  const { pending, run } = useAdminAction();
+  return (
+    <button
+      type="button"
+      disabled={!asked || pending}
+      onClick={() => run(() => adminResetReviewPrompt(userId), "Review request reset. It shows after their next export.")}
+      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl border border-(--a-border) px-3 py-2.5 text-sm text-(--a-text-2) outline-none transition-all hover:border-(--a-teal)/40 hover:text-(--a-text) focus-visible:ring-2 focus-visible:ring-(--a-teal)/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-(--a-border)"
+    >
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <MessageSquareHeart aria-hidden className="size-4 transition-transform group-hover:scale-110" />}
+      {asked ? "Reset review request" : "Not asked yet"}
     </button>
   );
 }

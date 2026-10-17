@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, BellRing, Coins, CreditCard, LayoutDashboard, Search, Users } from "lucide-react";
+import { ArrowLeft, BellRing, Coins, CreditCard, LayoutDashboard, Search, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -13,13 +13,24 @@ const navItems = [
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/costs", label: "AI costs", icon: Coins },
   { href: "/admin/alerts", label: "Alerts", icon: BellRing },
+  { href: "/admin/setup", label: "Setup", icon: Settings2 },
 ];
 
 function isActive(pathname: string, item: (typeof navItems)[number]) {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
-function NavLinks({ pathname, alertCount, layoutId }: { pathname: string; alertCount: number; layoutId: string }) {
+function NavLinks({
+  pathname,
+  alertCount,
+  setupCount,
+  layoutId,
+}: {
+  pathname: string;
+  alertCount: number;
+  setupCount: number;
+  layoutId: string;
+}) {
   return (
     <LayoutGroup id={layoutId}>
       {navItems.map((item) => {
@@ -56,6 +67,14 @@ function NavLinks({ pathname, alertCount, layoutId }: { pathname: string; alertC
             {item.href === "/admin/alerts" && alertCount > 0 ? (
               <span className="relative ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-(--a-red)/15 px-1.5 py-0.5 font-mono text-[11px] text-(--a-red) ring-1 ring-(--a-red)/30">
                 {alertCount}
+              </span>
+            ) : null}
+            {item.href === "/admin/setup" && setupCount > 0 ? (
+              <span
+                title={`${setupCount} setting${setupCount === 1 ? "" : "s"} need attention`}
+                className="relative ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-(--a-amber)/15 px-1.5 py-0.5 font-mono text-[11px] text-(--a-amber) ring-1 ring-(--a-amber)/30"
+              >
+                {setupCount}
               </span>
             ) : null}
           </Link>
@@ -111,10 +130,12 @@ function QuickSearch() {
 export function AdminShell({
   adminEmail,
   alertCount,
+  setupCount,
   children,
 }: {
   adminEmail: string;
   alertCount: number;
+  setupCount: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -138,7 +159,7 @@ export function AdminShell({
 
           <nav aria-label="Admin" className="mt-8 flex flex-col gap-1">
             <p className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-(--a-muted)">Command center</p>
-            <NavLinks pathname={pathname} alertCount={alertCount} layoutId="admin-desktop" />
+            <NavLinks pathname={pathname} alertCount={alertCount} setupCount={setupCount} layoutId="admin-desktop" />
           </nav>
 
           <div className="mt-auto space-y-3">
@@ -182,7 +203,7 @@ export function AdminShell({
               </div>
             </div>
             <nav aria-label="Admin" className="admin-scroll flex gap-1 overflow-x-auto px-4 pb-3 lg:hidden">
-              <NavLinks pathname={pathname} alertCount={alertCount} layoutId="admin-mobile" />
+              <NavLinks pathname={pathname} alertCount={alertCount} setupCount={setupCount} layoutId="admin-mobile" />
             </nav>
           </header>
 

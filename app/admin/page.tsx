@@ -1,4 +1,4 @@
-import { BadgeDollarSign, Bot, FileText, Percent, Sparkles, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Bot, CheckCircle2, FileText, Percent, Sparkles, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { FlagBadge, PlanBadge } from "@/components/admin/badges";
 import { Funnel, PlanDonut, TrendChart } from "@/components/admin/charts";
@@ -7,10 +7,11 @@ import { PageHeader } from "@/components/admin/admin-shell";
 import { SpotlightCard, Stagger } from "@/components/admin/spotlight-card";
 import { AllClear, CardHeader, Pill } from "@/components/admin/ui";
 import { getAdminOverview, getCustomers } from "@/lib/admin-data";
+import { getSetupStatus } from "@/lib/setup-status";
 import { relativeTime } from "@/lib/admin-format";
 
 export default async function AdminOverviewPage() {
-  const [overview, customers] = await Promise.all([getAdminOverview(), getCustomers()]);
+  const [overview, customers, setup] = await Promise.all([getAdminOverview(), getCustomers(), getSetupStatus()]);
   const { kpis, series } = overview;
 
   const signupDelta =
@@ -30,6 +31,8 @@ export default async function AdminOverviewPage() {
         description="Sales, usage and AI spend across every DraftWin account, updated live from the database."
         actions={<Pill>Revenue estimated from list prices · Stripe not connected</Pill>}
       />
+
+      <SetupStrip blocking={setup.blocking} optionalOff={setup.optionalOff} />
 
       <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard
@@ -165,5 +168,32 @@ export default async function AdminOverviewPage() {
         </SpotlightCard>
       </Stagger>
     </>
+  );
+}
+
+function SetupStrip({ blocking, optionalOff }: { blocking: number; optionalOff: number }) {
+  const ok = blocking === 0;
+  const Icon = ok ? CheckCircle2 : AlertTriangle;
+  return (
+    <Link
+      href="/admin/setup"
+      className={`group mb-4 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors ${
+        ok
+          ? "border-(--a-border) bg-white/[0.02] hover:border-(--a-teal)/30"
+          : "border-(--a-red)/30 bg-(--a-red)/[0.07] hover:border-(--a-red)/50"
+      }`}
+    >
+      <Icon aria-hidden className={`size-4 shrink-0 ${ok ? "text-(--a-green)" : "text-(--a-red)"}`} />
+      <span className="text-(--a-text)">
+        {ok ? "Setup: everything required is on." : `Setup: ${blocking} required setting${blocking === 1 ? "" : "s"} missing.`}
+        {optionalOff > 0 ? (
+          <span className="text-(--a-text-2)">
+            {" "}
+            {optionalOff} optional feature{optionalOff === 1 ? " is" : "s are"} off.
+          </span>
+        ) : null}
+      </span>
+      <span className="ml-auto text-xs text-(--a-teal) transition-transform group-hover:translate-x-0.5">View setup →</span>
+    </Link>
   );
 }
