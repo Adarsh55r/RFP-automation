@@ -1,7 +1,7 @@
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { beginAiOperation } from "@/lib/ai-guard";
+import { beginAiOperation, refundAllowance } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
 import { upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
@@ -247,6 +247,7 @@ export async function POST(request: Request, context: RouteContext) {
     prepared = await prepare();
   } catch (error) {
     await guard.release();
+    await refundAllowance(rfp.id, operation);
     console.error("RFP drafting setup failed:", error);
     reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
@@ -264,6 +265,7 @@ export async function POST(request: Request, context: RouteContext) {
         }
       };
 
+      let wroteAnything = false;
       const call = (task: string, maxTokens: number, effort?: LlmEffort, json?: boolean) => ({
         purpose: "drafting" as const,
         system: DRAFTING_SYSTEM,
@@ -380,7 +382,8 @@ export async function POST(request: Request, context: RouteContext) {
           }),
         );
 
-        if (!outcomes.some(Boolean)) {
+        wroteAnything = outcomes.some(Boolean);
+        if (!wroteAnything) {
           throw new Error("Drafting failed for every section. Try again in a moment.");
         }
 
@@ -424,6 +427,8 @@ export async function POST(request: Request, context: RouteContext) {
         }
       } catch (error) {
         console.error("RFP drafting failed:", error);
+        // Nothing usable was produced, so the attempt should not count.
+        if (!wroteAnything) await refundAllowance(rfp.id, operation);
         reportError(error, { area: "draft", userId: user.id, rfpId: rfp.id });
         await prisma.rfp
           .update({

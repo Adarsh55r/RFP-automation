@@ -102,7 +102,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         <p className="font-sans text-sm font-semibold text-ink">{rfp.title}</p>
         {rfp.originalFileUrl ? (
           <a
-            href={rfp.originalFileUrl}
+            href={`/api/rfps/${rfp.id}/file`}
             target="_blank"
             rel="noopener noreferrer"
             className={cn(textLink, "mt-2 inline-block w-fit text-sm")}

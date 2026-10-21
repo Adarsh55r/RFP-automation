@@ -19,6 +19,7 @@ import { CoverDetailsCard } from "@/components/dashboard/cover-details-card";
 import { MarkdownPreview } from "@/components/dashboard/markdown-preview";
 import { saveDraftSection } from "@/lib/actions/rfp-draft";
 import { downloadRfpExport } from "@/lib/download-rfp-export";
+import { unverifiedCredentials } from "@/lib/claim-checks";
 import { findPlaceholders } from "@/lib/markdown";
 import type { ExportFormat } from "@/lib/proposal-document";
 import { DRAFT_SECTIONS, draftSectionLabel, type CoverDetails } from "@/lib/rfp-draft";
@@ -381,6 +382,7 @@ export function RfpDraftView({
   autoStart,
   cover,
   legacyDraft,
+  supportedCredentials,
   allowance,
 }: {
   rfpId: string;
@@ -392,6 +394,8 @@ export function RfpDraftView({
   cover: CoverDetails;
   /** Drafted before bid plans existed: no cover letter, plan, or new structure. */
   legacyDraft: boolean;
+  /** Credentials the bidder's library mentions (SOC 2, ISO 27001, ...). */
+  supportedCredentials: string[];
   /** Per-proposal AI allowances: how many were used and the plan's limit. */
   allowance: {
     fullDrafts: { used: number; limit: number };
@@ -423,6 +427,16 @@ export function RfpDraftView({
     (sum, section) => sum + findPlaceholders(sections[section].content).length,
     0,
   );
+  // Credentials the draft names that the library never mentions: possibly claimed without proof.
+  const unverifiedClaims = useMemo(() => {
+    const where = new Map<string, string[]>();
+    for (const section of plannedSections) {
+      for (const name of unverifiedCredentials(sections[section].content, supportedCredentials)) {
+        where.set(name, [...(where.get(name) ?? []), draftSectionLabel[section]]);
+      }
+    }
+    return [...where.entries()];
+  }, [plannedSections, sections, supportedCredentials]);
 
   const runGeneration = async (revision?: { section: DraftSection; instruction: string }) => {
     setGenerating(true);
@@ -459,6 +473,7 @@ export function RfpDraftView({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let finished = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -523,10 +538,20 @@ export function RfpDraftView({
             case "meta_done":
               setCoverageStreaming(false);
               break;
+            case "done":
+              finished = true;
+              break;
             case "error":
               throw new Error(payload.message);
           }
         }
+      }
+
+      if (!finished) {
+        // The connection dropped or the server hit its time limit mid-draft.
+        throw new Error(
+          "Drafting stopped before it finished. Sections marked ready were saved; regenerate or revise the rest.",
+        );
       }
 
       router.refresh();
@@ -554,12 +579,15 @@ export function RfpDraftView({
   const runExport = async (format: ExportFormat) => {
     if (!canExport || exportPhase === "generating") return;
 
-    if (
-      placeholderTotal > 0 &&
-      !window.confirm(
-        `${placeholderTotal} item${placeholderTotal === 1 ? "" : "s"} still need your input (highlighted in yellow). Export anyway?`,
-      )
-    ) {
+    const warnings = [
+      placeholderTotal > 0
+        ? `${placeholderTotal} item${placeholderTotal === 1 ? "" : "s"} still need your input (highlighted in yellow).`
+        : "",
+      unverifiedClaims.length > 0
+        ? `The draft mentions ${unverifiedClaims.map(([name]) => name).join(", ")}, which your library does not support. Check you are not claiming something you do not hold.`
+        : "",
+    ].filter(Boolean);
+    if (warnings.length > 0 && !window.confirm(`${warnings.join("\n\n")}\n\nExport anyway?`)) {
       return;
     }
 
@@ -710,6 +738,27 @@ export function RfpDraftView({
         <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
           {exportError}
         </p>
+      ) : null}
+
+      {!generating && unverifiedClaims.length > 0 ? (
+        <div
+          role="status"
+          className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-ink"
+        >
+          <p className="font-semibold">Check these credentials before you submit</p>
+          <p className="mt-1 text-slate">
+            The draft mentions them, but your content library does not. If you do not hold one, remove the
+            claim; if you do, add the certificate or report to your library so future drafts can use it.
+          </p>
+          <ul className="mt-2 list-disc pl-5">
+            {unverifiedClaims.map(([name, where]) => (
+              <li key={name}>
+                <span className="font-semibold">{name}</span>
+                <span className="text-slate"> (in {[...new Set(where)].join(", ")})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {showExportMoment ? (

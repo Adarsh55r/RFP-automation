@@ -3,19 +3,23 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma, RfpStatus } from "@/lib/generated/prisma";
-import { beginAiOperation } from "@/lib/ai-guard";
+import { beginAiOperation, refundAllowance } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
+import { verifyExtraction } from "@/lib/extraction-checks";
 import {
   deadlineToDate,
   downloadRfpFile,
   extractRequirementsWithLlm,
   extractTextFromDocument,
+  NO_TEXT_MESSAGE,
+  prepareExtractionText,
 } from "@/lib/rfp-extract";
 import { resetPlanKeepingCover } from "@/lib/rfp-draft";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Long RFPs take more than a minute to read; a killed request would leave the RFP stuck.
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -56,7 +60,11 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
-  if (rfp.status === RfpStatus.extracting) {
+  // A request killed mid-extraction (timeout, deploy) leaves the status behind.
+  // It is only genuinely running while the account's AI lock is held.
+  const extractionRunning =
+    rfp.status === RfpStatus.extracting && Boolean(user.aiBusyUntil && user.aiBusyUntil > new Date());
+  if (extractionRunning) {
     return NextResponse.json(
       { error: "Extraction is already in progress." },
       { status: 409 },
@@ -73,7 +81,12 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
-  const previousStatus = rfp.status;
+  const previousStatus =
+    rfp.status === RfpStatus.extracting
+      ? rfp.extractedDocumentType
+        ? RfpStatus.extracted
+        : RfpStatus.uploaded
+      : rfp.status;
 
   await prisma.rfp.update({
     where: { id: rfp.id },
@@ -83,10 +96,26 @@ export async function POST(_request: Request, context: RouteContext) {
   try {
     const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
     const documentText = await extractTextFromDocument(buffer, fileName);
+    if (!documentText.trim()) {
+      await refundAllowance(rfp.id, "extract");
+      await prisma.rfp.update({ where: { id: rfp.id }, data: { status: previousStatus } });
+      return NextResponse.json({ error: NO_TEXT_MESSAGE }, { status: 422 });
+    }
     const extracted = await extractRequirementsWithLlm(
       documentText,
       usageRecorder({ userId: user.id, rfpId: rfp.id, action: "extract" }),
     );
+
+    // Deterministic checks against the document, plus a notice if it was too long to read in full.
+    const { truncated, readPercent } = prepareExtractionText(documentText);
+    const flags = [
+      ...extracted.flaggedForReview,
+      ...verifyExtraction(extracted, documentText).flags,
+      ...(truncated
+        ? [`Document length: only the first ${readPercent}% of this document was read. Check the later sections (appendices, forms, questionnaires) and add any requirements they contain.`]
+        : []),
+    ];
+    extracted.flaggedForReview = [...new Set(flags)];
 
     const updated = await prisma.rfp.update({
       where: { id: rfp.id },
@@ -129,6 +158,8 @@ export async function POST(_request: Request, context: RouteContext) {
         data: { status: previousStatus },
       })
       .catch(() => undefined);
+    // A failed attempt should not use up one of the proposal's extractions.
+    await refundAllowance(rfp.id, "extract");
 
     const message = friendlyLlmError(error, "extraction", "Extraction failed. Try again in a moment.");
 

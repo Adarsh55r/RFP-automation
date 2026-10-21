@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getLlmProvider } from "@/lib/llm";
 import { feedbackEmail, reviewUrl } from "@/lib/review-prompt";
 import { NEEDS_UPGRADE_SQL } from "@/lib/schema-upgrade";
+import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Which settings this deployment is actually running with, for the admin
@@ -53,6 +54,28 @@ async function databaseCheck(): Promise<SetupCheck> {
   }
 }
 
+/** Uploaded RFPs are confidential; a public bucket would let anyone with a file's URL read it. */
+async function bucketPrivacyCheck(): Promise<SetupCheck | null> {
+  if (!has("NEXT_PUBLIC_SUPABASE_URL") || !has("SUPABASE_SERVICE_ROLE_KEY")) return null;
+  const base = { id: "bucket-privacy", group: "Core" as const, label: "RFP files are private", required: true };
+  try {
+    const { data, error } = await getSupabaseAdmin().storage.getBucket(getRfpStorageBucket());
+    if (error || !data) {
+      return { ...base, state: "invalid", detail: `Could not read the "${getRfpStorageBucket()}" bucket.`, fix: "Check SUPABASE_RFP_BUCKET and that the bucket exists." };
+    }
+    return data.public
+      ? {
+          ...base,
+          state: "invalid",
+          detail: "The storage bucket is public: anyone who has a file's link can download a customer's RFP.",
+          fix: "Supabase → Storage → the bucket → Edit bucket → turn off \"Public bucket\". DraftWin already uses short-lived signed links.",
+        }
+      : { ...base, state: "on", detail: "Bucket is private; files open through 60-second signed links." };
+  } catch {
+    return { ...base, state: "invalid", detail: "Could not check the storage bucket.", fix: "Check the Supabase keys." };
+  }
+}
+
 export async function getSetupStatus() {
   const provider = getLlmProvider();
   const providerKey = { openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", gemini: "GEMINI_API_KEY" }[provider];
@@ -63,8 +86,10 @@ export async function getSetupStatus() {
   const support = feedbackEmail();
   const sourceMaps = has("SENTRY_AUTH_TOKEN") && has("SENTRY_ORG") && has("SENTRY_PROJECT");
 
+  const bucket = await bucketPrivacyCheck();
   const checks: SetupCheck[] = [
     await databaseCheck(),
+    ...(bucket ? [bucket] : []),
     has(providerKey)
       ? {
           id: "ai",

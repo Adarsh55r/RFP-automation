@@ -307,13 +307,27 @@ Write like an experienced bid team, not like an AI assistant:
 Output GitHub-flavored Markdown only — no preamble, no closing remarks, no code fences, and never a top-level "#" heading (the section title is added for you). Use "##" for subheadings and "###" below that. Use tables only for genuinely tabular content (schedules, staffing, pricing, risks, compliance); keep tables to at most 5 columns, one line per cell, no lists or line breaks inside cells, and always include the header separator row. Use bullet lists for scannable items and short paragraphs (2-4 sentences) for argument.
 </formatting>`;
 
+/** The XML-style tags DraftWin uses to separate trusted instructions from untrusted data. */
+const PROMPT_TAGS =
+  "bidder|solicitation|extracted_requirements|original_document|content_library|bid_plan|current_draft|current_answers|questions|drafted_proposal|section|sources";
+const PROMPT_TAG_RE = new RegExp(`<(/?)(${PROMPT_TAGS})(?=[\\s>/])`, "gi");
+
+/**
+ * Untrusted text (the uploaded RFP, library items, edited drafts) must not be
+ * able to close or open DraftWin's own prompt sections and pose as
+ * instructions or library facts. Look-alike brackets keep it readable.
+ */
+export function neutralizePromptTags(text: string) {
+  return text.replace(PROMPT_TAG_RE, "\u2039$1$2");
+}
+
 function formatLibraryBlock(items: LibraryItem[], type: LibraryItem["type"]) {
   const filtered = items.filter((item) => item.type === type);
   if (filtered.length === 0) {
     return "(none provided)";
   }
   return filtered
-    .map((item) => `### ${item.title}\n${item.content.trim()}`)
+    .map((item) => `### ${neutralizePromptTags(item.title)}\n${neutralizePromptTags(item.content.trim())}`)
     .join("\n\n");
 }
 
@@ -332,36 +346,38 @@ export function buildDraftingContext(input: {
   const documentType = rfp.extractedDocumentType
     ? rfpDocumentTypeLabel[rfp.extractedDocumentType]
     : "unspecified";
-  const source = input.sourceText.trim()
-    ? input.sourceText.length > MAX_SOURCE_CHARS
-      ? `${input.sourceText.slice(0, MAX_SOURCE_CHARS)}\n\n[Remaining pages omitted for length.]`
-      : input.sourceText
+  const sourceText = neutralizePromptTags(input.sourceText);
+  const source = sourceText.trim()
+    ? sourceText.length > MAX_SOURCE_CHARS
+      ? `${sourceText.slice(0, MAX_SOURCE_CHARS)}\n\n[Remaining pages omitted for length. The extracted requirements above cover the whole document.]`
+      : sourceText
     : "(The original document text is unavailable — rely on the extracted requirements.)";
+  const list = (value: unknown) => neutralizePromptTags(listToEditableText(value));
 
-  return `<bidder>${companyName}</bidder>
+  return `<bidder>${neutralizePromptTags(companyName)}</bidder>
 
-<solicitation title="${rfp.title.replace(/"/g, "'")}" type="${documentType}" submission_deadline="${deadline}">
+<solicitation title="${neutralizePromptTags(rfp.title).replace(/"/g, "'")}" type="${documentType}" submission_deadline="${deadline}">
 <extracted_requirements>
 ## Scope
-${scopeToEditableText(rfp.extractedScope) || "(empty)"}
+${neutralizePromptTags(scopeToEditableText(rfp.extractedScope)) || "(empty)"}
 
 ## Mandatory requirements
-${listToEditableText(rfp.extractedEligibility) || "(none)"}
+${list(rfp.extractedEligibility) || "(none)"}
 
 ## Desirable requirements
-${listToEditableText(rfp.extractedDesirable) || "(none)"}
+${list(rfp.extractedDesirable) || "(none)"}
 
 ## Evaluation criteria
-${listToEditableText(rfp.extractedEvaluationCriteria) || "(none)"}
+${list(rfp.extractedEvaluationCriteria) || "(none)"}
 
 ## Submission requirements
-${listToEditableText(rfp.extractedSubmission) || "(none)"}
+${list(rfp.extractedSubmission) || "(none)"}
 
 ## Questions to answer
-${listToEditableText(rfp.extractedQuestionnaire) || "(none)"}
+${list(rfp.extractedQuestionnaire) || "(none)"}
 
 ## Flagged as ambiguous
-${listToEditableText(rfp.extractedFlags) || "(none)"}
+${list(rfp.extractedFlags) || "(none)"}
 </extracted_requirements>
 
 <original_document>
@@ -469,7 +485,7 @@ export function buildSectionTask(
     ? `
 
 <current_draft>
-${revision.currentContent}
+${neutralizePromptTags(revision.currentContent)}
 </current_draft>
 
 Revise the current draft of this section. Keep what already works and every fact the bidder added by hand; apply this instruction from the bidder: "${revision.instruction || "Improve specificity and persuasiveness."}"`
@@ -496,7 +512,7 @@ export function buildResponsesTask(
       ? `
 
 <current_answers>
-${revision.currentContent}
+${neutralizePromptTags(revision.currentContent)}
 </current_answers>
 
 Revise these answers, keeping facts the bidder added by hand. Instruction from the bidder: "${revision.instruction || "Improve specificity."}"`
@@ -524,7 +540,7 @@ export function buildReviewTask(
   drafted: { label: string; content: string }[],
 ) {
   const sections = drafted
-    .map((item) => `<section name="${item.label}">\n${item.content}\n</section>`)
+    .map((item) => `<section name="${item.label}">\n${neutralizePromptTags(item.content)}\n</section>`)
     .join("\n\n");
 
   return `${planBlock(plan)}

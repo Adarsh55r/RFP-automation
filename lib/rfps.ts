@@ -28,7 +28,8 @@ export type RfpListItem = Prisma.RfpGetPayload<{ select: typeof rfpListSelect }>
 
 export async function getRfpsForUser(userId: string) {
   return prisma.rfp.findMany({
-    where: { userId },
+    // Large uploads create the row before the file arrives; hide them until it does.
+    where: { userId, originalFileUrl: { not: null } },
     orderBy: { createdAt: "desc" },
     select: rfpListSelect,
   });
@@ -40,6 +41,8 @@ export async function getRfpUploadQuota(userId: string, tier: SubscriptionTier) 
     where: {
       userId,
       createdAt: { gte: monthStart },
+      // An abandoned upload (no file ever arrived) does not use up the quota.
+      originalFileUrl: { not: null },
     },
   });
 

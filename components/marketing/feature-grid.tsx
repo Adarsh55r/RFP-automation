@@ -19,8 +19,8 @@ const features = [
   },
   {
     icon: Stamp,
-    title: "Submission-ready Word and PDF",
-    body: "Export a professional proposal with cover page, contents, page numbers, and clean tables — no reformatting at midnight. Paid plans add your letterhead and signatory block.",
+    title: "Professional Word and PDF",
+    body: "Export a professional proposal with cover page, contents, page numbers, and clean tables — no reformatting at midnight.",
   },
   {
     icon: BadgeDollarSign,

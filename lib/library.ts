@@ -1,5 +1,13 @@
 import type { LibraryItemType } from "@/lib/generated/prisma";
 
+/**
+ * The whole library is sent with every drafting call, so its size drives
+ * cost and latency. These limits keep one item readable and the library
+ * well inside the model's context.
+ */
+export const LIBRARY_ITEM_MAX_CHARS = 20_000;
+export const LIBRARY_TOTAL_MAX_CHARS = 200_000;
+
 export const libraryTypes: LibraryItemType[] = [
   "case_study",
   "team_bio",

@@ -5,7 +5,9 @@ import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import {
   isAllowedRfpFile,
+  looksLikeRfpFile,
   RFP_MAX_BYTES,
+  SERVER_UPLOAD_MAX_BYTES,
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
@@ -79,6 +81,22 @@ export async function POST(request: Request) {
     );
   }
 
+  if (file.size > SERVER_UPLOAD_MAX_BYTES) {
+    // The browser uses the direct-to-storage flow (/api/rfps/upload/start) for these.
+    return NextResponse.json(
+      { error: "This file is too large to send through the server. Upload it again; large files go directly to storage." },
+      { status: 413 },
+    );
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!looksLikeRfpFile(bytes, file.name)) {
+    return NextResponse.json(
+      { error: "This file is not a valid PDF or Word (.docx) document." },
+      { status: 400 },
+    );
+  }
+
   const title = titleFromFilename(file.name);
   const safeName = sanitizeStorageFilename(file.name);
 
@@ -94,7 +112,7 @@ export async function POST(request: Request) {
 
   try {
     const supabase = getSupabaseAdmin();
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(bytes);
     const contentType =
       file.type ||
       (safeName.toLowerCase().endsWith(".pdf")

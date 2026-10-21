@@ -261,16 +261,16 @@ export function RfpExtractionPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      {status === "uploaded" && !extracting ? (
+      {(status === "uploaded" || status === "extracting") && !extracting ? (
         <Card className="flex flex-col gap-4">
           <div>
             <h2 className="font-sans text-lg font-semibold text-ink">
-              Extract requirements
+              {status === "extracting" ? "Extraction did not finish" : "Extract requirements"}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate">
-              DraftWin will classify the pack and pull out scope, deadlines,
-              mandatory vs preferred eligibility, evaluation weightage, and
-              questionnaire rows. You can edit anything before continuing.
+              {status === "extracting"
+                ? "The last extraction was interrupted before it finished (for example, the page was closed or the server timed out). Try again; if another extraction is still running, wait a few minutes."
+                : "DraftWin will classify the pack and pull out scope, deadlines, mandatory vs preferred eligibility, evaluation weightage, and questionnaire rows. You can edit anything before continuing."}
             </p>
           </div>
           <Button
@@ -279,7 +279,7 @@ export function RfpExtractionPanel({
             disabled={!canExtract}
             className="w-full sm:w-fit"
           >
-            Extract requirements
+            {status === "extracting" ? "Try extraction again" : "Extract requirements"}
           </Button>
           {!rfp.originalFileUrl ? (
             <p className="text-sm text-danger">
@@ -354,8 +354,16 @@ export function RfpExtractionPanel({
               <p className="font-mono text-xs tracking-wide text-ink uppercase">
                 Flagged for review
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-ink">
-                {form.flaggedForReview.split("\n").filter(Boolean).join(" · ")}
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-ink">
+                {form.flaggedForReview
+                  .split("\n")
+                  .filter(Boolean)
+                  .map((flag) => (
+                    <li key={flag}>{flag}</li>
+                  ))}
+              </ul>
+              <p className="mt-2 text-xs text-slate">
+                Check each item against the RFP before you draft. Delete a line once it is resolved.
               </p>
             </div>
           ) : null}

@@ -87,6 +87,28 @@ function hasKey(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
+/** The model stopped because it hit its output limit, so the text is incomplete. */
+export class LlmOutputTruncatedError extends Error {
+  constructor() {
+    super("The AI response reached its length limit before it was complete.");
+    this.name = "LlmOutputTruncatedError";
+  }
+}
+
+/**
+ * Appended to prose that was cut off at the length limit. It uses the
+ * placeholder syntax, so the editor highlights it and export asks the user
+ * to deal with it instead of shipping a sentence that stops mid-way.
+ */
+export const TRUNCATION_MARKER =
+  "\n\n[[Incomplete: the AI reached its length limit here. Use Revise with AI to finish or shorten this part.]]";
+
+/** JSON that was cut off cannot be used; prose can, as long as the gap is visible. */
+function finishTruncated(request: LlmTextRequest, text: string) {
+  if (request.json) throw new LlmOutputTruncatedError();
+  return text + TRUNCATION_MARKER;
+}
+
 /**
  * OpenAI (GPT-4.1) is the product's AI provider: whenever OPENAI_API_KEY is
  * set it is used, whatever LLM_PROVIDER says. LLM_PROVIDER only chooses
@@ -122,6 +144,11 @@ function logProviderOnce(purpose: LlmPurpose) {
 export function friendlyLlmError(error: unknown, purpose: LlmPurpose, fallback: string) {
   if (isLlmConfigError(error)) {
     return llmConfigErrorMessage(purpose);
+  }
+  if (error instanceof LlmOutputTruncatedError) {
+    return purpose === "extraction"
+      ? "This document has more requirements than the AI can return in one pass. Try again; if it keeps happening, split the document (for example, upload a long questionnaire on its own)."
+      : "The AI response was too long to finish in one pass. Try again, or revise one section at a time.";
   }
   const message = error instanceof Error ? error.message : "";
   const status = (error as { status?: number } | null)?.status;
@@ -237,7 +264,7 @@ async function generateTextWithAnthropic(request: LlmTextRequest) {
   if (!text.trim()) {
     throw new Error("Claude returned an empty response.");
   }
-  return text;
+  return message.stop_reason === "max_tokens" ? finishTruncated(request, text) : text;
 }
 
 function openAIParams(request: LlmTextRequest) {
@@ -275,7 +302,7 @@ async function generateTextWithOpenAI(request: LlmTextRequest) {
   if (!text.trim()) {
     throw new Error("OpenAI returned an empty response.");
   }
-  return text;
+  return completion.choices[0]?.finish_reason === "length" ? finishTruncated(request, text) : text;
 }
 
 async function* streamTextWithOpenAI(request: LlmTextRequest) {
@@ -286,7 +313,9 @@ async function* streamTextWithOpenAI(request: LlmTextRequest) {
     stream_options: { include_usage: true },
   });
 
+  let finishReason: string | null | undefined;
   for await (const chunk of stream) {
+    finishReason = chunk.choices[0]?.finish_reason ?? finishReason;
     // The final chunk carries usage and no choices.
     if (chunk.usage) {
       reportUsage(request, "openai", {
@@ -304,6 +333,9 @@ async function* streamTextWithOpenAI(request: LlmTextRequest) {
     if (delta?.content) {
       yield delta.content;
     }
+  }
+  if (finishReason === "length") {
+    yield TRUNCATION_MARKER;
   }
 }
 
@@ -334,7 +366,7 @@ async function generateTextWithGemini(request: LlmTextRequest) {
     throw new Error("Gemini returned an empty response.");
   }
 
-  return text;
+  return result.response.candidates?.[0]?.finishReason === "MAX_TOKENS" ? finishTruncated(request, text) : text;
 }
 
 /** Non-streaming text generation (extraction, bid plan, review). */
@@ -366,6 +398,9 @@ async function* streamTextWithAnthropic(request: LlmTextRequest) {
   const final = await stream.finalMessage();
   reportUsage(request, "anthropic", anthropicUsage(final));
   assertNotRefused(final);
+  if (final.stop_reason === "max_tokens") {
+    yield TRUNCATION_MARKER;
+  }
 }
 
 async function* streamTextWithGemini(request: LlmTextRequest) {
@@ -391,6 +426,9 @@ async function* streamTextWithGemini(request: LlmTextRequest) {
 
   const final = await result.response;
   reportUsage(request, "gemini", geminiUsage(final.usageMetadata as GeminiUsageMetadata | undefined));
+  if (final.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+    yield TRUNCATION_MARKER;
+  }
 }
 
 /** Streaming text generation for progressive draft sections. */

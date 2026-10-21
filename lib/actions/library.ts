@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { LibraryItemType } from "@/lib/generated/prisma";
-import { isLibraryItemType } from "@/lib/library";
+import {
+  isLibraryItemType,
+  LIBRARY_ITEM_MAX_CHARS,
+  LIBRARY_TOTAL_MAX_CHARS,
+} from "@/lib/library";
 
 export type LibraryItemPayload = {
   type: string;
@@ -32,6 +36,22 @@ async function requireLibraryUser() {
   return { ok: true as const, user };
 }
 
+async function libraryRoom(userId: string, excludeId?: string) {
+  const items = await prisma.libraryItem.findMany({
+    where: { userId, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { content: true, title: true },
+  });
+  const used = items.reduce((sum, item) => sum + item.content.length + item.title.length, 0);
+  return LIBRARY_TOTAL_MAX_CHARS - used;
+}
+
+function tooBig(room: number) {
+  return {
+    ok: false as const,
+    error: `Your library is full (${LIBRARY_TOTAL_MAX_CHARS.toLocaleString("en-US")} characters). Shorten or remove items you no longer use; only ${Math.max(room, 0).toLocaleString("en-US")} characters are left.`,
+  };
+}
+
 function validatePayload(payload: LibraryItemPayload) {
   if (!isLibraryItemType(payload.type)) {
     return { ok: false as const, error: "Pick a valid content type." };
@@ -42,6 +62,13 @@ function validatePayload(payload: LibraryItemPayload) {
 
   if (title.length < 2) {
     return { ok: false as const, error: "Enter a title (at least 2 characters)." };
+  }
+
+  if (content.length > LIBRARY_ITEM_MAX_CHARS) {
+    return {
+      ok: false as const,
+      error: `Keep each item under ${LIBRARY_ITEM_MAX_CHARS.toLocaleString("en-US")} characters. Split long documents into separate case studies or answers.`,
+    };
   }
 
   if (content.length < 10) {
@@ -85,6 +112,11 @@ export async function createLibraryItem(payload: LibraryItemPayload) {
           "You already have a company profile. Edit the existing one instead of adding another.",
       };
     }
+  }
+
+  const room = await libraryRoom(authResult.user.id);
+  if (validated.content.length + validated.title.length > room) {
+    return tooBig(room);
   }
 
   const item = await prisma.libraryItem.create({
@@ -142,6 +174,11 @@ export async function updateLibraryItem(
           "You already have a company profile. Keep only one profile blurb.",
       };
     }
+  }
+
+  const room = await libraryRoom(authResult.user.id, id);
+  if (validated.content.length + validated.title.length > room) {
+    return tooBig(room);
   }
 
   const item = await prisma.libraryItem.update({

@@ -170,3 +170,14 @@ export async function beginAiOperation(input: {
 
   return { ok: true, release };
 }
+
+/**
+ * Gives back an allowance use when the attempt failed for reasons outside the
+ * user's control (provider error, unreadable output), so they can retry.
+ */
+export async function refundAllowance(rfpId: string, operation: AiOperation) {
+  const field = counterField[operation];
+  await prisma.rfp
+    .updateMany({ where: { id: rfpId, [field]: { gt: 0 } }, data: { [field]: { decrement: 1 } } })
+    .catch((error) => console.error("[ai-guard] Could not refund allowance:", error));
+}
