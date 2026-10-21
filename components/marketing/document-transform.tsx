@@ -123,7 +123,7 @@ function CleanProposal() {
 const messyDocs = [
   {
     title: "Addendum 2 / Attachment C",
-    meta: "pg 14 of 67  ·  scanned PDF",
+    meta: "pg 14 of 67  ·  PDF",
     lines: [
       "4.2 offeror shall provide COI + W-9",
       "page limit: 25 pp excl. appendices",

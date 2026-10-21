@@ -55,12 +55,12 @@ const faqs = [
   {
     question: "Is my data secure?",
     answer:
-      "RFP files, library items, and drafts are private to your workspace. Seats only see what you invite them to. Neither we nor our AI providers train models on your documents. You can export and delete a workspace; deletion removes source files and generated drafts from our systems.",
+      "RFP files, library items, and drafts are private to your workspace. Neither we nor our AI providers train models on your documents. Email us to export or delete your workspace; deletion removes source files and generated drafts from our systems.",
   },
   {
     question: "Can I switch plans mid-cycle?",
     answer:
-      "Upgrades take effect immediately and we charge the difference for the rest of the cycle. Downgrades apply at the next renewal so you keep the higher limits you already paid for. Seats above the new plan’s cap must be removed before the downgrade date.",
+      "Upgrades take effect immediately and we charge the difference for the rest of the cycle. Downgrades apply at the next renewal so you keep the higher limits you already paid for.",
   },
   {
     question: "Does it work for public-sector bids?",

@@ -11,7 +11,52 @@ import {
   formatFileSize,
   RFP_ACCEPTED_MIME_TYPES,
   RFP_MAX_BYTES,
+  SERVER_UPLOAD_MAX_BYTES,
 } from "@/lib/rfp-upload";
+
+async function readError(response: Response, fallback: string) {
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+  return payload?.error ?? fallback;
+}
+
+/**
+ * Files over 4 MB cannot pass through a Vercel function, so the browser uploads
+ * them straight to storage with a one-time signed URL, then asks the server to
+ * verify the file. If anything fails, the half-created RFP is removed.
+ */
+async function uploadDirect(file: File, onProgress: (value: number) => void): Promise<string> {
+  const start = await fetch("/api/rfps/upload/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fileName: file.name, size: file.size, contentType: file.type }),
+  });
+  if (!start.ok) throw new Error(await readError(start, "Upload failed. Try again."));
+  const { id, uploadUrl } = (await start.json()) as { id: string; uploadUrl: string };
+
+  const abandon = () => fetch(`/api/rfps/${id}/upload`, { method: "DELETE" }).catch(() => undefined);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) onProgress(Math.min(95, Math.round((event.loaded / event.total) * 95)));
+      });
+      xhr.addEventListener("load", () =>
+        xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("The file could not be stored. Try again.")),
+      );
+      xhr.addEventListener("error", () => reject(new Error("Upload failed. Check your connection and try again.")));
+      xhr.send(file);
+    });
+    const complete = await fetch(`/api/rfps/${id}/upload`, { method: "POST" });
+    if (!complete.ok) throw new Error(await readError(complete, "Upload failed. Try again."));
+    onProgress(100);
+    return id;
+  } catch (error) {
+    await abandon();
+    throw error;
+  }
+}
 
 function uploadWithProgress(
   file: File,
@@ -116,7 +161,10 @@ export function RfpUploadZone() {
     setError(null);
 
     try {
-      const rfpId = await uploadWithProgress(selectedFile, setProgress);
+      const rfpId =
+        selectedFile.size > SERVER_UPLOAD_MAX_BYTES
+          ? await uploadDirect(selectedFile, setProgress)
+          : await uploadWithProgress(selectedFile, setProgress);
       router.push(`/dashboard/rfps/${rfpId}`);
     } catch (uploadError) {
       setUploading(false);
@@ -229,7 +277,7 @@ export function RfpUploadZone() {
       )}
 
       {error ? (
-        <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p role="alert" className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </p>
       ) : null}

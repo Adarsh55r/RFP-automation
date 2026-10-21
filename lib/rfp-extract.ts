@@ -92,7 +92,26 @@ Expected output:
 </example>`;
 
 
-const MAX_TEXT_CHARS = 120_000;
+/**
+ * How much of the document the extraction model reads. GPT-4.1 accepts far
+ * more, but cost grows with length; ~400k characters covers roughly 150-250
+ * pages. Anything beyond is reported to the user instead of silently dropped.
+ */
+export const MAX_TEXT_CHARS = 400_000;
+
+export function prepareExtractionText(documentText: string) {
+  const truncated = documentText.length > MAX_TEXT_CHARS;
+  return {
+    text: truncated
+      ? `${documentText.slice(0, MAX_TEXT_CHARS)}\n\n[Document truncated for length.]`
+      : documentText,
+    truncated,
+    readPercent: truncated ? Math.floor((MAX_TEXT_CHARS / documentText.length) * 100) : 100,
+  };
+}
+
+export const NO_TEXT_MESSAGE =
+  "No readable text was found in this file. If it is a scanned PDF, make it searchable first (for example with your scanner's OCR or Acrobat's \"Recognize text\"), then upload it again.";
 
 export function storagePathFromPublicUrl(fileUrl: string): string | null {
   try {
@@ -181,8 +200,9 @@ function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
+  // One item per line in the review screen, so a multi-line question must stay on one line.
   return value
-    .map((item) => (typeof item === "string" ? item.trim() : String(item ?? "").trim()))
+    .map((item) => (typeof item === "string" ? item : String(item ?? "")).replace(/\s*\n\s*/g, " ").trim())
     .filter(Boolean);
 }
 
@@ -223,20 +243,18 @@ export async function extractRequirementsWithLlm(
   documentText: string,
   onUsage?: (usage: LlmUsage) => void,
 ): Promise<ExtractionResult> {
-  const text =
-    documentText.length > MAX_TEXT_CHARS
-      ? `${documentText.slice(0, MAX_TEXT_CHARS)}\n\n[Document truncated for length.]`
-      : documentText;
+  const { text } = prepareExtractionText(documentText);
 
   if (!text.trim()) {
-    throw new Error("No readable text was found in the document.");
+    throw new Error(NO_TEXT_MESSAGE);
   }
 
   const raw = await generateLlmText({
     purpose: "extraction",
     json: true,
     onUsage,
-    maxTokens: 8192,
+    // Long questionnaires produce long JSON; GPT-4.1's ceiling avoids cutting it off.
+    maxTokens: 32768,
     system: EXTRACTION_SYSTEM,
     user: `Extract structured requirements from this document as JSON:\n\n${text}`,
   });
@@ -244,7 +262,7 @@ export async function extractRequirementsWithLlm(
   try {
     return parseExtractionJson(raw);
   } catch {
-    throw new Error("The model returned invalid JSON for extraction.");
+    throw new Error("The AI's answer was incomplete or unreadable. Try again; this attempt was not counted.");
   }
 }
 

@@ -20,6 +20,7 @@ import {
 import {
   libraryEmptyCopy,
   libraryTypeHint,
+  LIBRARY_ITEM_MAX_CHARS,
   libraryTypeLabel,
   libraryTypeSingular,
   libraryTypes,
@@ -399,6 +400,7 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
                           : current,
                       )
                     }
+                    maxLength={LIBRARY_ITEM_MAX_CHARS}
                     rows={8}
                     placeholder="Write the reusable copy drafts should pull from…"
                     aria-invalid={Boolean(error && editor.content.trim().length < 10)}

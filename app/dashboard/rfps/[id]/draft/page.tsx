@@ -17,6 +17,7 @@ import {
   sectionsForRfp,
 } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
+import { credentialsIn } from "@/lib/claim-checks";
 
 type DraftPageProps = {
   params: Promise<{ id: string }>;
@@ -59,10 +60,15 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
     redirect(`/dashboard/rfps/${rfp.id}`);
   }
 
-  const drafts = await prisma.draft.findMany({
-    where: { rfpId: rfp.id },
-    orderBy: { createdAt: "asc" },
-  });
+  const [drafts, library] = await Promise.all([
+    prisma.draft.findMany({
+      where: { rfpId: rfp.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.libraryItem.findMany({ where: { userId: user.id }, select: { title: true, content: true } }),
+  ]);
+  // Credentials the bidder's own library mentions; anything else a draft claims gets flagged.
+  const supportedCredentials = credentialsIn(library.map((item) => `${item.title}\n${item.content}`).join("\n"));
 
   const plan = parseDraftPlan(rfp.draftPlan);
   const cover = resolveCover(plan, {
@@ -120,6 +126,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         autoStart={autoStart}
         cover={cover}
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
+        supportedCredentials={supportedCredentials}
         allowance={{
           fullDrafts: { used: rfp.fullDraftCount, limit: limits.full_draft },
           revisions: { used: rfp.revisionCount, limit: limits.revision },
