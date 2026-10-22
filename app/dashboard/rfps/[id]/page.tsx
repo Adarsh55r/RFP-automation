@@ -115,7 +115,21 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
       </Card>
 
       <RfpExtractionPanel
-        rfp={rfp}
+        rfp={{
+          id: rfp.id,
+          status: rfp.status,
+          originalFileUrl: rfp.originalFileUrl,
+          extractCount: rfp.extractCount,
+          extractedDocumentType: rfp.extractedDocumentType,
+          extractedScope: rfp.extractedScope,
+          extractedDeadline: rfp.extractedDeadline,
+          extractedEligibility: rfp.extractedEligibility,
+          extractedDesirable: rfp.extractedDesirable,
+          extractedEvaluationCriteria: rfp.extractedEvaluationCriteria,
+          extractedQuestionnaire: rfp.extractedQuestionnaire,
+          extractedFlags: rfp.extractedFlags,
+          extractedSubmission: rfp.extractedSubmission,
+        }}
         extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
       />
     </div>

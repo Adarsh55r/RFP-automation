@@ -29,34 +29,38 @@ export const requireDashboardUser = cache(async () => {
 });
 
 export async function getDashboardHomeData() {
-  const user = await requireDashboardUser();
-  if (!user) {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
     return null;
   }
 
   const monthStart = startOfMonth();
-  const tier: SubscriptionTier = user.subscription?.tier ?? "free";
+  // Filtering through the user's Clerk ID lets the counts run alongside the
+  // user lookup: one database round trip instead of two in a row.
+  // Unfinished uploads (no file yet) are left out, as on the RFP list.
+  const owned = { user: { clerkId }, originalFileUrl: { not: null } };
 
-  const [rfpsThisMonth, draftsInProgress, recentRfps] = await Promise.all([
+  const [user, rfpsThisMonth, draftsInProgress, recentRfps] = await Promise.all([
+    requireDashboardUser(),
     prisma.rfp.count({
-      where: {
-        userId: user.id,
-        createdAt: { gte: monthStart },
-      },
+      where: { ...owned, createdAt: { gte: monthStart } },
     }),
     prisma.rfp.count({
-      where: {
-        userId: user.id,
-        status: { in: ["drafting", "drafted"] },
-      },
+      where: { ...owned, status: { in: ["drafting", "drafted"] } },
     }),
     prisma.rfp.findMany({
-      where: { userId: user.id },
+      where: owned,
       orderBy: { createdAt: "desc" },
       take: 8,
       select: rfpListSelect,
     }),
   ]);
+
+  if (!user) {
+    return null;
+  }
+
+  const tier: SubscriptionTier = user.subscription?.tier ?? "free";
 
   const limit = monthlyRfpLimit[tier];
   const remaining = rfpsRemaining(tier, rfpsThisMonth);

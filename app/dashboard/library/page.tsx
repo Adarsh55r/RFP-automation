@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { LibraryView } from "@/components/dashboard/library-view";
 import { requireDashboardUser } from "@/lib/dashboard";
-import { getLibraryItemsForUser } from "@/lib/library-data";
+import { getLibraryItemsForClerkUser } from "@/lib/library-data";
 
 export const metadata: Metadata = {
   title: "Content Library",
@@ -10,12 +11,18 @@ export const metadata: Metadata = {
 };
 
 export default async function LibraryPage() {
-  const user = await requireDashboardUser();
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
+    redirect("/sign-in");
+  }
+
+  const [user, items] = await Promise.all([
+    requireDashboardUser(),
+    getLibraryItemsForClerkUser(clerkId),
+  ]);
   if (!user) {
     redirect("/onboarding");
   }
-
-  const items = await getLibraryItemsForUser(user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">

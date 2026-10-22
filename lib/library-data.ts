@@ -6,3 +6,11 @@ export async function getLibraryItemsForUser(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 }
+
+/** By Clerk ID, so a page can load the library alongside the user lookup instead of after it. */
+export async function getLibraryItemsForClerkUser(clerkId: string) {
+  return prisma.libraryItem.findMany({
+    where: { user: { clerkId } },
+    orderBy: { createdAt: "desc" },
+  });
+}

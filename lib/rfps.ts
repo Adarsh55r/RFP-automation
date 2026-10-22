@@ -8,9 +8,14 @@ function startOfMonth() {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
+/**
+ * One RFP for its pages. Leaves out the full document text, which can run to
+ * 400,000 characters and is only read by the AI routes.
+ */
 export const getRfpForUser = cache(async (rfpId: string, userId: string) => {
   return prisma.rfp.findFirst({
     where: { id: rfpId, userId },
+    omit: { sourceText: true },
   });
 });
 
@@ -26,10 +31,11 @@ export const rfpListSelect = {
 
 export type RfpListItem = Prisma.RfpGetPayload<{ select: typeof rfpListSelect }>;
 
-export async function getRfpsForUser(userId: string) {
+/** By Clerk ID, so a page can load the list alongside the user lookup instead of after it. */
+export async function getRfpsForClerkUser(clerkId: string) {
   return prisma.rfp.findMany({
     // Large uploads create the row before the file arrives; hide them until it does.
-    where: { userId, originalFileUrl: { not: null } },
+    where: { user: { clerkId }, originalFileUrl: { not: null } },
     orderBy: { createdAt: "desc" },
     select: rfpListSelect,
   });
