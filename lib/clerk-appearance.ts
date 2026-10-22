@@ -1,5 +1,5 @@
 /**
- * Clerk appearance mapped to DraftWin tokens.
+ * Clerk appearance mapped to DraftBid AI tokens.
  * Keep hex values in sync with `app/globals.css`.
  */
 export const clerkAppearance = {

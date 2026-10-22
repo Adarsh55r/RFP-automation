@@ -11,7 +11,7 @@ export function PositioningStrip() {
           specific.
         </p>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-surface-raised/80 md:text-lg">
-          DraftWin is the bid team you can’t afford to hire: it reads the whole
+          DraftBid AI is the bid team you can’t afford to hire: it reads the whole
           RFP, checks every requirement, and writes from your real experience —
           so a five-person company can answer like a fifty-person one.
         </p>

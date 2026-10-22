@@ -28,7 +28,7 @@ export default async function LibraryPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
           Case studies, team bios, certifications, saved answers, and your
-          company profile give DraftWin real material to cite — so proposals
+          company profile give DraftBid AI real material to cite — so proposals
           sound like your company, not generic AI text.
         </p>
       </header>

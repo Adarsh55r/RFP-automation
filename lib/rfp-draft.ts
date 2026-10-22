@@ -307,14 +307,14 @@ Write like an experienced bid team, not like an AI assistant:
 Output GitHub-flavored Markdown only — no preamble, no closing remarks, no code fences, and never a top-level "#" heading (the section title is added for you). Use "##" for subheadings and "###" below that. Use tables only for genuinely tabular content (schedules, staffing, pricing, risks, compliance); keep tables to at most 5 columns, one line per cell, no lists or line breaks inside cells, and always include the header separator row. Use bullet lists for scannable items and short paragraphs (2-4 sentences) for argument.
 </formatting>`;
 
-/** The XML-style tags DraftWin uses to separate trusted instructions from untrusted data. */
+/** The XML-style tags DraftBid AI uses to separate trusted instructions from untrusted data. */
 const PROMPT_TAGS =
   "bidder|solicitation|extracted_requirements|original_document|content_library|bid_plan|current_draft|current_answers|questions|drafted_proposal|section|sources";
 const PROMPT_TAG_RE = new RegExp(`<(/?)(${PROMPT_TAGS})(?=[\\s>/])`, "gi");
 
 /**
  * Untrusted text (the uploaded RFP, library items, edited drafts) must not be
- * able to close or open DraftWin's own prompt sections and pose as
+ * able to close or open DraftBid AI's own prompt sections and pose as
  * instructions or library facts. Look-alike brackets keep it readable.
  */
 export function neutralizePromptTags(text: string) {

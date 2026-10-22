@@ -98,7 +98,7 @@ export function ReviewPrompt() {
             Your proposal is ready
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-slate">
-            Would you share an honest two-line review of DraftWin? It takes about two minutes and
+            Would you share an honest two-line review of DraftBid AI? It takes about two minutes and
             really helps a small team.
           </p>
 
@@ -119,7 +119,7 @@ export function ReviewPrompt() {
             </a>
             {prompt.feedbackEmail ? (
               <a
-                href={`mailto:${prompt.feedbackEmail}?subject=${encodeURIComponent("DraftWin feedback")}`}
+                href={`mailto:${prompt.feedbackEmail}?subject=${encodeURIComponent("DraftBid AI feedback")}`}
                 onClick={() => close("feedback")}
                 className={cn(
                   "inline-flex h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface-raised px-4 text-sm font-semibold text-ink transition-[transform,border-color] duration-hover hover:-translate-y-0.5 hover:border-brand",

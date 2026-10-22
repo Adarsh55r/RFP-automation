@@ -15,7 +15,7 @@ type DashboardSidebarProps = {
 /** Secondary links below the main navigation: plans, the public site, legal. */
 const footerLinks = [
   { href: "/pricing", label: "Pricing & plans" },
-  { href: "/", label: "DraftWin website" },
+  { href: "/", label: "DraftBid AI website" },
   { href: "/privacy", label: "Privacy policy" },
 ];
 

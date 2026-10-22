@@ -68,7 +68,7 @@ async function bucketPrivacyCheck(): Promise<SetupCheck | null> {
           ...base,
           state: "invalid",
           detail: "The storage bucket is public: anyone who has a file's link can download a customer's RFP.",
-          fix: "Supabase → Storage → the bucket → Edit bucket → turn off \"Public bucket\". DraftWin already uses short-lived signed links.",
+          fix: "Supabase → Storage → the bucket → Edit bucket → turn off \"Public bucket\". DraftBid AI already uses short-lived signed links.",
         }
       : { ...base, state: "on", detail: "Bucket is private; files open through 60-second signed links." };
   } catch {

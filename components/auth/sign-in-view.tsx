@@ -14,7 +14,7 @@ export function SignInView() {
       subtitle="Log in to pick up your proposals where you left off."
       footer={
         <p>
-          New to DraftWin?{" "}
+          New to DraftBid AI?{" "}
           <Link
             href="/sign-up?plan=free"
             className={cn(textLink, "font-semibold")}

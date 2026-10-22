@@ -53,7 +53,7 @@ export default async function DashboardPage() {
         <EmptyState
           icon={Inbox}
           headline="Upload your first RFP"
-          description="Drop in any RFP, tender, or security questionnaire (PDF or Word). DraftWin pulls out every requirement for you to check, then drafts your proposal in minutes."
+          description="Drop in any RFP, tender, or security questionnaire (PDF or Word). DraftBid AI pulls out every requirement for you to check, then drafts your proposal in minutes."
           action={
             <Button asChild>
               <Link href="/dashboard/rfps/new">Upload your first RFP</Link>

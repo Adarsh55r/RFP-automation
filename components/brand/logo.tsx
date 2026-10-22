@@ -7,57 +7,24 @@ type LogoProps = {
 };
 
 /**
- * Folio mark: a turned RFP settling into one clean draft,
- * with a gold dog-ear for the ready-to-send / win state.
+ * DraftBid AI mark: a bold "D" shaped like a bound draft (flat spine,
+ * rounded page edge) with a gold four-point spark for the AI that writes it.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 32 32"
       fill="none"
-      overflow="visible"
       className={cn("size-8 shrink-0", className)}
       aria-hidden
     >
-      <rect
-        x="10"
-        y="3.5"
-        width="16"
-        height="21"
-        rx="2.75"
-        className="fill-brand/40"
-        transform="rotate(13 18 14)"
-      />
-      <rect
-        x="5"
-        y="7"
-        width="16.5"
-        height="21.5"
-        rx="2.75"
+      <path
+        d="M7 3.5h7.5a12.5 12.5 0 0 1 0 25H7A3 3 0 0 1 4 25.5v-19a3 3 0 0 1 3-3Z"
         className="fill-brand"
       />
-      <path d="M21.5 7v8L13.5 7h8Z" className="fill-accent" />
       <path
-        d="M13.5 7 21.5 15"
-        className="stroke-brand-dark/35"
-        strokeWidth="0.75"
-        strokeLinecap="round"
-      />
-      <rect
-        x="8"
-        y="18"
-        width="10"
-        height="1.4"
-        rx="0.7"
-        className="fill-surface-raised/90"
-      />
-      <rect
-        x="8"
-        y="21.5"
-        width="6.5"
-        height="1.4"
-        rx="0.7"
-        className="fill-surface-raised/50"
+        d="M14.5 8.5Q15.1 15.4 22 16Q15.1 16.6 14.5 23.5Q13.9 16.6 7 16Q13.9 15.4 14.5 8.5Z"
+        className="fill-accent"
       />
     </svg>
   );
@@ -73,10 +40,10 @@ export function Logo({
       <LogoMark className={markClassName} />
       {withWordmark ? (
         <span className="font-sans text-base font-semibold tracking-tight">
-          Draft<span className="text-accent">Win</span>
+          DraftBid<span className="ml-[0.16em] text-accent">AI</span>
         </span>
       ) : (
-        <span className="sr-only">DraftWin</span>
+        <span className="sr-only">DraftBid AI</span>
       )}
     </span>
   );

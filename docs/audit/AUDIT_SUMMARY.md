@@ -1,4 +1,4 @@
-# DraftWin pre-launch audit: summary
+# DraftBid AI pre-launch audit: summary
 
 Audit date: 2026-10-21 · Branch: `claude/vigilant-lovelace-c999tq` (started from `main` @ `d2d850b`)
 

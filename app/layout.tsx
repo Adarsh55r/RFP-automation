@@ -29,18 +29,20 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://draftbidai.com"),
   title: {
-    default: "DraftWin — AI RFP Response Software for Small Businesses",
-    template: "%s · DraftWin",
+    default: "DraftBid AI — RFP Response Software for Small Businesses",
+    template: "%s · DraftBid AI",
   },
   description:
-    "Win more RFPs without a bid team. DraftWin turns any RFP, tender, or security questionnaire into a compliant first-draft proposal in minutes — written from your own past work. Export to Word or PDF. Start free.",
+    "Win more RFPs without a bid team. DraftBid AI turns any RFP, tender, or security questionnaire into a compliant first-draft proposal in minutes — written from your own past work. Export to Word or PDF. Start free.",
   openGraph: {
-    title: "DraftWin — Win more RFPs, without a bid team",
+    title: "DraftBid AI — Win more RFPs, without a bid team",
     description:
       "AI proposal software for small businesses: every requirement checked, drafts written from your own work, export to Word or PDF. Start free.",
     type: "website",
-    siteName: "DraftWin",
+    siteName: "DraftBid AI",
+    url: "/",
   },
 };
 

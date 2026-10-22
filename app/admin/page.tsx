@@ -28,7 +28,7 @@ export default async function AdminOverviewPage() {
       <PageHeader
         eyebrow={today}
         title="Business overview"
-        description="Sales, usage and AI spend across every DraftWin account, updated live from the database."
+        description="Sales, usage and AI spend across every DraftBid AI account, updated live from the database."
         actions={<Pill>Revenue estimated from list prices · Stripe not connected</Pill>}
       />
 

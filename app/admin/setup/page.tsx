@@ -14,7 +14,7 @@ const STATE_META: Record<CheckState, { label: string; icon: typeof CheckCircle2;
 };
 
 const GROUPS: { id: SetupCheck["group"]; description: string }[] = [
-  { id: "Core", description: "Required for DraftWin to work at all" },
+  { id: "Core", description: "Required for DraftBid AI to work at all" },
   { id: "Growth", description: "Features that help you sell and get reviews" },
   { id: "Monitoring", description: "So you hear about problems before customers do" },
 ];
@@ -82,7 +82,7 @@ export default async function AdminSetupPage() {
         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-(--a-green)/25 bg-(--a-green)/[0.06] p-4 text-sm">
           <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-(--a-green)" />
           <p className="text-(--a-text)">
-            Everything DraftWin needs to run is on.
+            Everything DraftBid AI needs to run is on.
             {status.optionalOff > 0
               ? ` ${status.optionalOff} optional feature${status.optionalOff === 1 ? " is" : "s are"} off or need a fix below.`
               : ""}
