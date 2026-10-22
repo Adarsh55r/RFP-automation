@@ -54,6 +54,51 @@ async function databaseCheck(): Promise<SetupCheck> {
   }
 }
 
+/** Above this, the app and the database are almost certainly in different regions. */
+const SLOW_DATABASE_MS = 50;
+
+/**
+ * Every dashboard page waits on the database, so its distance from the app
+ * is the biggest factor in how fast pages open. Also checks the connection
+ * goes through Neon's pooler, which keeps a traffic spike from using up the
+ * database's connection limit.
+ */
+async function databaseSpeedCheck(): Promise<SetupCheck | null> {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) return null;
+  const base = { id: "database-speed", group: "Core" as const, label: "Database speed", required: false };
+  const host = hostOf(url);
+  if (host.includes("neon.tech") && !host.includes("-pooler")) {
+    return {
+      ...base,
+      state: "invalid",
+      detail: "Connected directly, not through Neon's connection pooler. With many visitors at once the database can run out of connections and pages fail.",
+      fix: "Neon → Connect → turn on Connection pooling, copy that URL (its host contains -pooler) into DATABASE_URL in Vercel, then redeploy.",
+    };
+  }
+  try {
+    let fastest = Infinity;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const started = performance.now();
+      await prisma.$queryRawUnsafe("SELECT 1");
+      fastest = Math.min(fastest, performance.now() - started);
+    }
+    const ms = Math.round(fastest);
+    const region = process.env.VERCEL_REGION ? ` The app runs in Vercel region ${process.env.VERCEL_REGION}.` : "";
+    return ms <= SLOW_DATABASE_MS
+      ? { ...base, state: "on", detail: `${ms} ms per database round trip.${region}` }
+      : {
+          ...base,
+          state: "invalid",
+          detail: `${ms} ms per database round trip. Each page waits for this, so the dashboard feels slow; the app and the database are probably in different regions.${region}`,
+          fix: "Vercel → Settings → Functions → Function Region: choose the region closest to your Neon project (Neon → Settings shows it), then redeploy.",
+        };
+  } catch {
+    // The database check above already reports a connection failure.
+    return null;
+  }
+}
+
 /** Uploaded RFPs are confidential; a public bucket would let anyone with a file's URL read it. */
 async function bucketPrivacyCheck(): Promise<SetupCheck | null> {
   if (!has("NEXT_PUBLIC_SUPABASE_URL") || !has("SUPABASE_SERVICE_ROLE_KEY")) return null;
@@ -86,9 +131,14 @@ export async function getSetupStatus() {
   const support = feedbackEmail();
   const sourceMaps = has("SENTRY_AUTH_TOKEN") && has("SENTRY_ORG") && has("SENTRY_PROJECT");
 
-  const bucket = await bucketPrivacyCheck();
+  const [database, databaseSpeed, bucket] = await Promise.all([
+    databaseCheck(),
+    databaseSpeedCheck(),
+    bucketPrivacyCheck(),
+  ]);
   const checks: SetupCheck[] = [
-    await databaseCheck(),
+    database,
+    ...(databaseSpeed ? [databaseSpeed] : []),
     ...(bucket ? [bucket] : []),
     has(providerKey)
       ? {

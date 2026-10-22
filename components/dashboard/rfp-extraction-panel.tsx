@@ -44,7 +44,25 @@ type ExtractionFormState = {
   submissionRequirements: string;
 };
 
-function formFromRfp(rfp: Rfp): ExtractionFormState {
+/** The RFP fields this panel shows. Pages pass only these, so the full document text never reaches the browser. */
+export type ExtractionPanelRfp = Pick<
+  Rfp,
+  | "id"
+  | "status"
+  | "originalFileUrl"
+  | "extractCount"
+  | "extractedDocumentType"
+  | "extractedScope"
+  | "extractedDeadline"
+  | "extractedEligibility"
+  | "extractedDesirable"
+  | "extractedEvaluationCriteria"
+  | "extractedQuestionnaire"
+  | "extractedFlags"
+  | "extractedSubmission"
+>;
+
+function formFromRfp(rfp: ExtractionPanelRfp): ExtractionFormState {
   return {
     documentType: isRfpDocumentType(rfp.extractedDocumentType)
       ? rfp.extractedDocumentType
@@ -64,7 +82,7 @@ export function RfpExtractionPanel({
   rfp,
   extractLimit,
 }: {
-  rfp: Rfp;
+  rfp: ExtractionPanelRfp;
   /** Requirement extractions allowed for this proposal on the user's plan. */
   extractLimit: number;
 }) {

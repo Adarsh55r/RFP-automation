@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Inbox } from "lucide-react";
 import { RecentRfps } from "@/components/dashboard/recent-rfps";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireDashboardUser } from "@/lib/dashboard";
-import { getRfpsForUser } from "@/lib/rfps";
+import { getRfpsForClerkUser } from "@/lib/rfps";
 
 export const metadata: Metadata = {
   title: "RFPs",
@@ -14,12 +15,18 @@ export const metadata: Metadata = {
 };
 
 export default async function RfpsPage() {
-  const user = await requireDashboardUser();
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
+    redirect("/sign-in");
+  }
+
+  const [user, rfps] = await Promise.all([
+    requireDashboardUser(),
+    getRfpsForClerkUser(clerkId),
+  ]);
   if (!user) {
     redirect("/onboarding");
   }
-
-  const rfps = await getRfpsForUser(user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">

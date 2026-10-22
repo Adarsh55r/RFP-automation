@@ -5,6 +5,8 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(__dirname) },
   },
+  // Server components are rendered in tests to check what they send to the browser.
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
