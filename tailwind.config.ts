@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 /**
- * DraftWin token map — keep in lockstep with `:root` in `app/globals.css`
+ * DraftBid AI token map — keep in lockstep with `:root` in `app/globals.css`
  * and `.cursor/rules/design-system.md`. Do not add ad-hoc colors or fonts here.
  */
 const config: Config = {

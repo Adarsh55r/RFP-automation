@@ -118,7 +118,7 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     };
     await readEvents(await run());
     const context = llm.calls[0].context ?? "";
-    // The only real closing tag is the one DraftWin writes itself.
+    // The only real closing tag is the one DraftBid AI writes itself.
     expect(context.match(/<\/original_document>/g)?.length).toBe(1);
     expect(context.match(/<content_library>/g)?.length).toBe(1);
   });

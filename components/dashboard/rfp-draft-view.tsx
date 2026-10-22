@@ -334,7 +334,7 @@ function InputChecklist({
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Before you submit</p>
           <h2 className="mt-2 font-sans text-lg font-semibold text-ink">Needs your input</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
-            Facts DraftWin could not find in the RFP or your library — signatures,
+            Facts DraftBid AI could not find in the RFP or your library — signatures,
             prices, reference contacts, figures to confirm. They are highlighted in
             yellow in the preview and in the exported file.
           </p>
@@ -644,7 +644,7 @@ export function RfpDraftView({
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Proposal draft</p>
           <h2 className="mt-2 font-sans text-xl font-semibold text-ink">{rfpTitle}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
-            DraftWin reads the full RFP, plans the bid, writes each section from
+            DraftBid AI reads the full RFP, plans the bid, writes each section from
             your library, then checks the draft against every requirement. Review
             each section, fill the highlighted items, revise anything with AI, then
             export.
@@ -797,7 +797,7 @@ export function RfpDraftView({
 
       {legacyDraft && hasAnyContent && !generating ? (
         <div className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm leading-relaxed text-ink">
-          <strong>This draft was written by an earlier version of DraftWin.</strong> Click
+          <strong>This draft was written by an earlier version of DraftBid AI.</strong> Click
           “Regenerate all” to get the cover letter, bid plan, benefit call-outs, compliance
           review, and the current proposal structure.
         </div>

@@ -1,6 +1,6 @@
-# DraftWin
+# DraftBid AI
 
-B2B SaaS that helps small and mid-sized businesses in the US, UK, and other English-speaking markets win RFPs without a dedicated bid team. Upload a commercial RFP, a public-sector tender (US state / local / education, UK councils, NHS, Find a Tender), or a security questionnaire; DraftWin extracts a compliance checklist, drafts answers from your own library, and exports a Word proposal.
+B2B SaaS that helps small and mid-sized businesses in the US, UK, and other English-speaking markets win RFPs without a dedicated bid team. Upload a commercial RFP, a public-sector tender (US state / local / education, UK councils, NHS, Find a Tender), or a security questionnaire; DraftBid AI extracts a compliance checklist, drafts answers from your own library, and exports a Word proposal.
 
 Pricing is in USD and GBP (Free, Starter $49 / £39, Growth $149 / £119, Team $349 / £279 per month).
 
@@ -13,7 +13,7 @@ Pricing is in USD and GBP (Free, Starter $49 / £39, Growth $149 / £119, Team $
 
 ```bash
 npm test                 # unit tests; database tests are skipped
-TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5433/draftwin_test npm test   # everything
+TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5433/draftbidai_test npm test   # everything
 npm run eval:ai          # real-model quality eval: needs OPENAI_API_KEY and costs money
 ```
 

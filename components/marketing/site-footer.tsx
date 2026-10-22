@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 const links = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#product", label: "Why DraftWin" },
+  { href: "/#product", label: "Why DraftBid AI" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/sign-in", label: "Log in" },
   { href: "/sign-up?plan=free", label: "Try it free" },
@@ -44,7 +44,7 @@ export function SiteFooter() {
       <div className="border-t border-surface-raised/10">
         <div className="mx-auto flex max-w-content flex-col gap-2 px-6 py-6 text-sm text-surface-raised/60 md:flex-row md:items-center md:justify-between md:px-8">
           <p className="font-mono text-xs tracking-wide text-surface-raised/80">
-            © 2026 DraftWin
+            © 2026 DraftBid AI
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link

@@ -34,7 +34,7 @@ export default async function NewRfpPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
           Add any RFP, tender, or security questionnaire in PDF or Word.
-          Next, DraftWin pulls out every requirement for you to check before
+          Next, DraftBid AI pulls out every requirement for you to check before
           drafting.
         </p>
       </header>

@@ -30,7 +30,7 @@ const faqs = [
   {
     question: "Will the AI make things up?",
     answer:
-      "No — and that is the point. DraftWin writes only from the RFP and your own library (case studies, bios, certifications, saved answers). When a fact is missing, such as a price, a reference contact, or an insurance limit, it leaves a highlighted placeholder for you to fill instead of inventing one. A compliance review then shows which requirements are covered and which still need you.",
+      "No — and that is the point. DraftBid AI writes only from the RFP and your own library (case studies, bios, certifications, saved answers). When a fact is missing, such as a price, a reference contact, or an insurance limit, it leaves a highlighted placeholder for you to fill instead of inventing one. A compliance review then shows which requirements are covered and which still need you.",
   },
   {
     question: "How long does a first draft take?",
@@ -65,12 +65,12 @@ const faqs = [
   {
     question: "Does it work for public-sector bids?",
     answer:
-      "Yes. DraftWin handles US state, local, and education (SLED) RFPs and UK public-sector tenders — councils, NHS trusts, universities, Find a Tender and Contracts Finder notices — alongside commercial RFPs and security questionnaires. It drafts and checks your response; it does not log into procurement portals, file bid bonds, or act as a FAR/DFARS compliance tool for US federal contracts.",
+      "Yes. DraftBid AI handles US state, local, and education (SLED) RFPs and UK public-sector tenders — councils, NHS trusts, universities, Find a Tender and Contracts Finder notices — alongside commercial RFPs and security questionnaires. It drafts and checks your response; it does not log into procurement portals, file bid bonds, or act as a FAR/DFARS compliance tool for US federal contracts.",
   },
   {
     question: "How is this different from Loopio or Responsive?",
     answer:
-      "Those are built for enterprise proposal teams and are typically sold on annual contracts priced in the tens of thousands. DraftWin is for small teams without a bid manager: upload the RFP, check the compliance checklist, draft from your own library, export to Word. Month-to-month, from $0.",
+      "Those are built for enterprise proposal teams and are typically sold on annual contracts priced in the tens of thousands. DraftBid AI is for small teams without a bid manager: upload the RFP, check the compliance checklist, draft from your own library, export to Word. Month-to-month, from $0.",
   },
 ];
 

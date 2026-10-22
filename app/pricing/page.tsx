@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 export const metadata: Metadata = {
   title: "Pricing — RFP Software for Small Teams",
   description:
-    "DraftWin plans in USD and GBP: Free, Starter $49 (£39), Growth $149 (£119), and Team $349 (£279) per month. Month-to-month, with two months free on annual billing.",
+    "DraftBid AI plans in USD and GBP: Free, Starter $49 (£39), Growth $149 (£119), and Team $349 (£279) per month. Month-to-month, with two months free on annual billing.",
 };
 
 export default function PricingPage() {

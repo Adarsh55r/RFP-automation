@@ -270,7 +270,7 @@ export function RfpExtractionPanel({
             <p className="mt-2 text-sm leading-relaxed text-slate">
               {status === "extracting"
                 ? "The last extraction was interrupted before it finished (for example, the page was closed or the server timed out). Try again; if another extraction is still running, wait a few minutes."
-                : "DraftWin will classify the pack and pull out scope, deadlines, mandatory vs preferred eligibility, evaluation weightage, and questionnaire rows. You can edit anything before continuing."}
+                : "DraftBid AI will classify the pack and pull out scope, deadlines, mandatory vs preferred eligibility, evaluation weightage, and questionnaire rows. You can edit anything before continuing."}
             </p>
           </div>
           <Button

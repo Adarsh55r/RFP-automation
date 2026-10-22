@@ -10,7 +10,7 @@ const features = [
   {
     icon: BookMarked,
     title: "Sounds like you — not like AI",
-    body: "Drafts are built from your case studies, team bios, certifications, and approved answers, and cite the buyer’s own requirements by name. When a fact is missing, DraftWin flags it for you instead of making it up.",
+    body: "Drafts are built from your case studies, team bios, certifications, and approved answers, and cite the buyer’s own requirements by name. When a fact is missing, DraftBid AI flags it for you instead of making it up.",
   },
   {
     icon: ShieldCheck,
@@ -25,7 +25,7 @@ const features = [
   {
     icon: BadgeDollarSign,
     title: "Priced for small teams",
-    body: "Enterprise RFP platforms sell five-figure annual contracts. DraftWin starts free and runs month-to-month. Growth, at $149 (£119) a month, covers a team that bids every week.",
+    body: "Enterprise RFP platforms sell five-figure annual contracts. DraftBid AI starts free and runs month-to-month. Growth, at $149 (£119) a month, covers a team that bids every week.",
   },
 ] as const;
 
@@ -33,7 +33,7 @@ export function FeatureGrid() {
   return (
     <Section id="product" className="bg-surface">
       <p className="font-mono text-xs tracking-wide text-slate uppercase">
-        Why DraftWin
+        Why DraftBid AI
       </p>
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
         Everything a bid manager does — at a small-business price.

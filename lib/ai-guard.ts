@@ -61,7 +61,7 @@ async function alertSpendCap(user: { id: string; email: string }, spentUsd: numb
   });
   if (claimed.count === 0) return;
 
-  const text = `[DraftWin] AI spend cap reached: ${user.email} (user ${user.id}) spent $${spentUsd.toFixed(2)} of $${capUsd} in ${month}. AI features are paused for this account until next month.`;
+  const text = `[DraftBid AI] AI spend cap reached: ${user.email} (user ${user.id}) spent $${spentUsd.toFixed(2)} of $${capUsd} in ${month}. AI features are paused for this account until next month.`;
   console.error(`[ai-budget] ALERT ${text}`);
   const webhook = process.env.ALERT_WEBHOOK_URL?.trim();
   if (webhook) {

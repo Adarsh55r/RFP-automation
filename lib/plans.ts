@@ -1,7 +1,7 @@
 import type { BillingCycle, Currency, Plan, PlanId } from "@/types";
 
 /**
- * Canonical tier breakdown for DraftWin.
+ * Canonical tier breakdown for DraftBid AI.
  * Prices are set per currency (not FX-converted) so each market sees round numbers.
  * Annual billing = 10 × monthly (2 months free).
  */

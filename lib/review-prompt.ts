@@ -1,5 +1,5 @@
 /** Fired on window after a proposal file has downloaded. */
-export const EXPORTED_EVENT = "draftwin:exported";
+export const EXPORTED_EVENT = "draftbidai:exported";
 
 export const REVIEW_RESPONSES = ["reviewed", "feedback", "later", "declined"] as const;
 export type ReviewResponse = (typeof REVIEW_RESPONSES)[number];
