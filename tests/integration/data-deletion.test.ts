@@ -22,7 +22,7 @@ async function seedRfp(userId: string, title: string) {
     },
   });
   const path = `${userId}/${rfp.id}/file.pdf`;
-  fake.files.set(path, new Uint8Array([37, 80, 68, 70, 45]));
+  fake.files.set(path, Buffer.from("%PDF-"));
   const { completeRfpUpload } = await import("@/lib/rfps");
   await completeRfpUpload(rfp.id, userId, fake.getRfpPublicUrl(path));
   return { rfp, path };
