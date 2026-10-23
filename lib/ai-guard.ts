@@ -118,14 +118,15 @@ async function alertSpendCap(
  * Checks every limit and, if allowed, takes the account's AI lock and uses one
  * unit of the proposal's allowance. Call `release()` when the task finishes.
  */
-export async function beginAiOperation(input: {
-  user: { id: string; email: string };
-  tier: SubscriptionTier;
-  rfpId: string;
-  operation: AiOperation;
-}): Promise<AiGranted | AiDenied> {
-  const { user, tier, rfpId, operation } = input;
-  const now = new Date();
+/**
+ * Account-wide checks for any AI task (daily and monthly spend caps, hourly
+ * call limit) and the one-task-at-a-time lock. Call `release()` when done.
+ */
+export async function beginAccountAiTask(
+  user: { id: string; email: string },
+  tier: SubscriptionTier,
+  now = new Date(),
+): Promise<AiGranted | AiDenied> {
 
   const dayCapUsd = dailySpendCapUsd[tier];
   const spentTodayUsd = await dailySpendUsd(user.id, now);
@@ -179,6 +180,21 @@ export async function beginAiOperation(input: {
       .update({ where: { id: user.id }, data: { aiBusyUntil: null } })
       .catch((error) => console.error("[ai-guard] Could not release AI lock:", safeErrorSummary(error)));
   };
+
+  return { ok: true, release };
+}
+
+export async function beginAiOperation(input: {
+  user: { id: string; email: string };
+  tier: SubscriptionTier;
+  rfpId: string;
+  operation: AiOperation;
+}): Promise<AiGranted | AiDenied> {
+  const { user, tier, rfpId, operation } = input;
+  const now = new Date();
+  const account = await beginAccountAiTask(user, tier, now);
+  if (!account.ok) return account;
+  const { release } = account;
 
   const allowance = proposalAllowance(tier);
   const field = counterField[operation];

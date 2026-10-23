@@ -314,3 +314,31 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - unit: quote location across line breaks, curly quotes and page breaks; Word documents (no page); parsing ignores the model's page, maps unknown categories to Other, drops empty or invalid items, and builds the prompt text; a real 2-page PDF has page markers and a detail found on page 2;
   - integration: the extraction route stores verified pages for a real PDF, marks and flags an unmatched detail, and the drafting context includes the details.
 - **Not verified:** how completely the real model fills `keyDetails`. That needs real RFPs and is what the Phase 5 benchmark is for. The existing requirement lists keep no page references; only key details have them.
+
+## Phase 3.4: Guided setup, library templates, website import, draft strength
+
+- **Setup checklist** (dashboard home, `lib/library-readiness.ts`): six steps with a progress bar.
+  - The steps: a company profile of at least 300 characters, 2 or more case studies, a team bio, a certification, insurance or registration, 3 saved answers, and a first RFP.
+  - Each step links to the library tab or the upload page (`/dashboard/library?type=…` now opens that tab).
+  - It is computed from counts (one `groupBy` plus the profile length, run alongside the existing dashboard queries).
+  - It hides itself once everything is done.
+- **Draft strength** (draft page): a deterministic rating (Weak, Fair or Strong, 0–100) of how much of the bidder's own material this RFP's draft will have. It checks:
+  - a company profile;
+  - 2 or more case studies;
+  - team bios (2 or more when the key details ask for key personnel);
+  - whether every credential the requirements mention appears in the library, naming the missing ones;
+  - saved answers in proportion to the questionnaire's size.
+
+  Each missing item says what to add. No AI calls and no quality judgements it can't measure.
+- **Library templates** (`lib/library-templates.ts`): "Start from a template" in the editor for each item type. Templates are structure plus `[[placeholders]]` only; a test checks they contain no digits outside placeholders, so there are no invented years, numbers or limits. The editor reminds the user that unfilled placeholders become gaps in drafts.
+- **Website import** (library page, shown while the library has fewer than 3 items):
+  - **Reading:** the user enters their own site. `lib/website-import.ts` reads `robots.txt` (our own user-agent group if present, otherwise `*`; longest match wins, Allow wins ties) and the home page, then up to 5 same-site pages whose paths look like about, services, work, clients or team pages.
+  - **Text extraction:** scripts, styles, navigation, footers and **hidden elements** are removed, so text hidden on a page can't steer the model. The limits are 15k characters a page and 60k in total.
+  - **Network safety (`lib/safe-fetch.ts`):** only http and https on the default ports; no credentials in the URL; no local hostnames or private IP literals; at most 3 redirects, each re-checked. Every connection's DNS answer is checked **at connect time** through the HTTP client's `lookup` hook, so a hostname resolving to private, loopback, link-local, metadata, NAT64 or mapped addresses is refused even if DNS changes between check and use. Bodies are capped at 2 MB and requests time out after 10 s.
+  - **Drafting:** the pages go to the AI as delimited untrusted data, with instructions to use only stated facts, drop superlatives, create case studies only for named clients or projects, and use placeholders for anything missing.
+  - **Saving:** items are titled "(from website)" and start with "Imported from <url> on <date>. Check every detail…". An existing company profile is never replaced. Plan item limits and the library's size limit are respected, and anything skipped is reported.
+  - **Limits:** at most 3 imports a day, plus the account's normal AI spend caps, hourly limit and one-task lock. That lock is now shared through `beginAccountAiTask`, split out of `beginAiOperation` with no behaviour change; the cost-control tests pass.
+- **Tests:**
+  - unit: private address ranges; URL refusal (schemes, ports, credentials, local names, metadata IP, IPv6 loopback); connect-time refusal when a name resolves to a private address; robots groups, wildcards, `$` and Allow precedence; HTML to text with hidden text and navigation removed; link picking (same site, no files, de-duplicated); a crawl that skips a robots-disallowed page; website-draft parsing; setup steps; draft strength (missing credential named, strong at 100, key-personnel bios); templates without facts;
+  - integration: import creates labelled items through untrusted delimiters; keeps an existing profile and stops at the Starter 50-item limit; enforces the daily import limit.
+- **Not verified:** a live import against a real website (no network in the tests). The checklist, strength card, template button and import card have not been checked in a browser yet.

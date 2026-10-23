@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { allowancePeriodStart, computeAllowance } from "@/lib/entitlements";
 import { rfpListSelect } from "@/lib/rfps";
+import { setupSteps } from "@/lib/library-readiness";
 
 /**
  * Lean user+subscription lookup, deduped per request.
@@ -37,7 +38,7 @@ export async function getDashboardHomeData() {
   const owned = { user: { clerkId }, originalFileUrl: { not: null } };
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  const [user, usedThisMonth, usedEver, draftsInProgress, recentRfps] = await Promise.all([
+  const [user, usedThisMonth, usedEver, draftsInProgress, recentRfps, libraryCounts, profile] = await Promise.all([
     requireDashboardUser(),
     // Plan usage comes from the usage ledger, matching upload enforcement: deleted RFPs still count.
     prisma.proposalUsage.count({ where: { user: { clerkId }, createdAt: { gte: monthStart } } }),
@@ -51,6 +52,8 @@ export async function getDashboardHomeData() {
       take: 8,
       select: rfpListSelect,
     }),
+    prisma.libraryItem.groupBy({ by: ["type"], where: { user: { clerkId } }, _count: { _all: true } }),
+    prisma.libraryItem.findFirst({ where: { user: { clerkId }, type: "company_profile" }, select: { content: true } }),
   ]);
 
   if (!user) {
@@ -79,5 +82,10 @@ export async function getDashboardHomeData() {
     },
     draftsInProgress,
     recentRfps,
+    setup: setupSteps({
+      counts: Object.fromEntries(libraryCounts.map((row) => [row.type, row._count._all])),
+      profileLength: profile?.content.trim().length ?? 0,
+      rfpCount: usedEver,
+    }),
   };
 }

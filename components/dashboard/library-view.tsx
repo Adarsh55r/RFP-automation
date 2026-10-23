@@ -26,6 +26,7 @@ import {
   libraryTypes,
 } from "@/lib/library";
 import type { LibraryItem, LibraryItemType } from "@/lib/generated/prisma";
+import { libraryTemplates } from "@/lib/library-templates";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -71,10 +72,16 @@ function serializeItem(item: LibraryItem) {
 
 type LibraryItemView = ReturnType<typeof serializeItem>;
 
-export function LibraryView({ items }: { items: LibraryItem[] }) {
+export function LibraryView({
+  items,
+  initialType = "case_study",
+}: {
+  items: LibraryItem[];
+  initialType?: LibraryItemType;
+}) {
   const router = useRouter();
   const { toast } = useToast();
-  const [activeType, setActiveType] = useState<LibraryItemType>("case_study");
+  const [activeType, setActiveType] = useState<LibraryItemType>(initialType);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -358,6 +365,35 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
               </DialogHeader>
 
               <div className="flex flex-col gap-4">
+                {editor.mode === "create" ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (
+                        (editor.title.trim() || editor.content.trim()) &&
+                        !window.confirm("Replace what you have typed with the template?")
+                      ) {
+                        return;
+                      }
+                      const template = libraryTemplates[editor.type];
+                      setEditor((current) => (current ? { ...current, ...template } : current));
+                    }}
+                    className={cn(
+                      "w-fit rounded-control border border-border bg-surface px-3 py-1.5 text-xs text-slate hover:text-ink",
+                      focusRing,
+                    )}
+                  >
+                    Start from a template
+                  </button>
+                ) : null}
+                {/\[\[[^\]]+\]\]/.test(editor.content) ? (
+                  <p className="text-xs text-slate">
+                    Replace every [[placeholder]] with your real details. Anything left in brackets shows up as a
+                    gap in drafts.
+                  </p>
+                ) : null}
+
                 <label className="flex flex-col gap-2">
                   <span className="font-sans text-sm font-medium text-ink">
                     Title
