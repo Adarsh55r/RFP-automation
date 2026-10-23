@@ -22,6 +22,7 @@ import { parseQuestionnaireMap } from "@/lib/spreadsheet";
 import { DraftStrengthCard } from "@/components/dashboard/draft-strength-card";
 import { storedKeyDetails } from "@/lib/key-details";
 import { draftStrength } from "@/lib/library-readiness";
+import { pageLimitFrom } from "@/lib/page-limit";
 
 type DraftPageProps = {
   params: Promise<{ id: string }>;
@@ -142,6 +143,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
         supportedCredentials={supportedCredentials}
         spreadsheet={parseQuestionnaireMap(rfp.questionnaireMap)?.format ?? null}
+        pageLimit={pageLimitFrom(storedKeyDetails(rfp.extractedDetails), rfp.extractedSubmission)}
         allowance={{
           fullDrafts: { used: rfp.fullDraftCount, limit: limits.full_draft },
           revisions: { used: rfp.revisionCount, limit: limits.revision },

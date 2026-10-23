@@ -28,6 +28,7 @@ export async function downloadRfpExport(
   const match = /filename="([^"]+)"/.exec(disposition);
   const fileName = match?.[1] ?? (format === "sheet" ? "questionnaire-answered.xlsx" : `proposal.${format}`);
   const unanswered = response.headers.get("X-Unanswered-Rows");
+  const pageWarning = response.headers.get("X-Page-Warning");
 
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -41,5 +42,9 @@ export async function downloadRfpExport(
     window.dispatchEvent(new CustomEvent(EXPORTED_EVENT, { detail: { rfpId, format: format === "sheet" ? "docx" : format } }));
   }
 
-  return { fileName, unanswered: unanswered === null ? null : Number(unanswered) };
+  return {
+    fileName,
+    unanswered: unanswered === null ? null : Number(unanswered),
+    pageWarning: pageWarning ? decodeURIComponent(pageWarning) : null,
+  };
 }

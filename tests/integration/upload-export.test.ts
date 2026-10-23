@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { extractText } from "unpdf";
 import { createUser, hasTestDb, resetDb, testDb } from "../helpers/db";
@@ -10,6 +14,7 @@ vi.mock("@/lib/supabase/admin", async () => await import("../helpers/fake-supaba
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const MB = 1024 * 1024;
+const SOFFICE = ["/usr/bin/soffice", "/usr/bin/libreoffice"].find((path) => existsSync(path));
 
 function uploadRequest(name: string, body: Buffer, type: string) {
   const form = new FormData();
@@ -182,6 +187,52 @@ describe.skipIf(!hasTestDb)("exporting a proposal", () => {
 
     expect((await POST(new Request("http://t/x?format=docx&variant=final", { method: "POST" }), ctx(rfpId))).status).toBe(400);
   });
+
+  it("reports the page count against the RFP's page limit", async () => {
+    await testDb().rfp.update({ where: { id: rfpId }, data: { extractedSubmission: ["Responses shall not exceed 2 pages"] } });
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    for (const format of ["pdf", "docx"]) {
+      const res = await POST(new Request(`http://t/x?format=${format}`, { method: "POST" }), ctx(rfpId));
+      expect(res.headers.get("X-Page-Limit")).toBe("2");
+      expect(Number(res.headers.get("X-Page-Count"))).toBeGreaterThan(2);
+      expect(decodeURIComponent(res.headers.get("X-Page-Warning") ?? "")).toMatch(
+        format === "docx" ? /^This export is about \d+ pages/ : /^This export is \d+ pages/,
+      );
+    }
+    // No limit stated: no page headers.
+    await testDb().rfp.update({ where: { id: rfpId }, data: { extractedSubmission: [] } });
+    const plain = await POST(new Request("http://t/x?format=pdf", { method: "POST" }), ctx(rfpId));
+    expect(plain.headers.get("X-Page-Limit")).toBeNull();
+  });
+
+  it.skipIf(!SOFFICE)("LibreOffice opens both the Word and PDF exports and shows the text", async () => {
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const dir = mkdtempSync(join(tmpdir(), "export-"));
+    try {
+      for (const format of ["docx", "pdf"] as const) {
+        const res = await POST(new Request(`http://t/x?format=${format}`, { method: "POST" }), ctx(rfpId));
+        writeFileSync(join(dir, `proposal.${format}`), Buffer.from(await res.arrayBuffer()));
+      }
+      // Word → PDF through LibreOffice's own layout engine, then read the text back.
+      execFileSync(SOFFICE!, ["--headless", "--convert-to", "pdf", "--outdir", join(dir, "out"), join(dir, "proposal.docx")], {
+        timeout: 120_000,
+        stdio: "ignore",
+        env: { ...process.env, HOME: dir },
+      });
+      const converted = new Uint8Array(readFileSync(join(dir, "out", "proposal.pdf")));
+      const { text } = await extractText(converted, { mergePages: true });
+      expect(String(text).replace(/\s+/g, " ")).toContain("needs 24/7 support");
+      // LibreOffice Draw can import our PDF (it fails on malformed files).
+      execFileSync(SOFFICE!, ["--headless", "--convert-to", "png", "--outdir", join(dir, "png"), join(dir, "proposal.pdf")], {
+        timeout: 120_000,
+        stdio: "ignore",
+        env: { ...process.env, HOME: dir },
+      });
+      expect(existsSync(join(dir, "png", "proposal.png"))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 240_000);
 
   it("refuses to export when nothing has been drafted", async () => {
     await testDb().draft.deleteMany({ where: { rfpId } });

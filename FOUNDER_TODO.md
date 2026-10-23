@@ -55,6 +55,10 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
   - If you change it, update the "Which files can I upload?" FAQ (`lib/faqs.ts`).
   - Check one real scanned RFP on a preview deployment before relying on it.
 
+## Manual checks before launch
+- [ ] Open one exported proposal (.docx) in Microsoft Word and in Google Docs, and one answered questionnaire (.xlsx) in Excel. LibreOffice opens all of them in the automated tests, but Word, Docs and Excel are not available here.
+- [ ] Run one real scanned RFP (OCR) and one real website import on a preview deployment.
+
 ## Content
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark
 - [ ] 3 public RFPs (one per segment) for the sample-output gallery

@@ -458,6 +458,7 @@ export function RfpDraftView({
   supportedCredentials,
   allowance,
   spreadsheet = null,
+  pageLimit = null,
 }: {
   rfpId: string;
   rfpTitle: string;
@@ -470,6 +471,8 @@ export function RfpDraftView({
   legacyDraft: boolean;
   /** Credentials the bidder's library mentions (SOC 2, ISO 27001, ...). */
   supportedCredentials: string[];
+  /** The response page limit the RFP states, shown before export and checked after it. */
+  pageLimit?: { pages: number; source: string } | null;
   /** Set when the RFP was uploaded as a spreadsheet questionnaire: answers can be exported into it. */
   spreadsheet?: "xlsx" | "csv" | null;
   /** Per-proposal AI allowances: how many were used and the plan's limit. */
@@ -490,6 +493,7 @@ export function RfpDraftView({
   const [exportPhase, setExportPhase] = useState<ExportPhase>("idle");
   const [exportFormat, setExportFormat] = useState<DownloadFormat>("docx");
   const [unansweredRows, setUnansweredRows] = useState<number | null>(null);
+  const [pageWarning, setPageWarning] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
   const [includeMatrix, setIncludeMatrix] = useState(true);
@@ -706,6 +710,7 @@ export function RfpDraftView({
         wait(reduceMotion ? 0 : 1600),
       ]);
       setUnansweredRows(result.unanswered);
+      setPageWarning(result.pageWarning);
       setExportProgress(100);
       setExportPhase("ready");
       router.refresh();
@@ -814,6 +819,13 @@ export function RfpDraftView({
             </Button>
           ) : null}
         </div>
+
+        {pageLimit ? (
+          <p className="text-sm text-slate">
+            Page limit: <span className="text-ink">“{pageLimit.source}”</span>. Each export is checked against{" "}
+            {pageLimit.pages} pages.
+          </p>
+        ) : null}
 
         <fieldset className="flex flex-col gap-2 text-sm text-slate">
           <legend className="sr-only">Which copy to export</legend>
@@ -931,6 +943,12 @@ export function RfpDraftView({
                 style={{ width: `${exportPhase === "ready" ? 100 : Math.min(exportProgress, 96)}%` }}
               />
             </div>
+
+            {exportPhase === "ready" && pageWarning ? (
+              <p role="alert" className="max-w-md rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-left text-sm text-ink">
+                <strong>Over the page limit.</strong> {pageWarning}
+              </p>
+            ) : null}
 
             {exportPhase === "ready" ? (
               <Button type="button" variant="secondary" onClick={() => setExportPhase("idle")}>

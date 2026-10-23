@@ -361,3 +361,22 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - **Off-page PDF text:** pdf.js does not extract it at all, so it can't reach the AI; the fixture records that outcome ("unread") rather than a flag.
   - **Styles:** text hidden through a Word *style*, rather than direct formatting, is not detected.
   - **Detection is best effort.** The main protections remain treating every document as data and the deterministic checks after drafting.
+
+## Phase 3.6: Export validation and page-limit warnings
+
+- **Page limits** (`lib/page-limit.ts`): the RFP's response page limit is read from the length-limit key details and the submission rules. Recognised forms include "shall not exceed 25 pages", "maximum of 10 single-sided pages", "no more than fifteen (15) pages", "20-page limit" and "page limit: 30". The strictest limit wins. Word limits and page references that aren't limits are ignored.
+  - **Before export:** the draft page shows the limit and its wording.
+  - **On export:**
+    - the PDF's real page count is measured;
+    - for Word, the count comes from laying the same content out as PDF, so it's marked "about", because Word's own layout can differ slightly;
+    - the result is returned as `X-Page-Count` and `X-Page-Limit`;
+    - when the export is over the limit, the "Download ready" card says so: the count includes the cover, contents and appendix, the RFP's wording is quoted, and the user is told what to shorten.
+- **Export validation** (tests):
+  - every export is a real DOCX or PDF (existing checks: zip and `%PDF` headers, text read back with mammoth and pdf.js);
+  - **LibreOffice headless** converts the Word export to PDF, and the text is found in the result;
+  - LibreOffice also imports and renders the PDF export;
+  - the spreadsheet export was already checked with LibreOffice in 3.2b.
+- **Letterhead:** there is no letterhead feature. It is still on the pricing roadmap, so nothing is shown; it stays off until a complete version exists.
+- **Not verified:**
+  - **Google Docs:** opening exports in Google Docs is not possible from this environment. The DOCX is standard OOXML from the `docx` library, and opening it in Docs is in FOUNDER_TODO.
+  - **Microsoft Word:** Word itself isn't available here either.

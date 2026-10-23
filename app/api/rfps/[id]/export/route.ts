@@ -13,6 +13,9 @@ import {
 } from "@/lib/proposal-document";
 import { buildProposalDocxBuffer } from "@/lib/rfp-export";
 import { buildProposalPdfBuffer } from "@/lib/rfp-export-pdf";
+import { PDFDocument } from "pdf-lib";
+import { storedKeyDetails } from "@/lib/key-details";
+import { pageLimitFrom, pageLimitWarning } from "@/lib/page-limit";
 import { downloadRfpFile } from "@/lib/rfp-extract";
 import {
   matchAnswers,
@@ -110,6 +113,21 @@ export async function POST(request: Request, context: RouteContext) {
         ? await buildProposalPdfBuffer(doc)
         : Buffer.from(await buildProposalDocxBuffer(doc));
 
+    // Page-limit check: the PDF's real page count, or for Word the count of
+    // the same content laid out as PDF (Word's own layout can differ a little).
+    const limit = pageLimitFrom(storedKeyDetails(rfp.extractedDetails), rfp.extractedSubmission);
+    let pageHeaders: Record<string, string> = {};
+    if (limit) {
+      const pdfBytes = format === "pdf" ? bytes : await buildProposalPdfBuffer(doc);
+      const pageCount = (await PDFDocument.load(new Uint8Array(pdfBytes), { updateMetadata: false })).getPageCount();
+      const warning = pageLimitWarning(pageCount, limit, format !== "pdf");
+      pageHeaders = {
+        "X-Page-Count": String(pageCount),
+        "X-Page-Limit": String(limit.pages),
+        ...(warning ? { "X-Page-Warning": encodeURIComponent(warning) } : {}),
+      };
+    }
+
     // An internal review copy is not the final export.
     if (variant === "submission") {
       await prisma.rfp.update({
@@ -127,6 +145,7 @@ export async function POST(request: Request, context: RouteContext) {
         "Content-Disposition": `attachment; filename="${fileName}"`,
         "Content-Length": String(bytes.byteLength),
         "Cache-Control": "no-store",
+        ...pageHeaders,
       },
     });
   } catch (error) {
