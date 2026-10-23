@@ -134,6 +134,55 @@ describe.skipIf(!hasTestDb)("exporting a proposal", () => {
     expect(String(text).replace(/\s+/g, " ")).toContain("needs 24/7 support");
   });
 
+  it("submission copy has no citation markers; review copy keeps them and lists sources and open items", async () => {
+    await testDb().draft.updateMany({
+      where: { rfpId, sectionName: "exec_summary" },
+      data: {
+        content: "We support 70 endpoints for Bluegrass Dental Group [S2]. We hold ISO 27001 certification.",
+        citations: {
+          version: 1,
+          sources: { S2: { itemId: "i1", title: "Bluegrass Dental Group", type: "case_study", excerpt: "Managed IT for 6 dental offices, 70 endpoints." } },
+          unsupported: ["We hold ISO 27001 certification."],
+          dismissed: [],
+        },
+      },
+    });
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const mammoth = await import("mammoth");
+    const exportText = async (query: string) => {
+      const res = await POST(new Request(`http://t/x?${query}`, { method: "POST" }), ctx(rfpId));
+      expect(res.status).toBe(200);
+      return {
+        name: res.headers.get("Content-Disposition") ?? "",
+        text: (await mammoth.extractRawText({ buffer: Buffer.from(await res.arrayBuffer()) })).value,
+      };
+    };
+
+    await testDb().rfp.update({ where: { id: rfpId }, data: { status: "drafted" } });
+    const review = await exportText("format=docx&variant=review");
+    expect(review.name).toContain("review-copy.docx");
+    expect(review.text).toContain("[S2]");
+    expect(review.text).toContain("INTERNAL REVIEW COPY");
+    expect(review.text).toContain("Managed IT for 6 dental offices, 70 endpoints.");
+    expect(review.text).toContain("We hold ISO 27001 certification.");
+    expect(review.text).toContain("Confirm: start date");
+    // A review copy is not the final export.
+    expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfpId } })).status).toBe("drafted");
+
+    const submission = await exportText("format=docx");
+    expect(submission.name).toContain("-proposal.docx");
+    expect(submission.text).toContain("We support 70 endpoints for Bluegrass Dental Group.");
+    expect(submission.text).not.toMatch(/\[S\d/);
+    expect(submission.text).not.toContain("Review notes");
+    expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfpId } })).status).toBe("exported");
+
+    const pdf = await POST(new Request("http://t/x?format=pdf&variant=review", { method: "POST" }), ctx(rfpId));
+    const { text } = await extractText(new Uint8Array(await pdf.arrayBuffer()), { mergePages: true });
+    expect(String(text)).toContain("Sources cited");
+
+    expect((await POST(new Request("http://t/x?format=docx&variant=final", { method: "POST" }), ctx(rfpId))).status).toBe(400);
+  });
+
   it("refuses to export when nothing has been drafted", async () => {
     await testDb().draft.deleteMany({ where: { rfpId } });
     const { POST } = await import("@/app/api/rfps/[id]/export/route");

@@ -1,14 +1,15 @@
-import type { ExportFormat } from "@/lib/proposal-document";
+import type { ExportFormat, ExportVariant } from "@/lib/proposal-document";
 import { EXPORTED_EVENT } from "@/lib/review-prompt";
 
 /** Requests an export and saves it through a temporary download link. */
 export async function downloadRfpExport(
   rfpId: string,
   format: ExportFormat,
-  options: { complianceMatrix?: boolean } = {},
+  options: { complianceMatrix?: boolean; variant?: ExportVariant } = {},
 ) {
   const matrix = options.complianceMatrix ? "&matrix=1" : "";
-  const response = await fetch(`/api/rfps/${rfpId}/export?format=${format}${matrix}`, {
+  const variant = options.variant === "review" ? "&variant=review" : "";
+  const response = await fetch(`/api/rfps/${rfpId}/export?format=${format}${matrix}${variant}`, {
     method: "POST",
   });
 
@@ -32,7 +33,9 @@ export async function downloadRfpExport(
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
-  window.dispatchEvent(new CustomEvent(EXPORTED_EVENT, { detail: { rfpId, format } }));
+  if (options.variant !== "review") {
+    window.dispatchEvent(new CustomEvent(EXPORTED_EVENT, { detail: { rfpId, format } }));
+  }
 
   return fileName;
 }

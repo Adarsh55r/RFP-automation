@@ -19,7 +19,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "Will the AI make things up?",
     answer:
-      "It is built not to. DraftBid AI writes only from the RFP and your own library (case studies, bios, certifications, saved answers). When a fact is missing, such as a price, a reference contact or an insurance limit, it leaves a highlighted placeholder for you to fill instead of inventing one. It also flags any certification a draft names that your library does not mention, and a compliance review shows which requirements are covered and which still need you. Always review a draft before you submit it.",
+      "It is built not to, and it shows its working. DraftBid AI writes only from the RFP and your own library (case studies, bios, certifications, saved answers), and each statement about your company is marked with the library passage it came from, which you can click to read. Statements about your company with no supporting passage are listed for you to check, and any marker that does not match your library is removed. When a fact is missing, such as a price, a reference contact or an insurance limit, it leaves a highlighted placeholder instead of inventing one. A compliance review shows which requirements are covered and which still need you. You can export an internal review copy with the sources listed, and a clean copy for submission. Always review a draft before you submit it.",
   },
   {
     question: "What counts as a proposal?",

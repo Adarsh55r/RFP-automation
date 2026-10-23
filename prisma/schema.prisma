@@ -165,6 +165,8 @@ model Draft {
   sectionName DraftSection
   content     String
   status      DraftStatus  @default(generated)
+  /// Citation check for this section: which library passages each [S#] marker points to, and uncited factual claims (lib/citations.ts).
+  citations   Json?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

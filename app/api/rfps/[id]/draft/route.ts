@@ -4,6 +4,14 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { beginAiOperation, refundAllowance } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
+import {
+  analyzeDraft,
+  buildSourceIndex,
+  parseCitations,
+  sourceFromPassage,
+  stripCitations,
+  type DraftCitations,
+} from "@/lib/citations";
 import { upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
@@ -55,7 +63,7 @@ type StreamEvent =
   | { type: "phase"; phase: DraftPhase }
   | { type: "section_start"; section: DraftSection; label: string }
   | { type: "delta"; section: DraftSection; text: string }
-  | { type: "section_done"; section: DraftSection; content: string }
+  | { type: "section_done"; section: DraftSection; content: string; citations: DraftCitations }
   | { type: "section_error"; section: DraftSection; message: string }
   | { type: "meta_start"; block: MetaBlock }
   | { type: "meta_delta"; block: MetaBlock; text: string }
@@ -240,7 +248,16 @@ export async function POST(request: Request, context: RouteContext) {
       currentContent.set(onlySection, editorContent);
     }
     const questions = editableTextToList(listToEditableText(rfp.extractedQuestionnaire));
-    return { sharedContext, currentContent, questions };
+    // Same passage IDs the prompt showed the model, to check its citations against.
+    const library = buildSourceIndex(libraryItems);
+    const citeLookup = (id: string) => {
+      const passage = library.byId.get(id);
+      return passage ? sourceFromPassage(passage) : undefined;
+    };
+    const dismissedClaims = new Map(
+      existingDrafts.map((draft) => [draft.sectionName, parseCitations(draft.citations)?.dismissed ?? []]),
+    );
+    return { sharedContext, currentContent, questions, citeLookup, dismissedClaims };
   };
 
   let prepared: Awaited<ReturnType<typeof prepare>>;
@@ -253,7 +270,7 @@ export async function POST(request: Request, context: RouteContext) {
     reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
-  const { sharedContext, currentContent, questions } = prepared;
+  const { sharedContext, currentContent, questions, citeLookup, dismissedClaims } = prepared;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -298,9 +315,11 @@ export async function POST(request: Request, context: RouteContext) {
 
         // 2. Sections in parallel, each with its own focused brief.
         send({ type: "phase", phase: "writing" });
+        // Passage IDs can change when the library changes, so the model
+        // re-cites from the current library instead of keeping old markers.
         const revision = (section: DraftSection) =>
           onlySection
-            ? { currentContent: currentContent.get(section) ?? "", instruction }
+            ? { currentContent: stripCitations(currentContent.get(section) ?? ""), instruction }
             : undefined;
 
         const writeSection = async (section: DraftSection) => {
@@ -364,11 +383,16 @@ export async function POST(request: Request, context: RouteContext) {
         const outcomes = await Promise.all(
           targets.map(async (section) => {
             try {
-              const content = await writeSection(section);
-              if (!content) throw new Error("The model returned an empty section.");
-              await upsertGeneratedDraftSection({ rfpId: rfp.id, sectionName: section, content });
+              const written = await writeSection(section);
+              if (!written) throw new Error("The model returned an empty section.");
+              const { content, citations } = analyzeDraft(
+                written,
+                citeLookup,
+                dismissedClaims.get(section) ?? [],
+              );
+              await upsertGeneratedDraftSection({ rfpId: rfp.id, sectionName: section, content, citations });
               currentContent.set(section, content);
-              send({ type: "section_done", section, content });
+              send({ type: "section_done", section, content, citations });
               return true;
             } catch (sectionError) {
               console.error(`Drafting ${section} failed:`, safeErrorSummary(sectionError));
@@ -397,7 +421,7 @@ export async function POST(request: Request, context: RouteContext) {
             .filter((section) => currentContent.get(section)?.trim())
             .map((section) => ({
               label: draftSectionLabel[section],
-              content: currentContent.get(section) ?? "",
+              content: stripCitations(currentContent.get(section) ?? ""),
             }));
           for await (const chunk of streamLlmText(
             call(buildReviewTask(plan, drafted), 16000, "low"),

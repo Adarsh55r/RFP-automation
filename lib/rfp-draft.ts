@@ -10,6 +10,7 @@ import {
   scopeToEditableText,
 } from "@/lib/rfp-extract-form";
 import { rfpDocumentTypeLabel } from "@/lib/rfp-document-type";
+import { buildSourceIndex, type SourceIndex } from "@/lib/citations";
 
 /** Every proposal section in document order. Which ones an RFP gets: `sectionsForRfp`. */
 export const DRAFT_SECTIONS: DraftSection[] = [
@@ -282,6 +283,14 @@ Generic proposals lose. Every paragraph must carry at least one concrete detail 
 When a fact the evaluator needs is missing from the sources, write the sentence anyway and insert a placeholder in double square brackets saying exactly what to supply, e.g. [[Confirm: general liability coverage limit]], [[Add reference contact: name, title, phone, email]], [[Amount]]. Use placeholders only for facts you cannot source — never as a substitute for writing. Never claim a mandatory requirement is met unless the library supports it; use a placeholder instead.
 </gaps_and_placeholders>
 
+<citations>
+Every passage in the content library starts with an ID in square brackets, like [S4]. Whenever you state a fact about the bidder (past projects, clients, results, numbers, staff, qualifications, certifications, insurance, policies, tools the bidder already uses), end that sentence or table row with the ID of the passage that supports it, e.g. "We supported 1,200 users across 14 sites for Harbor County [S7]." Cite several as [S3, S9]. Rules:
+- Cite only IDs that appear in the content library, and only when that passage really says it. Never cite the RFP text this way.
+- Never invent a certification, accreditation, staff member, client, project, number, date or result. If the library does not support a fact the buyer asks for, use a [[Needs your input: …]] placeholder instead.
+- Statements of what the bidder will do for this buyer (approach, plan, commitments) need no citation unless they rest on a past fact.
+- Saved answers you reuse are cited like any other passage.
+</citations>
+
 <conventions>
 - Write in the buyer's variety of English and currency: US English and $ for US buyers; UK English (organisation, programme, licence) and £ for UK buyers. Follow the bid plan's language.
 - US public sector: answer in the solicitation's order and numbering, restate requirement numbers, foreground relevant past performance with comparable scope and value. Mention small-business/DBE/MWBE/WOSB/veteran status only if the library states it.
@@ -321,14 +330,21 @@ export function neutralizePromptTags(text: string) {
   return text.replace(PROMPT_TAG_RE, "\u2039$1$2");
 }
 
-function formatLibraryBlock(items: LibraryItem[], type: LibraryItem["type"]) {
-  const filtered = items.filter((item) => item.type === type);
-  if (filtered.length === 0) {
+function formatLibraryBlock(index: SourceIndex, type: LibraryItem["type"]) {
+  const passages = index.passages.filter((passage) => passage.itemType === type);
+  if (passages.length === 0) {
     return "(none provided)";
   }
-  return filtered
-    .map((item) => `### ${neutralizePromptTags(item.title)}\n${neutralizePromptTags(item.content.trim())}`)
-    .join("\n\n");
+  const blocks: string[] = [];
+  let currentItem = "";
+  for (const passage of passages) {
+    if (passage.itemId !== currentItem) {
+      currentItem = passage.itemId;
+      blocks.push(`### ${neutralizePromptTags(passage.itemTitle)}`);
+    }
+    blocks.push(`[${passage.id}] ${neutralizePromptTags(passage.text)}`);
+  }
+  return blocks.join("\n\n");
 }
 
 const MAX_SOURCE_CHARS = 150_000;
@@ -339,7 +355,8 @@ export function buildDraftingContext(input: {
   libraryItems: LibraryItem[];
   sourceText: string;
 }) {
-  const { companyName, rfp, libraryItems } = input;
+  const { companyName, rfp } = input;
+  const library = buildSourceIndex(input.libraryItems);
   const deadline = rfp.extractedDeadline
     ? rfp.extractedDeadline.toISOString().slice(0, 10)
     : "Not specified";
@@ -387,19 +404,19 @@ ${source}
 
 <content_library>
 ## Company profile
-${formatLibraryBlock(libraryItems, "company_profile")}
+${formatLibraryBlock(library, "company_profile")}
 
 ## Case studies and past performance
-${formatLibraryBlock(libraryItems, "case_study")}
+${formatLibraryBlock(library, "case_study")}
 
 ## Team bios
-${formatLibraryBlock(libraryItems, "team_bio")}
+${formatLibraryBlock(library, "team_bio")}
 
 ## Certifications and credentials
-${formatLibraryBlock(libraryItems, "certification")}
+${formatLibraryBlock(library, "certification")}
 
 ## Saved answers
-${formatLibraryBlock(libraryItems, "saved_answer")}
+${formatLibraryBlock(library, "saved_answer")}
 </content_library>`;
 }
 

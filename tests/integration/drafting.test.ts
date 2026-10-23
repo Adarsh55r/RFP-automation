@@ -122,4 +122,85 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     expect(context.match(/<\/original_document>/g)?.length).toBe(1);
     expect(context.match(/<content_library>/g)?.length).toBe(1);
   });
+
+  it("checks citations: keeps real ones, drops invented ones, flags uncited claims", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    llm.script.json = () => JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) {
+        yield "| Requirement | Type | Addressed in | Status | What to do |\n| --- | --- | --- | --- | --- |";
+        return;
+      }
+      yield "We have supported Bluegrass Dental Group since 2021 [S2]. We hold a current SOC 2 Type II report [S7].";
+    };
+    const events = await readEvents(await run());
+    // The prompt showed the model numbered passages to cite.
+    expect(llm.calls.some((call) => (call.context ?? "").includes("[S2] Managed IT for 6 dental offices"))).toBe(true);
+
+    const done = events.find((e) => e.type === "section_done" && e.section === "exec_summary") as unknown as {
+      content: string;
+      citations: { sources: Record<string, { title: string }>; unsupported: string[] };
+    };
+    expect(done.content).toContain("[S2]");
+    expect(done.content).not.toContain("[S7]");
+    expect(done.citations.sources.S2.title).toBe("Bluegrass Dental Group");
+    expect(done.citations.unsupported).toEqual(["We hold a current SOC 2 Type II report."]);
+
+    const saved = await testDb().draft.findFirstOrThrow({ where: { rfpId: rfp.id, sectionName: "exec_summary" } });
+    expect(saved.content).toBe(done.content);
+    expect(saved.citations).toMatchObject({ unsupported: ["We hold a current SOC 2 Type II report."] });
+  });
+
+  it("re-checks citations when the user edits a section, and remembers claims they reviewed", async () => {
+    const { rfp } = await setup(FIXTURES[0].text);
+    await testDb().draft.create({
+      data: {
+        rfpId: rfp.id,
+        sectionName: "exec_summary",
+        content: "Old text [S2].",
+        citations: {
+          version: 1,
+          sources: { S2: { itemId: "old", title: "Snapshot title", type: "case_study", excerpt: "Snapshot passage" } },
+          unsupported: [],
+          dismissed: [],
+        },
+      },
+    });
+    const { saveDraftSection, setClaimReviewed } = await import("@/lib/actions/rfp-draft");
+
+    const saved = await saveDraftSection({
+      rfpId: rfp.id,
+      sectionName: "exec_summary",
+      content: "We supported Bluegrass Dental Group [S2]. Founded in Lexington [S3, S50]. We hold ISO 27001 certification.",
+    });
+    expect(saved.ok).toBe(true);
+    if (!saved.ok) return;
+    // S2 keeps pointing at what it pointed to when drafted; S3 is checked against the library now; S50 does not exist.
+    expect(saved.draft.citations.sources.S2.title).toBe("Snapshot title");
+    expect(saved.draft.citations.sources.S3.title).toBe("Microsoft Partner");
+    expect(saved.draft.content).not.toContain("S50");
+    expect(saved.draft.citations.unsupported).toEqual(["We hold ISO 27001 certification."]);
+
+    const reviewed = await setClaimReviewed({
+      rfpId: rfp.id,
+      sectionName: "exec_summary",
+      claim: "We hold ISO 27001 certification.",
+      reviewed: true,
+    });
+    expect(reviewed.ok && reviewed.citations.unsupported).toEqual([]);
+
+    // Saving again does not bring the reviewed claim back.
+    const again = await saveDraftSection({
+      rfpId: rfp.id,
+      sectionName: "exec_summary",
+      content: "We hold ISO 27001 certification. We have 3 offices.",
+    });
+    expect(again.ok && again.draft.citations.unsupported).toEqual(["We have 3 offices."]);
+
+    // Another account cannot review claims on this RFP.
+    await createUser("other");
+    h.clerkId = "other";
+    const denied = await setClaimReviewed({ rfpId: rfp.id, sectionName: "exec_summary", claim: "We have 3 offices.", reviewed: true });
+    expect(denied.ok).toBe(false);
+  });
 });

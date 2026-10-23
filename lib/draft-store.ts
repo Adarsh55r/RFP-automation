@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { DraftStatus, type DraftSection } from "@/lib/generated/prisma";
+import type { DraftCitations } from "@/lib/citations";
+import { DraftStatus, type DraftSection, type Prisma } from "@/lib/generated/prisma";
 
 /**
  * Server-only write used by the drafting route after it has checked the
@@ -10,8 +11,10 @@ export async function upsertGeneratedDraftSection(input: {
   rfpId: string;
   sectionName: DraftSection;
   content: string;
+  citations?: DraftCitations;
 }) {
   const content = input.content.trim();
+  const citations = input.citations as unknown as Prisma.InputJsonValue | undefined;
   if (!content) {
     return;
   }
@@ -23,7 +26,7 @@ export async function upsertGeneratedDraftSection(input: {
   if (existing) {
     await prisma.draft.update({
       where: { id: existing.id },
-      data: { content, status: DraftStatus.generated },
+      data: { content, citations, status: DraftStatus.generated },
     });
     return;
   }
@@ -33,6 +36,7 @@ export async function upsertGeneratedDraftSection(input: {
       rfpId: input.rfpId,
       sectionName: input.sectionName,
       content,
+      citations,
       status: DraftStatus.generated,
     },
   });

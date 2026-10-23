@@ -8,6 +8,7 @@ import {
   buildProposalDocument,
   draftsReadyForExport,
   isExportFormat,
+  isExportVariant,
   proposalExportFileName,
 } from "@/lib/proposal-document";
 import { buildProposalDocxBuffer } from "@/lib/rfp-export";
@@ -40,6 +41,11 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Format must be docx or pdf." }, { status: 400 });
   }
   const format = requested;
+  const requestedVariant = params.get("variant") ?? "submission";
+  if (!isExportVariant(requestedVariant)) {
+    return NextResponse.json({ error: "Variant must be submission or review." }, { status: 400 });
+  }
+  const variant = requestedVariant;
 
   const user = await prisma.user.findUnique({
     where: { clerkId },
@@ -85,18 +91,22 @@ export async function POST(request: Request, context: RouteContext) {
       rfp,
       drafts: rfp.drafts,
       includeComplianceMatrix,
+      variant,
     });
     const bytes =
       format === "pdf"
         ? await buildProposalPdfBuffer(doc)
         : Buffer.from(await buildProposalDocxBuffer(doc));
 
-    await prisma.rfp.update({
-      where: { id: rfp.id },
-      data: { status: RfpStatus.exported },
-    });
+    // An internal review copy is not the final export.
+    if (variant === "submission") {
+      await prisma.rfp.update({
+        where: { id: rfp.id },
+        data: { status: RfpStatus.exported },
+      });
+    }
 
-    const fileName = proposalExportFileName(doc.cover.projectTitle, format);
+    const fileName = proposalExportFileName(doc.cover.projectTitle, format, variant);
 
     return new NextResponse(new Uint8Array(bytes), {
       status: 200,

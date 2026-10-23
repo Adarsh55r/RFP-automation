@@ -169,3 +169,36 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - `ProposalUsage.overageCents`, `overageBilledAt`.
 - **Not done: checkout in test mode.** Blocked on the payment provider decision and keys (FOUNDER_TODO). Paid plans are requested from the billing page and set up by an admin until then.
 - Tests: plan config, upload decisions, server enforcement (402, confirm, 403, legacy unchanged), library item limit, admin plan change.
+
+## Phase 3.1: Citations, uncited-claim flags, review vs submission export
+
+- **Source passages:** `lib/citations.ts` splits the content library into numbered passages (`[S1]`, `[S2]`, …, at most about 600 characters each, in a fixed type order). The drafting prompt shows each passage with its ID.
+- **Prompt:** a new `<citations>` rule in `DRAFTING_SYSTEM` says to:
+  - cite a passage ID after every fact about the bidder;
+  - cite only IDs that exist and actually support the claim;
+  - never invent certifications, staff, clients, projects, numbers, dates or results, and use `[[Needs your input: …]]` instead.
+- **Deterministic check after every section** (`analyzeDraft`, no extra AI call):
+  - markers pointing to passages that do not exist are removed;
+  - each valid marker's passage is stored as a snapshot (title and excerpt) in the new `Draft.citations` JSON column;
+  - sentences and table rows that state a fact about the bidder (numbers, credentials, past work naming a client or place) without a citation are listed as unsupported.
+
+  The heuristic is deliberately conservative: it flags claims for review and never rewrites them.
+- **Editing:**
+  - saving a section re-runs the check. Existing markers keep their drafted snapshot; markers added by hand are checked against the current library;
+  - "I checked it: keep as written" (`setClaimReviewed`) moves a claim to a reviewed list that later checks respect. Ownership is enforced through the RFP's `userId`;
+  - AI revisions and the compliance review receive the draft without markers, so the model re-cites against the current library and stale IDs are never reused.
+- **UI:**
+  - markers render as clickable chips that show the source passage (red if a marker does not match the library);
+  - each section shows a "N without a source" badge;
+  - "Needs your input" now lists uncited claims under the placeholders;
+  - exporting the submission copy asks for explicit confirmation while uncited claims or placeholders remain.
+- **Export variants** (`variant=submission|review` on the export route):
+  - **Submission:** the default. All markers are stripped and the RFP is marked exported.
+  - **Review:** keeps the markers (small and grey), puts an "INTERNAL REVIEW COPY: do not submit" banner at the top and in the footer, and adds a "Review notes" appendix with open items (uncited claims and placeholders) and a "Sources cited" table (marker → library item → passage). It does not change the RFP's status and gets its own file name (`…-review-copy.docx`).
+- **Requirement coverage view:** already existed (the compliance review table, plus the optional compliance matrix appendix). It is unchanged.
+- **Schema (additive):** `Draft.citations JSONB`, migration `20261025090000_draft_citations`, also in the boot-time `lib/schema-upgrade.ts`.
+- **FAQ:** "Will the AI make things up?" now describes citations, flags and the two export copies.
+- **Tests:**
+  - unit (`tests/unit/citations.test.ts`): passage numbering and splitting, prompt contents, library text cannot forge prompt sections, invalid marker removal, uncited-claim detection including tables and reviewed claims, marker parsing and stripping;
+  - integration: the drafting route stores and streams citations; editing re-checks and remembers reviewed claims; another account cannot review claims; both export variants in DOCX and the review PDF; an invalid variant returns 400.
+- **Not verified:** the citation chips and checklist UI have not been checked in a browser yet, because dashboard pages need a signed-in Clerk session. They are covered by typecheck and lint only, and a visual pass is planned with the Phase 3 UI work. How often the model cites correctly also needs a real-model run; the Phase 5 benchmark measures it.

@@ -17,11 +17,12 @@ import { ExportDocumentMoment } from "@/components/dashboard/export-document-mom
 import { CoverageMapCard } from "@/components/dashboard/coverage-map-card";
 import { CoverDetailsCard } from "@/components/dashboard/cover-details-card";
 import { MarkdownPreview } from "@/components/dashboard/markdown-preview";
-import { saveDraftSection } from "@/lib/actions/rfp-draft";
+import { saveDraftSection, setClaimReviewed } from "@/lib/actions/rfp-draft";
+import { parseCitations, type DraftCitations } from "@/lib/citations";
 import { downloadRfpExport } from "@/lib/download-rfp-export";
 import { unverifiedCredentials } from "@/lib/claim-checks";
 import { findPlaceholders } from "@/lib/markdown";
-import type { ExportFormat } from "@/lib/proposal-document";
+import type { ExportFormat, ExportVariant } from "@/lib/proposal-document";
 import { DRAFT_SECTIONS, draftSectionLabel, type CoverDetails } from "@/lib/rfp-draft";
 import type { Draft, DraftSection } from "@/lib/generated/prisma";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ type SectionState = {
   content: string;
   status: "idle" | "streaming" | "ready" | "error";
   error?: string;
+  /** Citation check from the server; null for drafts written before citations existed. */
+  citations?: DraftCitations | null;
 };
 
 type DraftPhase = "planning" | "writing" | "reviewing";
@@ -45,7 +48,7 @@ type StreamEvent =
   | { type: "phase"; phase: DraftPhase }
   | { type: "section_start"; section: DraftSection; label: string }
   | { type: "delta"; section: DraftSection; text: string }
-  | { type: "section_done"; section: DraftSection; content: string }
+  | { type: "section_done"; section: DraftSection; content: string; citations: DraftCitations }
   | { type: "section_error"; section: DraftSection; message: string }
   | { type: "meta_start"; block: string }
   | { type: "meta_delta"; block: string; text: string }
@@ -78,7 +81,11 @@ function emptySections(): Record<DraftSection, SectionState> {
 function sectionsFromDrafts(drafts: Draft[]): Record<DraftSection, SectionState> {
   const next = emptySections();
   for (const draft of drafts) {
-    next[draft.sectionName] = { content: draft.content, status: "ready" };
+    next[draft.sectionName] = {
+      content: draft.content,
+      status: "ready",
+      citations: parseCitations(draft.citations),
+    };
   }
   return next;
 }
@@ -96,6 +103,7 @@ function DraftSectionCard({
   mode,
   onModeChange,
   onContentChange,
+  onCitations,
   onRevise,
 }: {
   rfpId: string;
@@ -106,6 +114,7 @@ function DraftSectionCard({
   mode: "preview" | "edit";
   onModeChange: (mode: "preview" | "edit") => void;
   onContentChange: (section: DraftSection, content: string) => void;
+  onCitations: (section: DraftSection, content: string, citations: DraftCitations) => void;
   onRevise: (section: DraftSection, instruction: string) => void;
 }) {
   const [saveFlash, setSaveFlash] = useState(false);
@@ -136,7 +145,8 @@ function DraftSectionCard({
         setSaveError(result.error);
         return;
       }
-      baselineRef.current = next;
+      baselineRef.current = result.draft.content;
+      onCitations(section, result.draft.content, result.draft.citations);
       setSaveFlash(true);
       window.setTimeout(() => setSaveFlash(false), 1400);
     });
@@ -144,6 +154,7 @@ function DraftSectionCard({
 
   const streaming = state.status === "streaming";
   const placeholders = useMemo(() => findPlaceholders(state.content), [state.content]);
+  const uncited = state.citations?.unsupported.length ?? 0;
   const hasContent = state.content.trim().length > 0;
 
   const submitRevision = (text: string) => {
@@ -185,6 +196,11 @@ function DraftSectionCard({
           {!streaming && hasContent && placeholders.length > 0 ? (
             <Badge variant="accent" className="whitespace-nowrap">
               {placeholders.length} to fill in
+            </Badge>
+          ) : null}
+          {!streaming && hasContent && uncited > 0 ? (
+            <Badge variant="danger" className="whitespace-nowrap">
+              {uncited} without a source
             </Badge>
           ) : null}
           {!streaming && hasContent ? (
@@ -278,7 +294,10 @@ function DraftSectionCard({
 
       {hasContent && (mode === "preview" || streaming) ? (
         <div className="max-h-[42rem] overflow-y-auto rounded-control border border-border bg-surface-raised p-5">
-          <MarkdownPreview markdown={state.content} />
+          <MarkdownPreview
+            markdown={state.content}
+            sources={streaming ? undefined : (state.citations?.sources ?? {})}
+          />
         </div>
       ) : null}
 
@@ -295,7 +314,8 @@ function DraftSectionCard({
           <p className="text-xs text-slate">
             Markdown: <code>## Heading</code>, <code>- bullet</code>, <code>**bold**</code>,
             tables with <code>|</code>. Anything in <code>[[double brackets]]</code> is
-            highlighted as still needing your input. Changes save when you leave the field.
+            highlighted as still needing your input. Markers like <code>[S3]</code> show which
+            library passage a claim came from. Changes save when you leave the field.
           </p>
         </>
       ) : null}
@@ -314,18 +334,40 @@ function DraftSectionCard({
 }
 
 function InputChecklist({
+  rfpId,
   sections,
   state,
   onJump,
+  onCitations,
 }: {
+  rfpId: string;
   sections: DraftSection[];
   state: Record<DraftSection, SectionState>;
   onJump: (section: DraftSection) => void;
+  onCitations: (section: DraftSection, content: string, citations: DraftCitations) => void;
 }) {
+  const [pending, startTransition] = useTransition();
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const groups = sections
-    .map((section) => ({ section, items: findPlaceholders(state[section].content) }))
-    .filter((group) => group.items.length > 0);
-  const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+    .map((section) => ({
+      section,
+      items: findPlaceholders(state[section].content),
+      uncited: state[section].citations?.unsupported ?? [],
+    }))
+    .filter((group) => group.items.length > 0 || group.uncited.length > 0);
+  const total = groups.reduce((sum, group) => sum + group.items.length + group.uncited.length, 0);
+
+  const keepClaim = (section: DraftSection, claim: string) => {
+    setReviewError(null);
+    startTransition(async () => {
+      const result = await setClaimReviewed({ rfpId, sectionName: section, claim, reviewed: true });
+      if (!result.ok) {
+        setReviewError(result.error);
+        return;
+      }
+      onCitations(section, state[section].content, result.citations);
+    });
+  };
 
   return (
     <Card className="flex flex-col gap-4">
@@ -334,9 +376,10 @@ function InputChecklist({
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Before you submit</p>
           <h2 className="mt-2 font-sans text-lg font-semibold text-ink">Needs your input</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
-            Facts DraftBid AI could not find in the RFP or your library — signatures,
-            prices, reference contacts, figures to confirm. They are highlighted in
-            yellow in the preview and in the exported file.
+            Facts DraftBid AI could not find in the RFP or your library (signatures,
+            prices, reference contacts, figures to confirm) are highlighted in yellow.
+            Statements about your company that no library passage supports are listed
+            in red: check each one, then fix it or keep it as written.
           </p>
         </div>
         <Badge variant={total > 0 ? "accent" : "success"} className="w-fit shrink-0 whitespace-nowrap">
@@ -355,20 +398,49 @@ function InputChecklist({
               >
                 {draftSectionLabel[group.section]}
               </button>
-              <ul className="mt-1 flex flex-wrap gap-2">
-                {group.items.map((item) => (
-                  <li
-                    key={item}
-                    className="rounded bg-accent/25 px-2 py-0.5 text-xs text-ink"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              {group.items.length > 0 ? (
+                <ul className="mt-1 flex flex-wrap gap-2">
+                  {group.items.map((item) => (
+                    <li
+                      key={item}
+                      className="rounded bg-accent/25 px-2 py-0.5 text-xs text-ink"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {group.uncited.length > 0 ? (
+                <ul className="mt-2 flex flex-col gap-2" aria-label="Claims without a source">
+                  {group.uncited.map((claim) => (
+                    <li
+                      key={claim}
+                      className="flex flex-col gap-2 rounded-control border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-ink sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <span>
+                        <span className="font-semibold text-danger">No source: </span>
+                        {claim}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => keepClaim(group.section, claim)}
+                        className={cn(
+                          "shrink-0 rounded-control border border-border bg-surface-raised px-2 py-1 text-xs text-slate hover:text-ink disabled:opacity-50",
+                          focusRing,
+                        )}
+                      >
+                        I checked it: keep as written
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : null}
+      {reviewError ? <p className="text-sm text-danger">{reviewError}</p> : null}
     </Card>
   );
 }
@@ -416,6 +488,7 @@ export function RfpDraftView({
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
   const [includeMatrix, setIncludeMatrix] = useState(true);
+  const [exportVariant, setExportVariant] = useState<ExportVariant>("submission");
   const startedRef = useRef(false);
 
   const hasAnyContent = plannedSections.some(
@@ -427,6 +500,15 @@ export function RfpDraftView({
     (sum, section) => sum + findPlaceholders(sections[section].content).length,
     0,
   );
+  const uncitedTotal = plannedSections.reduce(
+    (sum, section) => sum + (sections[section].citations?.unsupported.length ?? 0),
+    0,
+  );
+  const updateCitations = (section: DraftSection, content: string, citations: DraftCitations) =>
+    setSections((current) => ({
+      ...current,
+      [section]: { ...current[section], content, citations },
+    }));
   // Credentials the draft names that the library never mentions: possibly claimed without proof.
   const unverifiedClaims = useMemo(() => {
     const where = new Map<string, string[]>();
@@ -514,7 +596,11 @@ export function RfpDraftView({
             case "section_done":
               setSections((current) => ({
                 ...current,
-                [payload.section]: { content: payload.content, status: "ready" },
+                [payload.section]: {
+                  content: payload.content,
+                  status: "ready",
+                  citations: payload.citations,
+                },
               }));
               break;
             case "section_error":
@@ -579,7 +665,11 @@ export function RfpDraftView({
   const runExport = async (format: ExportFormat) => {
     if (!canExport || exportPhase === "generating") return;
 
-    const warnings = [
+    // The review copy is for checking these, so it never asks.
+    const warnings = exportVariant === "review" ? [] : [
+      uncitedTotal > 0
+        ? `${uncitedTotal} statement${uncitedTotal === 1 ? " about your company has" : "s about your company have"} no source in your library (listed under "Needs your input"). Make sure each one is true.`
+        : "",
       placeholderTotal > 0
         ? `${placeholderTotal} item${placeholderTotal === 1 ? "" : "s"} still need your input (highlighted in yellow).`
         : "",
@@ -606,6 +696,7 @@ export function RfpDraftView({
       await Promise.all([
         downloadRfpExport(rfpId, format, {
           complianceMatrix: includeMatrix && coverageMap.trim().length > 0,
+          variant: exportVariant,
         }),
         wait(reduceMotion ? 0 : 1600),
       ]);
@@ -699,6 +790,30 @@ export function RfpDraftView({
           </Button>
         </div>
 
+        <fieldset className="flex flex-col gap-2 text-sm text-slate">
+          <legend className="sr-only">Which copy to export</legend>
+          <label className="inline-flex w-fit items-center gap-2">
+            <input
+              type="radio"
+              name="export-variant"
+              checked={exportVariant === "submission"}
+              onChange={() => setExportVariant("submission")}
+              className="h-4 w-4 accent-[var(--brand)]"
+            />
+            Submission copy: clean, without source markers
+          </label>
+          <label className="inline-flex w-fit items-center gap-2">
+            <input
+              type="radio"
+              name="export-variant"
+              checked={exportVariant === "review"}
+              onChange={() => setExportVariant("review")}
+              className="h-4 w-4 accent-[var(--brand)]"
+            />
+            Internal review copy: source markers plus an appendix of sources and open items
+          </label>
+        </fieldset>
+
         {coverageMap.trim() && !coverageStreaming ? (
           <label className="inline-flex w-fit items-center gap-2 text-sm text-slate">
             <input
@@ -774,7 +889,9 @@ export function RfpDraftView({
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate">
                 {exportPhase === "ready"
-                  ? `Your ${formatName} has downloaded. You can keep editing and export again anytime.`
+                  ? exportVariant === "review"
+                    ? `Your internal review ${formatName} has downloaded. Do not send it to the buyer; export the submission copy when you are done.`
+                    : `Your ${formatName} has downloaded. You can keep editing and export again anytime.`
                   : "Adding a cover page, contents, page numbers, and formatted tables."}
               </p>
             </div>
@@ -809,7 +926,13 @@ export function RfpDraftView({
         ) : null}
 
         {hasAnyContent && !generating ? (
-          <InputChecklist sections={plannedSections} state={sections} onJump={jumpTo} />
+          <InputChecklist
+            rfpId={rfpId}
+            sections={plannedSections}
+            state={sections}
+            onJump={jumpTo}
+            onCitations={updateCitations}
+          />
         ) : null}
 
         {coverageStreaming || coverageMap.trim() ? (
@@ -837,6 +960,7 @@ export function RfpDraftView({
             mode={modes[section] ?? "preview"}
             onModeChange={(mode) => setModes((current) => ({ ...current, [section]: mode }))}
             onRevise={(name, instruction) => void runGeneration({ section: name, instruction })}
+            onCitations={updateCitations}
             onContentChange={(name, content) =>
               setSections((current) => ({
                 ...current,
