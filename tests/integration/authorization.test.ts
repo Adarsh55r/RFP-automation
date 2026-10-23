@@ -55,6 +55,28 @@ describe.skipIf(!hasTestDb)("cross-user isolation (IDOR)", () => {
     expect(after.extractCount + after.fullDraftCount).toBe(0);
   });
 
+  it("nobody can finish, abandon or open another user's upload", async () => {
+    const pending = await testDb().rfp.create({
+      data: { userId: (await testDb().user.findUniqueOrThrow({ where: { clerkId: "victim" } })).id, title: "Victim pending upload" },
+    });
+    const upload = await import("@/app/api/rfps/[id]/upload/route");
+    const file = await import("@/app/api/rfps/[id]/file/route");
+    expect((await upload.POST(new Request("http://t/x", { method: "POST" }), ctx(pending.id))).status).toBe(404);
+    expect((await upload.DELETE(new Request("http://t/x", { method: "DELETE" }), ctx(pending.id))).status).toBe(404);
+    expect((await file.GET(new Request("http://t/x"), ctx(victimRfpId))).status).toBe(404);
+    expect(await testDb().rfp.count({ where: { id: pending.id } })).toBe(1);
+  });
+
+  it("settings and terms actions only ever touch the caller's own account", async () => {
+    const { updateAgencySettings } = await import("@/lib/actions/settings");
+    const { acceptCurrentTerms } = await import("@/lib/actions/terms");
+    expect((await updateAgencySettings({ agencyName: "Attacker Renamed", teamSize: "1-10" })).ok).toBe(true);
+    expect((await acceptCurrentTerms(true)).ok).toBe(true);
+    const victim = await testDb().user.findUniqueOrThrow({ where: { clerkId: "victim" } });
+    expect(victim.agencyName).toBe("victim Co");
+    expect(victim.termsVersion).toBeNull();
+  });
+
   it("server actions refuse another user's records", async () => {
     const { confirmExtraction } = await import("@/lib/actions/rfp-extraction");
     const { saveDraftSection } = await import("@/lib/actions/rfp-draft");
