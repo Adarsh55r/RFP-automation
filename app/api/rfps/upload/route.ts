@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { assertSafeDocx, DocumentReadError } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
         ? "File storage is not configured yet."
         : "Upload failed. Try again in a moment.";
 
-    console.error("RFP upload failed:", error);
+    console.error("RFP upload failed:", safeErrorSummary(error));
     reportError(error, { area: "upload", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: message }, { status: 500 });
   }

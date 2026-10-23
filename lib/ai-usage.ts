@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { prisma } from "@/lib/db";
 
 export type LlmUsage = {
@@ -53,6 +54,6 @@ export function usageRecorder(context: UsageContext) {
           costMicros: usageCostMicros(usage),
         },
       })
-      .catch((error) => console.error("[ai-usage] Could not record usage:", error));
+      .catch((error) => console.error("[ai-usage] Could not record usage:", safeErrorSummary(error)));
   };
 }

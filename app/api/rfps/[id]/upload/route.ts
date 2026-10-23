@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -68,7 +69,7 @@ export async function POST(_request: Request, context: RouteContext) {
     await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path));
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
-    console.error("Could not complete a direct upload:", error);
+    console.error("Could not complete a direct upload:", safeErrorSummary(error));
     reportError(error, { area: "upload-complete", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: "Upload failed. Try again in a moment." }, { status: 500 });
   }

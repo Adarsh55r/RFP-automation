@@ -117,3 +117,18 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - `/admin/costs` shows the p95 cost per proposal next to the average;
   - `npm run report:ai-cost` (`scripts/ai-cost-report.mjs`, read-only SQL over `AiUsage`) prints the average, median, p95 and max per proposal, plus a breakdown by pipeline step and model.
   - Verified against seeded data locally. **Measuring production requires running it with the production `DATABASE_URL`**, which this environment does not have.
+
+## Phase 1.8: Logging and data hygiene
+- **Server logs:**
+  - Every `console.error` now logs `safeErrorSummary(error)`: the error type, code and a message cut to 300 characters, plus stack frames.
+  - Why: a failed Prisma write prints the data it tried to write, which can include an RFP's full text, and a JSON error can quote model output. Before this, those would have reached Vercel's logs whole.
+- **Sentry:**
+  - drops request bodies, cookies and `extra`;
+  - truncates exception messages to 300 characters;
+  - never records console output as breadcrumbs;
+  - keeps only the method, URL and status of network breadcrumbs.
+- **Analytics:** Vercel Web Analytics records page views only (URLs contain IDs, never content).
+- **Tests:** a static check fails if any server error log bypasses the summariser, plus unit tests for each scrubber.
+- **Uptime:** new `GET /api/health` (200 or 503, no details) for an external monitor. Failed jobs are reported to Sentry with area tags; alert rules are set in Sentry (FOUNDER_TODO).
+- **Backups:** `docs/operations.md` documents Neon point-in-time restore and the fact that Supabase Storage files are not covered.
+- **Restore test: not run.** This environment has no production database access. `scripts/verify-restore.mjs` was only smoke-tested against the local test database (comparing it with itself); the real restore test is in FOUNDER_TODO.

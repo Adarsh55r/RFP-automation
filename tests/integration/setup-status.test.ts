@@ -37,3 +37,13 @@ describe.skipIf(!hasTestDb)("admin setup status", () => {
     }
   });
 });
+
+describe.skipIf(!hasTestDb)("health endpoint", () => {
+  it("answers 200 when the database is reachable, with nothing but a status", async () => {
+    const { GET } = await import("@/app/api/health/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+});

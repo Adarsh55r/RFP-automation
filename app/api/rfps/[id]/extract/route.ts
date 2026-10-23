@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -168,7 +169,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
     const message = friendlyLlmError(error, "extraction", "Extraction failed. Try again in a moment.");
 
-    console.error("RFP extraction failed:", error);
+    console.error("RFP extraction failed:", safeErrorSummary(error));
     reportError(error, { area: "extract", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {

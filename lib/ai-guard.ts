@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { prisma } from "@/lib/db";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
 
@@ -101,7 +102,7 @@ async function alertSpendCap(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
-    }).catch((error) => console.error("[ai-budget] Alert webhook failed:", error));
+    }).catch((error) => console.error("[ai-budget] Alert webhook failed:", safeErrorSummary(error)));
   }
 }
 
@@ -168,7 +169,7 @@ export async function beginAiOperation(input: {
   const release = async () => {
     await prisma.user
       .update({ where: { id: user.id }, data: { aiBusyUntil: null } })
-      .catch((error) => console.error("[ai-guard] Could not release AI lock:", error));
+      .catch((error) => console.error("[ai-guard] Could not release AI lock:", safeErrorSummary(error)));
   };
 
   const allowance = proposalAllowance(tier);
@@ -223,5 +224,5 @@ export async function refundAllowance(rfpId: string, operation: AiOperation) {
   const field = counterField[operation];
   await prisma.rfp
     .updateMany({ where: { id: rfpId, [field]: { gt: 0 } }, data: { [field]: { decrement: 1 } } })
-    .catch((error) => console.error("[ai-guard] Could not refund allowance:", error));
+    .catch((error) => console.error("[ai-guard] Could not refund allowance:", safeErrorSummary(error)));
 }

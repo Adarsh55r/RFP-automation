@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { assertSafeDocx, DocumentReadError, MAX_PDF_PAGES } from "@/lib/document-safety";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateLlmText } from "@/lib/llm";
@@ -317,7 +318,7 @@ export async function getRfpSourceText(rfp: {
     const text = await extractTextFromDocument(buffer, fileName);
     return { text: text.replace(/\u0000/g, ""), fetched: true };
   } catch (error) {
-    console.error("Could not read RFP source text for drafting:", error);
+    console.error("Could not read RFP source text for drafting:", safeErrorSummary(error));
     return { text: "", fetched: false };
   }
 }

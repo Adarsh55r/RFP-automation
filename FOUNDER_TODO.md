@@ -40,7 +40,10 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 ## Operations
 - [ ] Give Vercel **Preview** deployments their own Neon database branch, so preview builds never touch production data or schema
 - [ ] Malware scanning for uploads: choose a service (for example a ClamAV worker or a scanning API) or accept the documented risk; see UPGRADE_LOG
-- [ ] Uptime monitoring (for example Vercel monitoring or BetterStack) for `https://draftbidai.com` and `/api/health`
+- [ ] Uptime monitoring (for example Vercel Monitoring or BetterStack) on `https://draftbidai.com/api/health`
+- [ ] Sentry: set `NEXT_PUBLIC_SENTRY_DSN` and add an email alert rule for new issues (failed uploads, extractions and drafts are reported there)
+- [ ] Run the restore test in `docs/operations.md` and record the result in UPGRADE_LOG.md
+- [ ] Decide on backups for uploaded files in Supabase Storage (not covered by Neon's history)
 
 ## Content
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark

@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: rfp.id, uploadUrl: data.signedUrl, path });
   } catch (error) {
     await prisma.rfp.delete({ where: { id: rfp.id } }).catch(() => undefined);
-    console.error("Could not start a direct upload:", error);
+    console.error("Could not start a direct upload:", safeErrorSummary(error));
     reportError(error, { area: "upload-start", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: "Upload failed. Try again in a moment." }, { status: 500 });
   }

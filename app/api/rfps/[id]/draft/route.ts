@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
@@ -248,7 +249,7 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     await guard.release();
     await refundAllowance(rfp.id, operation);
-    console.error("RFP drafting setup failed:", error);
+    console.error("RFP drafting setup failed:", safeErrorSummary(error));
     reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
@@ -370,7 +371,7 @@ export async function POST(request: Request, context: RouteContext) {
               send({ type: "section_done", section, content });
               return true;
             } catch (sectionError) {
-              console.error(`Drafting ${section} failed:`, sectionError);
+              console.error(`Drafting ${section} failed:`, safeErrorSummary(sectionError));
               reportError(sectionError, { area: "draft-section", userId: user.id, rfpId: rfp.id, extra: { section } });
               send({
                 type: "section_error",
@@ -405,7 +406,7 @@ export async function POST(request: Request, context: RouteContext) {
             send({ type: "meta_delta", block: "coverage_map", text: chunk });
           }
         } catch (reviewError) {
-          console.error("Compliance review failed:", reviewError);
+          console.error("Compliance review failed:", safeErrorSummary(reviewError));
           reportError(reviewError, { area: "draft-review", userId: user.id, rfpId: rfp.id });
         }
         send({ type: "meta_done", block: "coverage_map" });
@@ -426,7 +427,7 @@ export async function POST(request: Request, context: RouteContext) {
           // Already closed by a disconnect.
         }
       } catch (error) {
-        console.error("RFP drafting failed:", error);
+        console.error("RFP drafting failed:", safeErrorSummary(error));
         // Nothing usable was produced, so the attempt should not count.
         if (!wroteAnything) await refundAllowance(rfp.id, operation);
         reportError(error, { area: "draft", userId: user.id, rfpId: rfp.id });
