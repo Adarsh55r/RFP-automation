@@ -43,13 +43,9 @@ export async function getRfpsForClerkUser(clerkId: string) {
 
 export async function getRfpUploadQuota(userId: string, tier: SubscriptionTier) {
   const monthStart = startOfMonth();
-  const usedThisMonth = await prisma.rfp.count({
-    where: {
-      userId,
-      createdAt: { gte: monthStart },
-      // An abandoned upload (no file ever arrived) does not use up the quota.
-      originalFileUrl: { not: null },
-    },
+  // Counted from the usage ledger, so deleting an RFP does not give the upload back.
+  const usedThisMonth = await prisma.proposalUsage.count({
+    where: { userId, createdAt: { gte: monthStart } },
   });
 
   const limit = monthlyRfpLimit[tier];
@@ -59,4 +55,15 @@ export async function getRfpUploadQuota(userId: string, tier: SubscriptionTier) 
     limit,
     remaining: rfpsRemaining(tier, usedThisMonth),
   };
+}
+
+/**
+ * Marks an upload as finished and records that it used one proposal from the
+ * plan, together. Abandoned uploads never reach this, so they never count.
+ */
+export async function completeRfpUpload(rfpId: string, userId: string, originalFileUrl: string) {
+  await prisma.$transaction([
+    prisma.rfp.update({ where: { id: rfpId }, data: { originalFileUrl } }),
+    prisma.proposalUsage.create({ data: { userId, rfpId } }),
+  ]);
 }

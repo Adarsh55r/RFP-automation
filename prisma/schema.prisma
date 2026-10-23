@@ -87,6 +87,7 @@ model User {
   rfps         Rfp[]
   libraryItems LibraryItem[]
   aiUsage      AiUsage[]
+  proposalUsage ProposalUsage[]
 }
 
 model Subscription {
@@ -177,4 +178,18 @@ model AiUsage {
 
   @@index([userId, createdAt])
   @@index([rfpId])
+}
+
+/// One row per RFP upload that counts against the plan. Kept when the RFP is
+/// deleted, so deleting and re-uploading cannot get around the monthly limit.
+model ProposalUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  /// The RFP that used the credit; no foreign key, because the RFP may be deleted.
+  rfpId     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

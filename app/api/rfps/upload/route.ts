@@ -11,7 +11,7 @@ import {
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
-import { getRfpUploadQuota } from "@/lib/rfps";
+import { completeRfpUpload, getRfpUploadQuota } from "@/lib/rfps";
 import {
   getRfpPublicUrl,
   getRfpStorageBucket,
@@ -132,10 +132,7 @@ export async function POST(request: Request) {
 
     const originalFileUrl = getRfpPublicUrl(storagePath);
 
-    await prisma.rfp.update({
-      where: { id: rfp.id },
-      data: { originalFileUrl },
-    });
+    await completeRfpUpload(rfp.id, user.id, originalFileUrl);
 
     return NextResponse.json({ id: rfp.id });
   } catch (error) {

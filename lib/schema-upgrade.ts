@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
  * Brings a database created before the US/UK release up to the current
  * schema (migrations 20261015120000_us_uk_market,
  * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits,
- * 20261018090000_review_prompt, and 20261023090000_terms_acceptance), using the app's own DATABASE_URL so it
+ * 20261018090000_review_prompt, 20261023090000_terms_acceptance and
+ * 20261023100000_proposal_usage), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -88,6 +89,25 @@ BEGIN
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsVersion" TEXT;
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3);
 
+  -- Plan usage ledger (survives RFP deletion).
+  CREATE TABLE IF NOT EXISTS "ProposalUsage" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rfpId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ProposalUsage_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "ProposalUsage_userId_createdAt_idx" ON "ProposalUsage"("userId", "createdAt");
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProposalUsage_userId_fkey') THEN
+    ALTER TABLE "ProposalUsage" ADD CONSTRAINT "ProposalUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  -- Existing uploads already count against the plan.
+  INSERT INTO "ProposalUsage" ("id", "userId", "rfpId", "createdAt")
+  SELECT 'pu_' || r."id", r."userId", r."id", r."createdAt"
+  FROM "Rfp" r
+  WHERE r."originalFileUrl" IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM "ProposalUsage" p WHERE p."rfpId" = r."id");
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -98,7 +118,8 @@ BEGIN
       ('20261016090000_proposal_quality', '6e82dcd09d60e036fe723f1c6ef5a0e598abc472485b6beede362d55eadc4ab4'),
       ('20261017090000_ai_usage_limits', '291108a67b31cfa6b1eed95c210e49c5fe9164c48cca825ff4c69c8498ec0141'),
       ('20261018090000_review_prompt', '8cfa77ef427e04d3b6ecc19e893857ac8a34aea642cbfaee84a4c2c5305bb8e0'),
-      ('20261023090000_terms_acceptance', '2eaa6834d9350e4e7d9a35e34a0aac65443c27ec60ce5357f9b67fe1f79745a3')
+      ('20261023090000_terms_acceptance', '2eaa6834d9350e4e7d9a35e34a0aac65443c27ec60ce5357f9b67fe1f79745a3'),
+      ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
       SELECT 1 FROM "_prisma_migrations" p
@@ -140,7 +161,8 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'termsVersion'
-  ) AS "needsUpgrade"
+  )
+  OR to_regclass('"ProposalUsage"') IS NULL AS "needsUpgrade"
 `;
 
 export { NEEDS_UPGRADE_SQL, UPGRADE_SQL };

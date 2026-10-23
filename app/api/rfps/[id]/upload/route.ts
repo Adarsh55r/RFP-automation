@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { completeRfpUpload } from "@/lib/rfps";
 import { reportError } from "@/lib/monitoring";
 import { looksLikeRfpFile, RFP_MAX_BYTES } from "@/lib/rfp-upload";
 import { getRfpPublicUrl, getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -48,7 +49,7 @@ export async function POST(_request: Request, context: RouteContext) {
       await prisma.rfp.delete({ where: { id: rfp.id } });
       return NextResponse.json({ error: "This file is not a valid PDF or Word (.docx) document under 25 MB." }, { status: 400 });
     }
-    await prisma.rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: getRfpPublicUrl(path) } });
+    await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path));
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
     console.error("Could not complete a direct upload:", error);

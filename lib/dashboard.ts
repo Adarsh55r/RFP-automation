@@ -42,8 +42,9 @@ export async function getDashboardHomeData() {
 
   const [user, rfpsThisMonth, draftsInProgress, recentRfps] = await Promise.all([
     requireDashboardUser(),
-    prisma.rfp.count({
-      where: { ...owned, createdAt: { gte: monthStart } },
+    // From the usage ledger, matching the upload quota: deleted RFPs still count.
+    prisma.proposalUsage.count({
+      where: { user: { clerkId }, createdAt: { gte: monthStart } },
     }),
     prisma.rfp.count({
       where: { ...owned, status: { in: ["drafting", "drafted"] } },
