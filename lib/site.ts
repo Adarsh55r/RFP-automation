@@ -13,5 +13,10 @@ export const SITE_DESCRIPTION =
 export const PUBLIC_PAGES = [
   { path: "/", updated: "2026-10-23", priority: 1 },
   { path: "/pricing", updated: "2026-10-23", priority: 0.8 },
-  { path: "/privacy", updated: "2026-10-22", priority: 0.3 },
+  { path: "/privacy", updated: "2026-10-23", priority: 0.3 },
+  { path: "/terms", updated: "2026-10-23", priority: 0.3 },
+  { path: "/security", updated: "2026-10-23", priority: 0.5 },
+  { path: "/subprocessors", updated: "2026-10-23", priority: 0.3 },
+  { path: "/dpa", updated: "2026-10-23", priority: 0.3 },
+  { path: "/about", updated: "2026-10-23", priority: 0.4 },
 ] as const;
