@@ -79,6 +79,9 @@ model User {
   reviewPromptedAt  DateTime?
   reviewResponse    String?
   reviewRespondedAt DateTime?
+  /// Version of the Terms of Service the user last accepted (lib/legal.ts), and when.
+  termsVersion      String?
+  termsAcceptedAt   DateTime?
 
   subscription Subscription?
   rfps         Rfp[]

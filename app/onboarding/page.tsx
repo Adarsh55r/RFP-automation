@@ -4,7 +4,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/auth/onboarding-flow";
 import { Logo } from "@/components/brand";
-import { completeOnboarding } from "@/lib/actions/onboarding";
+import { saveOnboarding } from "@/lib/onboarding-store";
 import { cn } from "@/lib/cn";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { textLinkOnDark } from "@/lib/focus";
@@ -29,13 +29,10 @@ export default async function OnboardingPage() {
     const agencyName = String(meta.agencyName ?? "").trim();
     const teamSize = String(meta.teamSize ?? "") as TeamSize;
     const intendedPlan = parsePlanId(String(meta.intendedPlan ?? ""));
-    let healed: Awaited<ReturnType<typeof completeOnboarding>>;
+    let healed: Awaited<ReturnType<typeof saveOnboarding>>;
     try {
-      healed = await completeOnboarding({
-        agencyName,
-        teamSize,
-        intendedPlan,
-      });
+      // Repairing a workspace is not consent: the dashboard asks for Terms acceptance next.
+      healed = await saveOnboarding({ agencyName, teamSize, intendedPlan }, false);
     } catch {
       healed = {
         ok: false as const,

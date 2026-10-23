@@ -10,4 +10,6 @@ export type OnboardingPayload = {
   agencyName: string;
   teamSize: TeamSize;
   intendedPlan?: string;
+  /** The user ticked "I agree to the Terms of Service and Privacy Policy". */
+  acceptTerms: boolean;
 };

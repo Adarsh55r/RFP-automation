@@ -1,7 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { AcceptTermsGate } from "@/components/dashboard/accept-terms-gate";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { requireDashboardUser } from "@/lib/dashboard";
+import { TERMS_VERSION } from "@/lib/legal";
 
 export default async function DashboardLayout({
   children,
@@ -20,7 +22,11 @@ export default async function DashboardLayout({
 
   return (
     <DashboardShell agencyName={dbUser.agencyName ?? "Your company"}>
-      {children}
+      {dbUser.termsVersion === TERMS_VERSION ? (
+        children
+      ) : (
+        <AcceptTermsGate updated={dbUser.termsVersion !== null} />
+      )}
     </DashboardShell>
   );
 }

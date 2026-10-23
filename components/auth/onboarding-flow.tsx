@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TermsCheckbox } from "@/components/legal/terms-checkbox";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
@@ -38,6 +39,7 @@ export function OnboardingFlow() {
   const [step, setStep] = useState<1 | 2>(1);
   const [agencyName, setAgencyName] = useState("");
   const [teamSize, setTeamSize] = useState<TeamSize | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -61,7 +63,11 @@ export function OnboardingFlow() {
 
   const finish = () => {
     if (!teamSize) {
-      setError("Pick a team size so we can size your workspace.");
+      setError("Pick a team size to continue.");
+      return;
+    }
+    if (!acceptTerms) {
+      setError("Please accept the Terms of Service and Privacy Policy to continue.");
       return;
     }
 
@@ -76,6 +82,7 @@ export function OnboardingFlow() {
         agencyName: agencyName.trim(),
         teamSize,
         intendedPlan,
+        acceptTerms,
       });
 
       if (!result.ok) {
@@ -108,7 +115,7 @@ export function OnboardingFlow() {
       <p className="mt-2 text-sm leading-relaxed text-slate">
         {step === 1
           ? "It appears on your proposal cover pages and invoices. You can change it later."
-          : "Helps us pick defaults for seats and library folders. Not a hard limit."}
+          : "Helps us understand who uses DraftBid AI. It does not limit anything."}
       </p>
 
       <Card className="mt-8">
@@ -166,6 +173,7 @@ export function OnboardingFlow() {
                 );
               })}
             </div>
+            <TermsCheckbox checked={acceptTerms} onChange={setAcceptTerms} />
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button

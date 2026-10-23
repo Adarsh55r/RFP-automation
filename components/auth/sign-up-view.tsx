@@ -33,8 +33,8 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
 
   return (
     <AuthShell
-      title="Start winning more RFPs"
-      subtitle="Create your free account — your first draft is minutes away. No credit card needed."
+      title="Create your free account"
+      subtitle="Upload an RFP, check the requirements, and get a first draft written from your own documents. No credit card needed."
       footer={
         <p>
           Already have an account?{" "}
@@ -72,6 +72,17 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
           intendedPlan: planId ?? null,
         }}
       />
+      <p className="mt-4 text-xs leading-relaxed text-slate">
+        Next, you will be asked to accept our{" "}
+        <Link href="/terms" className={cn(textLink, "font-semibold")}>
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className={cn(textLink, "font-semibold")}>
+          Privacy Policy
+        </Link>{" "}
+        before you can upload anything.
+      </p>
     </AuthShell>
   );
 }
