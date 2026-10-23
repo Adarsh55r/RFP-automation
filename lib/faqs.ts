@@ -59,7 +59,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "Which files can I upload?",
     answer:
-      "PDF and Word (.docx) files up to 25 MB. Scanned PDFs of up to 40 pages are read with text recognition (OCR); check names, dates and numbers afterwards, because OCR can misread them. Excel questionnaires are not supported yet and are on our roadmap. If an RFP has addenda, include them in the same file.",
+      "PDF, Word (.docx), Excel (.xlsx) and CSV files up to 25 MB. Scanned PDFs of up to 40 pages are read with text recognition (OCR); check names, dates and numbers afterwards, because OCR can misread them. Excel (.xlsx) and CSV questionnaires are supported too: DraftBid AI answers each question row and writes the answers back into your copy of the buyer's spreadsheet, leaving the rest of the file as it was. If an RFP has addenda, include them in the same file.",
   },
   {
     question: "Does it work for public-sector bids?",

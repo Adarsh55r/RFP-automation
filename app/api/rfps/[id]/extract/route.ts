@@ -11,6 +11,13 @@ import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
 import { readRfpDocument } from "@/lib/ocr";
 import {
+  detectQuestionnaire,
+  readSpreadsheet,
+  sheetQuestions,
+  spreadsheetFormat,
+  summarizeSheets,
+} from "@/lib/spreadsheet";
+import {
   deadlineToDate,
   downloadRfpFile,
   extractRequirementsWithLlm,
@@ -108,6 +115,16 @@ export async function POST(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: read.error }, { status: 422 });
     }
     const documentText = read.text;
+    // Spreadsheet questionnaires: the questions are the sheet's rows, so each answer can go back in its row.
+    const format = spreadsheetFormat(fileName);
+    const sheets = format ? await readSpreadsheet(new Uint8Array(buffer), format) : [];
+    const sheet = format ? sheetQuestions(detectQuestionnaire(sheets, format)) : null;
+    const questionnaireMap = sheet?.map
+      ? { ...sheet.map, sheets: summarizeSheets(sheets) }
+      : format
+        ? { format, sheet: sheets[0]?.name ?? "", headerRow: null, questionColumn: "A", answerColumn: "B", idColumn: null, rows: [], sheets: summarizeSheets(sheets) }
+        : null;
+
     const extracted = await extractRequirementsWithLlm(
       documentText,
       usageRecorder({ userId: user.id, rfpId: rfp.id, action: "extract" }),
@@ -115,7 +132,11 @@ export async function POST(_request: Request, context: RouteContext) {
 
     // Deterministic checks against the document, plus a notice if it was too long to read in full.
     const { truncated, readPercent } = prepareExtractionText(documentText);
+    if (sheet?.questions) {
+      extracted.questionnaireItems = sheet.questions;
+    }
     const flags = [
+      ...(sheet?.flags ?? []),
       ...read.flags,
       ...extracted.flaggedForReview,
       ...verifyExtraction(extracted, documentText).flags,
@@ -140,6 +161,7 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedSubmission: extracted.submissionRequirements,
         // Postgres text columns reject NUL bytes, which some PDFs contain.
         sourceText: documentText.replace(/\u0000/g, ""),
+        questionnaireMap: questionnaireMap ?? Prisma.DbNull,
         draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       },
     });

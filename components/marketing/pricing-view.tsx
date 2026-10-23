@@ -118,7 +118,6 @@ const roadmap = [
   "Team seats, shared comments and an approver step",
   "Your letterhead on exports",
   "Separate client workspaces for proposal consultants",
-  "Excel and CSV questionnaires",
 ];
 
 export function PricingView() {

@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
  * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits,
  * 20261018090000_review_prompt, 20261023090000_terms_acceptance,
  * 20261023100000_proposal_usage, 20261023110000_ai_daily_ceiling,
- * 20261024090000_pricing_v2 and 20261025090000_draft_citations), using the app's own DATABASE_URL so it
+ * 20261024090000_pricing_v2, 20261025090000_draft_citations and
+ * 20261025100000_questionnaire_map), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -128,6 +129,9 @@ BEGIN
   -- Per-claim citations on drafted sections.
   ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "citations" JSONB;
 
+  -- Spreadsheet questionnaire column mapping.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "questionnaireMap" JSONB;
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -142,6 +146,7 @@ BEGIN
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
       ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
       ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261025100000_questionnaire_map', '475732645a35588d44d91139e235d9f8513b8e987de9e859a88d5dfe36564b7e'),
       ('20261025090000_draft_citations', 'd6d6b59e60b37818eb6e83be5d983cbcef0dd7e9f5390b3d2ac3cf1c2198ce61')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
@@ -197,6 +202,10 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'Draft' AND column_name = 'citations'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'questionnaireMap'
   ) AS "needsUpgrade"
 `;
 

@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { completeRfpUpload } from "@/lib/rfps";
-import { assertSafeDocx, DocumentReadError } from "@/lib/document-safety";
+import { officeFileProblem } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { looksLikeRfpFile, RFP_MAX_BYTES } from "@/lib/rfp-upload";
 import { getRfpPublicUrl, getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -24,18 +24,7 @@ async function pendingUpload(context: RouteContext) {
   return { status: 200 as const, user, rfp, folder: `${user.id}/${rfp.id}` };
 }
 
-/** Step 2 of a large upload: confirms the file arrived and is a real PDF/DOCX. */
-/** A Word file's problem (macros, zip bomb, damage) as a message, or null if it is safe to read. */
-function docxProblem(bytes: Uint8Array, name: string) {
-  if (!name.toLowerCase().endsWith(".docx")) return null;
-  try {
-    assertSafeDocx(bytes);
-    return null;
-  } catch (error) {
-    return error instanceof DocumentReadError ? error.message : "This file is not a valid Word (.docx) document.";
-  }
-}
-
+/** Step 2 of a large upload: confirms the file arrived and is a real PDF, Word, Excel or CSV file. */
 export async function POST(_request: Request, context: RouteContext) {
   const found = await pendingUpload(context);
   if (found.status !== 200) {
@@ -59,8 +48,8 @@ export async function POST(_request: Request, context: RouteContext) {
     const bytes = blob ? new Uint8Array(await blob.arrayBuffer()) : new Uint8Array();
     const invalid =
       size > RFP_MAX_BYTES || bytes.length > RFP_MAX_BYTES || !looksLikeRfpFile(bytes, object.name)
-        ? "This file is not a valid PDF or Word (.docx) document under 25 MB."
-        : docxProblem(bytes, object.name);
+        ? "This file is not a valid PDF, Word (.docx), Excel (.xlsx) or CSV file under 25 MB."
+        : officeFileProblem(bytes, object.name);
     if (invalid) {
       await bucket.remove([path]);
       await prisma.rfp.delete({ where: { id: rfp.id } });

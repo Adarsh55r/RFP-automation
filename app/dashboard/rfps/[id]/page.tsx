@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
+import { SpreadsheetColumnsCard } from "@/components/dashboard/spreadsheet-columns-card";
 import { proposalAllowance } from "@/lib/ai-guard";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
 import { getRfpForUser } from "@/lib/rfps";
+import { parseQuestionnaireMap } from "@/lib/spreadsheet";
 import {
   isRfpDocumentType,
   rfpDocumentTypeLabel,
@@ -56,6 +58,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
   if (!rfp) {
     notFound();
   }
+  const sheetMap = parseQuestionnaireMap(rfp.questionnaireMap);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
@@ -136,6 +139,23 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         }}
         extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
       />
+
+      {sheetMap && rfp.status !== "extracting" ? (
+        <SpreadsheetColumnsCard
+          key={`${sheetMap.sheet}-${sheetMap.questionColumn}-${sheetMap.answerColumn}-${sheetMap.rows.length}`}
+          rfpId={rfp.id}
+          columns={{
+            format: sheetMap.format,
+            sheet: sheetMap.sheet,
+            headerRow: sheetMap.headerRow,
+            questionColumn: sheetMap.questionColumn,
+            answerColumn: sheetMap.answerColumn,
+            idColumn: sheetMap.idColumn,
+            questionCount: sheetMap.rows.length,
+            sheets: sheetMap.sheets ?? [],
+          }}
+        />
+      ) : null}
     </div>
   );
 }

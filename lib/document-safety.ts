@@ -15,12 +15,12 @@ const MESSAGES: Record<DocumentProblem, string> = {
   encrypted:
     "This PDF is password-protected, so its text cannot be read. Remove the password (for example, print it to a new PDF) and upload it again.",
   damaged:
-    "We could not read this file; it may be damaged or not a standard PDF or Word document. Try opening it and saving it again as PDF or .docx, then upload the new copy.",
+    "We could not read this file; it may be damaged or not a standard PDF, Word or Excel document. Try opening it and saving it again (as PDF, .docx or .xlsx), then upload the new copy.",
   too_many_pages: `This PDF is longer than ${MAX_PDF_PAGES} pages. Split it into the RFP and its attachments and upload the RFP itself.`,
   macros:
-    "This Word file contains macros. For your safety we do not accept macro-enabled documents. Save it as a normal Word document (.docx) and upload it again.",
+    "This file contains macros. For your safety we do not accept macro-enabled documents. Save it as a normal Word (.docx) or Excel (.xlsx) file and upload it again.",
   too_large:
-    "This Word file is too large to read safely once unpacked. Save a copy without embedded files or large images and upload it again.",
+    "This file is too large to read safely once unpacked. Save a copy without embedded files or large images and upload it again.",
 };
 
 /** A document that cannot be read, with a message written for the user. */
@@ -67,9 +67,23 @@ export function inspectDocx(bytes: Uint8Array): { unzippedBytes: number; hasMacr
   return { unzippedBytes, hasMacros };
 }
 
-/** Throws a DocumentReadError if a Word file must not be read. */
-export function assertSafeDocx(bytes: Uint8Array) {
+/** Throws a DocumentReadError if an Office file (Word or Excel, both zips) must not be read. */
+export function assertSafeZipDocument(bytes: Uint8Array) {
   const { unzippedBytes, hasMacros } = inspectDocx(bytes);
   if (hasMacros) throw new DocumentReadError("macros");
   if (unzippedBytes > MAX_DOCX_UNZIPPED_BYTES) throw new DocumentReadError("too_large");
+}
+
+export const assertSafeDocx = assertSafeZipDocument;
+
+/** An Office file's problem (macros, zip bomb, damage) as a message, or null if it is safe to read. */
+export function officeFileProblem(bytes: Uint8Array, name: string) {
+  const lower = name.toLowerCase();
+  if (!lower.endsWith(".docx") && !lower.endsWith(".xlsx")) return null;
+  try {
+    assertSafeZipDocument(bytes);
+    return null;
+  } catch (error) {
+    return error instanceof DocumentReadError ? error.message : "This file is not a valid Word or Excel document.";
+  }
 }

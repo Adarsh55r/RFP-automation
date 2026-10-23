@@ -355,3 +355,30 @@ export function columnWeights(header: InlineRun[][], rows: InlineRun[][][]) {
   const total = weights.reduce((sum, value) => sum + value, 0);
   return weights.map((value) => value / total);
 }
+
+function blocksToPlainText(blocks: MdBlock[]): string[] {
+  return blocks.flatMap((block): string[] => {
+    switch (block.type) {
+      case "heading":
+      case "paragraph":
+        return [runsToPlainText(block.runs)];
+      case "list":
+        return block.items.map(
+          (item, index) => `${block.ordered ? `${block.start + index}.` : "•"} ${blocksToPlainText(item).join(" ")}`,
+        );
+      case "table":
+        return [block.header, ...block.rows].map((row) => row.map((cell) => runsToPlainText(cell)).join(" | "));
+      case "quote":
+        return blocksToPlainText(block.blocks);
+      case "code":
+        return [block.text];
+      default:
+        return [];
+    }
+  });
+}
+
+/** Markdown as plain text (for spreadsheet cells): one line per paragraph, list item or table row. */
+export function markdownToPlainText(markdown: string) {
+  return blocksToPlainText(parseMarkdown(markdown)).filter((line) => line.trim()).join("\n");
+}

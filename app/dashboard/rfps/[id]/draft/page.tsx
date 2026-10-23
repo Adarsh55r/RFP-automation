@@ -18,6 +18,7 @@ import {
 } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 import { credentialsIn } from "@/lib/claim-checks";
+import { parseQuestionnaireMap } from "@/lib/spreadsheet";
 
 type DraftPageProps = {
   params: Promise<{ id: string }>;
@@ -127,6 +128,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         cover={cover}
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
         supportedCredentials={supportedCredentials}
+        spreadsheet={parseQuestionnaireMap(rfp.questionnaireMap)?.format ?? null}
         allowance={{
           fullDrafts: { used: rfp.fullDraftCount, limit: limits.full_draft },
           revisions: { used: rfp.revisionCount, limit: limits.revision },

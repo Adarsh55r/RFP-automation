@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   PencilLine,
   Sparkles,
+  Table2,
   Wand2,
 } from "lucide-react";
 import { ExportDocumentMoment } from "@/components/dashboard/export-document-moment";
@@ -19,10 +20,10 @@ import { CoverDetailsCard } from "@/components/dashboard/cover-details-card";
 import { MarkdownPreview } from "@/components/dashboard/markdown-preview";
 import { saveDraftSection, setClaimReviewed } from "@/lib/actions/rfp-draft";
 import { parseCitations, type DraftCitations } from "@/lib/citations";
-import { downloadRfpExport } from "@/lib/download-rfp-export";
+import { downloadRfpExport, type DownloadFormat } from "@/lib/download-rfp-export";
 import { unverifiedCredentials } from "@/lib/claim-checks";
 import { findPlaceholders } from "@/lib/markdown";
-import type { ExportFormat, ExportVariant } from "@/lib/proposal-document";
+import type { ExportVariant } from "@/lib/proposal-document";
 import { DRAFT_SECTIONS, draftSectionLabel, type CoverDetails } from "@/lib/rfp-draft";
 import type { Draft, DraftSection } from "@/lib/generated/prisma";
 import { Badge } from "@/components/ui/badge";
@@ -456,6 +457,7 @@ export function RfpDraftView({
   legacyDraft,
   supportedCredentials,
   allowance,
+  spreadsheet = null,
 }: {
   rfpId: string;
   rfpTitle: string;
@@ -468,6 +470,8 @@ export function RfpDraftView({
   legacyDraft: boolean;
   /** Credentials the bidder's library mentions (SOC 2, ISO 27001, ...). */
   supportedCredentials: string[];
+  /** Set when the RFP was uploaded as a spreadsheet questionnaire: answers can be exported into it. */
+  spreadsheet?: "xlsx" | "csv" | null;
   /** Per-proposal AI allowances: how many were used and the plan's limit. */
   allowance: {
     fullDrafts: { used: number; limit: number };
@@ -484,7 +488,8 @@ export function RfpDraftView({
   const [phase, setPhase] = useState<DraftPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exportPhase, setExportPhase] = useState<ExportPhase>("idle");
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("docx");
+  const [exportFormat, setExportFormat] = useState<DownloadFormat>("docx");
+  const [unansweredRows, setUnansweredRows] = useState<number | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
   const [includeMatrix, setIncludeMatrix] = useState(true);
@@ -662,11 +667,11 @@ export function RfpDraftView({
     }
   };
 
-  const runExport = async (format: ExportFormat) => {
+  const runExport = async (format: DownloadFormat) => {
     if (!canExport || exportPhase === "generating") return;
 
     // The review copy is for checking these, so it never asks.
-    const warnings = exportVariant === "review" ? [] : [
+    const warnings = exportVariant === "review" && format !== "sheet" ? [] : [
       uncitedTotal > 0
         ? `${uncitedTotal} statement${uncitedTotal === 1 ? " about your company has" : "s about your company have"} no source in your library (listed under "Needs your input"). Make sure each one is true.`
         : "",
@@ -693,13 +698,14 @@ export function RfpDraftView({
     }, 280);
 
     try {
-      await Promise.all([
+      const [result] = await Promise.all([
         downloadRfpExport(rfpId, format, {
           complianceMatrix: includeMatrix && coverageMap.trim().length > 0,
-          variant: exportVariant,
+          variant: format === "sheet" ? "submission" : exportVariant,
         }),
         wait(reduceMotion ? 0 : 1600),
       ]);
+      setUnansweredRows(result.unanswered);
       setExportProgress(100);
       setExportPhase("ready");
       router.refresh();
@@ -726,7 +732,14 @@ export function RfpDraftView({
   };
 
   const showExportMoment = exportPhase === "generating" || exportPhase === "ready";
-  const formatName = exportFormat === "pdf" ? "PDF" : "Word document";
+  const formatName =
+    exportFormat === "sheet"
+      ? spreadsheet === "csv"
+        ? "answered CSV file"
+        : "answered spreadsheet"
+      : exportFormat === "pdf"
+        ? "PDF"
+        : "Word document";
 
   return (
     <div className="flex flex-col gap-8">
@@ -788,6 +801,18 @@ export function RfpDraftView({
             <FileText className="h-4 w-4" aria-hidden />
             Export PDF
           </Button>
+          {spreadsheet && sections.responses.content.trim() ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void runExport("sheet")}
+              disabled={!canExport || exportPhase === "generating"}
+              className="w-full gap-2 sm:w-fit"
+            >
+              <Table2 className="h-4 w-4" aria-hidden />
+              Export answered {spreadsheet === "csv" ? "CSV" : "spreadsheet (.xlsx)"}
+            </Button>
+          ) : null}
         </div>
 
         <fieldset className="flex flex-col gap-2 text-sm text-slate">
@@ -889,7 +914,11 @@ export function RfpDraftView({
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate">
                 {exportPhase === "ready"
-                  ? exportVariant === "review"
+                  ? exportFormat === "sheet"
+                    ? `Your answers are in the ${spreadsheet === "csv" ? "CSV file" : "workbook"}, one per question row.${
+                        unansweredRows ? ` ${unansweredRows} question row${unansweredRows === 1 ? " was" : "s were"} left empty: check them before you send it.` : ""
+                      }`
+                    : exportVariant === "review"
                     ? `Your internal review ${formatName} has downloaded. Do not send it to the buyer; export the submission copy when you are done.`
                     : `Your ${formatName} has downloaded. You can keep editing and export again anytime.`
                   : "Adding a cover page, contents, page numbers, and formatted tables."}

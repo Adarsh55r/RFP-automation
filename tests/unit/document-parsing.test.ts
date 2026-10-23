@@ -35,7 +35,12 @@ describe("document text extraction keeps the facts evaluators score on", () => {
   });
 
   it("rejects unsupported file types instead of guessing", async () => {
-    await expect(extractTextFromDocument(Buffer.from("a,b,c"), "rfp.csv")).rejects.toThrow(/PDF and DOCX/);
+    await expect(extractTextFromDocument(Buffer.from("a,b,c"), "rfp.txt")).rejects.toThrow(/PDF, Word, Excel and CSV/);
+  });
+
+  it("reads CSV questionnaires cell by cell", async () => {
+    const text = await extractTextFromDocument(Buffer.from("ID,Question\nQ1,Do you hold ISO 27001?\n"), "q.csv");
+    expect(text).toContain("Row 2: A: Q1 | B: Do you hold ISO 27001?");
   });
 
   it("a corrupted PDF fails with an error rather than producing invented text", async () => {

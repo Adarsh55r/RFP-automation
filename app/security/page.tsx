@@ -31,7 +31,7 @@ const sections: LegalSection[] = [
     body: [
       [
         "Files are stored in private storage. Opening a file creates a link that only works for 60 seconds, and only for the account that owns it.",
-        "File type is checked by content, not just by the file name. Only PDF and Word files are accepted, up to 25 MB.",
+        "File type is checked by content, not just by the file name. Only PDF, Word, Excel (.xlsx) and CSV files are accepted, up to 25 MB, and macro-enabled Office files are refused.",
         "We only read text from files. Macros and embedded content are never run.",
       ],
     ],

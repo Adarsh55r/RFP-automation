@@ -143,9 +143,9 @@ export function RfpUploadZone() {
       if (tooLarge) {
         setError("File is too large. Maximum size is 25 MB.");
       } else if (invalidType) {
-        setError("Only PDF and DOCX files are supported.");
+        setError("Upload a PDF, Word (.docx), Excel (.xlsx) or CSV file.");
       } else {
-        setError("Could not use that file. Try another PDF or DOCX.");
+        setError("Could not use that file. Try another PDF, Word, Excel or CSV file.");
       }
       return;
     }
@@ -232,7 +232,7 @@ export function RfpUploadZone() {
           <p className="mt-6 font-sans text-base font-semibold text-ink">
             Drag your RFP here or click to browse
           </p>
-          <p className="mt-2 text-sm text-slate">PDF or DOCX, up to 25 MB</p>
+          <p className="mt-2 text-sm text-slate">PDF, Word, Excel (.xlsx) or CSV, up to 25 MB</p>
         </div>
       ) : (
         <div className="rounded-card border border-border bg-surface-raised p-6">

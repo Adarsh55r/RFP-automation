@@ -226,3 +226,41 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - unit: thin-text rule; the text layer is preferred and the AI is never called; page labels when the model omits markers; an unreadable scan;
   - integration: a 7-page scan becomes 2 calls of real 5-page and 2-page PDFs, the transcription reaches extraction, pages are numbered, the `[illegible]` count is flagged; the page limit refuses with no AI call or charge; OCR can be turned off.
 - **Not verified:** real OCR quality against a provider. The tests use a fake model; a real scanned RFP needs checking on a preview deployment (FOUNDER_TODO).
+
+## Phase 3.2b: Excel and CSV questionnaires
+
+- **Upload:** `.xlsx` and `.csv` are accepted alongside PDF and Word, through both the server upload and the direct upload. Files are checked by content:
+  - `.xlsx` must be a zip, and macro-enabled workbooks are refused by the same zip inspection as Word (macro project and unpacked-size limit);
+  - `.csv` must be text (no NUL bytes, not a PDF, executable or zip under another name).
+
+  `.xls` and `.xlsm` are not accepted.
+- **Reading (`lib/spreadsheet.ts`):**
+  - the workbook is read straight from its XML with `jszip` (shared strings, inline strings, rich text, booleans, several sheets);
+  - CSV is parsed per RFC 4180 and detects `,`, `;` or tab;
+  - nothing in the file is executed or evaluated.
+
+  The extraction model sees the cells as `Row N: A: … | B: …` text, used for scope, deadline and instructions.
+- **Questions come from the rows, not the AI:**
+  - the sheet with the most questions is chosen automatically, along with its title row, its question column (titles like "Question" or "Requirement", otherwise the longest text) and its ID column;
+  - answers go into a column titled "Response" or "Answer", otherwise the next empty column, otherwise a new column;
+  - section-heading rows are skipped: with an ID column, rows without an ID; without one, titles under 4 words that don't end in "?";
+  - the RFP's question list is set from these rows, so every drafted answer can go back into its row;
+  - a review flag says what was found; at most 400 questions are drafted, and the rest are flagged.
+- **Correcting the mapping:**
+  - a "Spreadsheet columns" card on the RFP page lets the user pick the sheet, question column, answer column, ID column and title row;
+  - `updateSpreadsheetColumns` re-reads the file, checks ownership, refuses an answer column that is also the question or ID column, and replaces the question list;
+  - the mapping, including a per-sheet column summary, is stored in the new `Rfp.questionnaireMap` JSON column.
+- **Export (`format=sheet`):** the buyer's own file comes back with each answer written into its row.
+  - Answers are matched to rows by question text (order does not matter).
+  - Markdown becomes plain text, citation markers are removed, and `[[gaps]]` stay visible as `[Confirm: …]`.
+  - **xlsx:** only the answer cells' XML is patched; each cell keeps its style. Cells with formulas are never overwritten. Other sheets, fills, dropdowns and formulas are left exactly as they were. A "Response" title is added if the answer column had none.
+  - **CSV:** rewritten with the answer column filled, with a UTF-8 byte-order mark for Excel.
+  - An `X-Unanswered-Rows` header lets the app tell the user how many rows are still empty.
+- **Library choice:** `jszip` is now a direct dependency (it was already used through mammoth). I chose it over the planned `exceljs`, because an `exceljs` round-trip can drop parts of a workbook it doesn't model. `exceljs` is a dev dependency only, used to build and check test workbooks.
+- **Draft view:** an "Export answered spreadsheet (.xlsx)" or "Export answered CSV" button, with the same unresolved-items confirmation as the submission copy.
+- **Copy:** the FAQ and how-it-works list Excel and CSV; the item is off the pricing roadmap; the security page lists the accepted file types and the macro refusal.
+- **Schema (additive):** `Rfp.questionnaireMap JSONB`, migration `20261025100000_questionnaire_map`, plus the boot-time upgrade.
+- **Tests:**
+  - unit: detection on a styled two-sheet questionnaire; macro refusal; no-header sheets; answer matching (out of order, unanswered rows, gaps kept, markers removed); write-back preserving fill, dropdown, bold title, formula and the other sheet (checked by reading back with `exceljs`); **LibreOffice headless opens the filled workbook and shows the answer**; formula cells are not overwritten; CSV quoting, semicolons and embedded newlines;
+  - integration: upload → extraction → stored mapping and questions → export into the workbook; changing columns, including a refused bad choice and another account being refused; the CSV round trip; macro, renamed-executable and fake-xlsx uploads refused; a normal RFP cannot be exported as a spreadsheet.
+- **Not verified:** opening the exported file in Microsoft Excel itself (not available here). LibreOffice and `exceljs` both read it. The spreadsheet card and button have not been checked in a browser yet.

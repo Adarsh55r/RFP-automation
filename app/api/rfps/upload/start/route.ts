@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const size = typeof body?.size === "number" ? body.size : 0;
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   if (!fileName || !isAllowedRfpName(fileName, contentType)) {
-    return NextResponse.json({ error: "Only PDF and DOCX files are supported." }, { status: 400 });
+    return NextResponse.json({ error: "Only PDF, Word (.docx), Excel (.xlsx) and CSV files are supported." }, { status: 400 });
   }
   if (size <= 0) {
     return NextResponse.json({ error: "The file is empty." }, { status: 400 });

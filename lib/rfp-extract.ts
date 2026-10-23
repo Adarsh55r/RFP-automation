@@ -1,5 +1,6 @@
 import { safeErrorSummary } from "@/lib/safe-log";
 import { assertSafeDocx, DocumentReadError, MAX_PDF_PAGES } from "@/lib/document-safety";
+import { readSpreadsheet, sheetsToText, spreadsheetFormat } from "@/lib/spreadsheet";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateLlmText } from "@/lib/llm";
 import {
@@ -170,7 +171,7 @@ export type DocumentText = {
   pageCount: number | null;
 };
 
-/** Reads a PDF's text layer (with its page count) or a Word document's text. */
+/** Reads a PDF's text layer (with its page count), a Word document's text, or a spreadsheet's cells. */
 export async function readDocumentText(buffer: Buffer, fileName: string): Promise<DocumentText> {
   const lower = fileName.toLowerCase();
   const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
@@ -209,7 +210,12 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
     }
   }
 
-  throw new Error("Only PDF and DOCX files are supported for extraction.");
+  const format = spreadsheetFormat(fileName);
+  if (format) {
+    return { text: sheetsToText(await readSpreadsheet(data, format)).trim(), pageCount: null };
+  }
+
+  throw new Error("Only PDF, Word, Excel and CSV files are supported for extraction.");
 }
 
 export async function extractTextFromDocument(buffer: Buffer, fileName: string): Promise<string> {

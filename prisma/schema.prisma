@@ -130,6 +130,8 @@ model Rfp {
   extractedFlags              Json?
   extractedSubmission         Json?
   sourceText                  String?
+  /// Spreadsheet questionnaires: which sheet, question and answer columns, and which rows hold questions (lib/spreadsheet.ts).
+  questionnaireMap Json?
   draftPlan                   Json?
   extractCount                Int              @default(0)
   fullDraftCount              Int              @default(0)

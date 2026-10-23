@@ -1,5 +1,5 @@
 import { safeErrorSummary } from "@/lib/safe-log";
-import { assertSafeDocx, DocumentReadError } from "@/lib/document-safety";
+import { officeFileProblem } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -23,16 +23,6 @@ import {
 
 export const runtime = "nodejs";
 
-/** A Word file's problem (macros, zip bomb, damage) as a message, or null if it is safe to read. */
-function docxProblem(bytes: Uint8Array, name: string) {
-  if (!name.toLowerCase().endsWith(".docx")) return null;
-  try {
-    assertSafeDocx(bytes);
-    return null;
-  } catch (error) {
-    return error instanceof DocumentReadError ? error.message : "This file is not a valid Word (.docx) document.";
-  }
-}
 
 export async function POST(request: Request) {
   const { userId: clerkId } = await auth();
@@ -66,12 +56,12 @@ export async function POST(request: Request) {
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Choose a PDF or DOCX file." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a PDF, Word, Excel or CSV file." }, { status: 400 });
   }
 
   if (!isAllowedRfpFile(file)) {
     return NextResponse.json(
-      { error: "Only PDF and DOCX files are supported." },
+      { error: "Only PDF, Word (.docx), Excel (.xlsx) and CSV files are supported." },
       { status: 400 },
     );
   }
@@ -110,11 +100,11 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!looksLikeRfpFile(bytes, file.name)) {
     return NextResponse.json(
-      { error: "This file is not a valid PDF or Word (.docx) document." },
+      { error: "This file is not a valid PDF, Word (.docx), Excel (.xlsx) or CSV file." },
       { status: 400 },
     );
   }
-  const unsafe = docxProblem(bytes, file.name);
+  const unsafe = officeFileProblem(bytes, file.name);
   if (unsafe) {
     return NextResponse.json({ error: unsafe }, { status: 400 });
   }
