@@ -65,7 +65,9 @@ export async function deleteWorkspace(confirmation: string) {
     reportError(error, { area: "delete-workspace", userId: user.id });
     return { ok: false as const, error: STORAGE_FAILED };
   }
-  // Cascades to the subscription, RFPs, drafts, library items and usage records.
+  // Funnel events have no foreign key (anonymous ones have no account), so they go explicitly.
+  await prisma.funnelEvent.deleteMany({ where: { userId: user.id } });
+  // Cascades to the subscription, RFPs and their files records, drafts, library items and usage records.
   await prisma.user.delete({ where: { id: user.id } });
   revalidatePath("/", "layout");
   return { ok: true as const };
