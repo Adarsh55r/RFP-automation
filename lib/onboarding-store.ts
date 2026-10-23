@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { TERMS_VERSION } from "@/lib/legal";
+import { CURRENT_PLAN_VERSION } from "@/lib/plans";
 import type { OnboardingPayload } from "@/lib/onboarding";
 import { teamSizeOptions } from "@/lib/onboarding";
 import { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prisma";
@@ -63,6 +64,8 @@ export async function saveOnboarding(
         create: {
           tier: SubscriptionTier.free,
           status: SubscriptionStatus.active,
+          // New accounts are on the current pricing (a one-proposal free trial).
+          planVersion: CURRENT_PLAN_VERSION,
         },
       },
     },

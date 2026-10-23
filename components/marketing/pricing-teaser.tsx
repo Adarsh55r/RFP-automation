@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Section } from "@/components/marketing/section";
 import { cn } from "@/lib/cn";
-import { formatPrice, publicPlans, signupHref } from "@/lib/plans";
+import { displayPrice, formatPrice, publicPlans, signupHref } from "@/lib/plans";
 
 export function PricingTeaser() {
   return (
@@ -27,7 +27,7 @@ export function PricingTeaser() {
         </Button>
       </div>
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {publicPlans.map((plan) => (
           <Card
             key={plan.id}
@@ -48,11 +48,9 @@ export function PricingTeaser() {
               ) : null}
             </div>
             <p className="mt-6 font-display text-4xl font-medium text-ink">
-              {formatPrice(plan.monthly.usd, "usd")}
+              {formatPrice(displayPrice(plan, "usd", "monthly").amount, "usd")}
               <span className="ml-1 font-sans text-sm font-medium text-slate">
-                {plan.monthly.usd === 0
-                  ? "forever"
-                  : `/mo · ${formatPrice(plan.monthly.gbp, "gbp")} UK`}
+                {plan.billing.kind === "free" ? "no card needed" : displayPrice(plan, "usd", "monthly").suffix}
               </span>
             </p>
             <ul className="mt-6 flex flex-1 flex-col gap-2 text-sm leading-relaxed text-slate">

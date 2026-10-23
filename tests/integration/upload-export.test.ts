@@ -79,10 +79,10 @@ describe.skipIf(!hasTestDb)("uploading an RFP", () => {
 
   it("an abandoned direct upload does not use up the monthly quota", async () => {
     const start = await import("@/app/api/rfps/upload/start/route");
-    const { getRfpUploadQuota } = await import("@/lib/rfps");
+    const { getProposalAllowance } = await import("@/lib/entitlements");
     const user = await testDb().user.findUniqueOrThrow({ where: { clerkId: "up" } });
     await start.POST(json({ fileName: "a.pdf", size: 6 * MB, contentType: "application/pdf" }));
-    expect((await getRfpUploadQuota(user.id, "starter")).usedThisMonth).toBe(0);
+    expect((await getProposalAllowance(user.id, { tier: "starter", planVersion: "legacy" })).used).toBe(0);
   });
 });
 

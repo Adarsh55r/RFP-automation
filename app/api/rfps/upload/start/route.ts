@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import { reportError } from "@/lib/monitoring";
 import { isAllowedRfpName, RFP_MAX_BYTES, sanitizeStorageFilename, titleFromFilename } from "@/lib/rfp-upload";
-import { getRfpUploadQuota, uploadRateLimited } from "@/lib/rfps";
+import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
+import { uploadRateLimited } from "@/lib/rfps";
 import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -26,7 +27,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Complete onboarding before uploading RFPs." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { fileName?: unknown; size?: unknown; contentType?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    fileName?: unknown;
+    size?: unknown;
+    contentType?: unknown;
+    confirmOverageUsd?: unknown;
+  } | null;
   const fileName = typeof body?.fileName === "string" ? body.fileName : "";
   const size = typeof body?.size === "number" ? body.size : 0;
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
@@ -40,11 +46,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File is too large. Maximum size is 25 MB." }, { status: 400 });
   }
 
-  const quota = await getRfpUploadQuota(user.id, user.subscription?.tier ?? "free");
-  if (quota.remaining === 0) {
+  const decision = decideUpload(
+    await getProposalAllowance(user.id, user.subscription),
+    typeof body?.confirmOverageUsd === "number" ? body.confirmOverageUsd : null,
+  );
+  if (!decision.ok) {
     return NextResponse.json(
-      { error: "You have reached your monthly RFP limit. Upgrade your plan to upload more." },
-      { status: 403 },
+      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
+      { status: decision.status },
     );
   }
 
@@ -54,7 +63,12 @@ export async function POST(request: Request) {
   }
 
   const rfp = await prisma.rfp.create({
-    data: { userId: user.id, title: titleFromFilename(fileName), status: RfpStatus.uploaded },
+    data: {
+      userId: user.id,
+      title: titleFromFilename(fileName),
+      status: RfpStatus.uploaded,
+      overageCents: decision.overageCents,
+    },
   });
   const path = `${user.id}/${rfp.id}/${sanitizeStorageFilename(fileName)}`;
 

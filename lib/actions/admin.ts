@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
+import { CURRENT_PLAN_VERSION, PLANS } from "@/lib/plans";
 
-const TIERS: SubscriptionTier[] = ["free", "starter", "growth", "agency"];
+/** Plans an admin can assign. Legacy Growth and Team are not re-assignable; existing accounts keep them. */
+const TIERS: SubscriptionTier[] = ["free", "single_bid", "starter", "pro", "consultant", "pilot"];
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -26,11 +28,20 @@ export async function adminSetPlan(userId: string, tier: string) {
   if (!TIERS.includes(tier as SubscriptionTier)) {
     return { ok: false as const, error: "Unknown plan." };
   }
+  const plan = PLANS[tier as SubscriptionTier];
+  // A plan change moves the account onto current pricing; one-time plans get their access window from today.
+  const terms = {
+    tier: tier as SubscriptionTier,
+    status: "active" as const,
+    planVersion: CURRENT_PLAN_VERSION,
+    accessEndsAt:
+      plan.billing.kind === "one_time" ? new Date(Date.now() + plan.billing.accessDays * 24 * 60 * 60 * 1000) : null,
+  };
   return run(async () => {
     await prisma.subscription.upsert({
       where: { userId },
-      update: { tier: tier as SubscriptionTier, status: "active" },
-      create: { userId, tier: tier as SubscriptionTier, status: "active" },
+      update: terms,
+      create: { userId, ...terms },
     });
   }, [`/admin/customers/${userId}`, "/admin/customers", "/admin"]);
 }

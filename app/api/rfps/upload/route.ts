@@ -13,7 +13,8 @@ import {
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
-import { completeRfpUpload, getRfpUploadQuota, uploadRateLimited } from "@/lib/rfps";
+import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
+import { completeRfpUpload, uploadRateLimited } from "@/lib/rfps";
 import {
   getRfpPublicUrl,
   getRfpStorageBucket,
@@ -47,19 +48,6 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json(
       { error: "Complete onboarding before uploading RFPs." },
-      { status: 403 },
-    );
-  }
-
-  const tier = user.subscription?.tier ?? "free";
-  const quota = await getRfpUploadQuota(user.id, tier);
-
-  if (quota.remaining === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "You have reached your monthly RFP limit. Upgrade your plan to upload more.",
-      },
       { status: 403 },
     );
   }
@@ -107,6 +95,18 @@ export async function POST(request: Request) {
     );
   }
 
+  const confirmed = Number(formData.get("confirmOverageUsd"));
+  const decision = decideUpload(
+    await getProposalAllowance(user.id, user.subscription),
+    Number.isFinite(confirmed) && confirmed > 0 ? confirmed : null,
+  );
+  if (!decision.ok) {
+    return NextResponse.json(
+      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
+      { status: decision.status },
+    );
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!looksLikeRfpFile(bytes, file.name)) {
     return NextResponse.json(
@@ -127,6 +127,7 @@ export async function POST(request: Request) {
       userId: user.id,
       title,
       status: RfpStatus.uploaded,
+      overageCents: decision.overageCents,
     },
   });
 
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
 
     const originalFileUrl = getRfpPublicUrl(storagePath);
 
-    await completeRfpUpload(rfp.id, user.id, originalFileUrl);
+    await completeRfpUpload(rfp.id, user.id, originalFileUrl, decision.overageCents);
 
     return NextResponse.json({ id: rfp.id });
   } catch (error) {

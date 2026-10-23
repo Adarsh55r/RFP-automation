@@ -40,7 +40,7 @@ export function Hero() {
             </Button>
           </div>
           <p className="mt-4 text-sm text-slate">
-            Free plan · No credit card · Works with PDF and Word RFPs
+            Free trial · No credit card · Works with PDF and Word RFPs
           </p>
         </motion.div>
 

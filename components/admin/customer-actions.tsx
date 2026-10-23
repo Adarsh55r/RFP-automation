@@ -9,11 +9,14 @@ import { useToast } from "@/components/ui/toast";
 import { adminResetAllowance, adminResetReviewPrompt, adminSetPlan, adminUnlockAi } from "@/lib/actions/admin";
 import { cn } from "@/lib/cn";
 
+/** Plans an admin can move an account to: the current ones, sellable or not (legacy plans cannot be re-assigned). */
 const PLANS = [
-  { id: "free", label: "Free" },
+  { id: "free", label: "Free trial" },
+  { id: "single_bid", label: "Single bid" },
   { id: "starter", label: "Starter" },
-  { id: "growth", label: "Growth" },
-  { id: "agency", label: "Team" },
+  { id: "pro", label: "Pro" },
+  { id: "consultant", label: "Consultant" },
+  { id: "pilot", label: "Pilot" },
 ];
 
 function useAdminAction() {
@@ -40,7 +43,7 @@ export function PlanSwitcher({ userId, tier }: { userId: string; tier: string })
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-1 rounded-xl border border-(--a-border) bg-white/[0.02] p-1" role="radiogroup" aria-label="Plan">
+      <div className="grid grid-cols-3 gap-1 rounded-xl border border-(--a-border) bg-white/[0.02] p-1" role="radiogroup" aria-label="Plan">
         {PLANS.map((plan) => {
           const current = plan.id === tier;
           const chosen = plan.id === (target ?? tier);

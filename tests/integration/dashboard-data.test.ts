@@ -39,8 +39,9 @@ describe.skipIf(!hasTestDb)("dashboard data loading", () => {
     const { getDashboardHomeData } = await import("@/lib/dashboard");
     const data = await getDashboardHomeData();
     expect(data?.agencyName).toBe("alice Co");
-    expect(data?.stats.rfpsThisMonth).toBe(2);
-    expect(data?.stats.draftsInProgress).toBe(1);
+    expect(data?.allowance.used).toBe(2);
+    expect(data?.allowance.periodLabel).toBe("this month");
+    expect(data?.draftsInProgress).toBe(1);
     expect(data?.recentRfps.map((rfp) => rfp.title).sort()).toEqual(["Alice drafting", "Alice uploaded"]);
   });
 

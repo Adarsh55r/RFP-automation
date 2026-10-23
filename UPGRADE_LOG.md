@@ -132,3 +132,40 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **Uptime:** new `GET /api/health` (200 or 503, no details) for an external monitor. Failed jobs are reported to Sentry with area tags; alert rules are set in Sentry (FOUNDER_TODO).
 - **Backups:** `docs/operations.md` documents Neon point-in-time restore and the fact that Supabase Storage files are not covered.
 - **Restore test: not run.** This environment has no production database access. `scripts/verify-restore.mjs` was only smoke-tested against the local test database (comparing it with itself); the real restore test is in FOUNDER_TODO.
+
+## Phase 2: Pricing and packaging
+- **One source of truth:** `lib/plans.ts`. The pricing page, home teaser, signup, upload enforcement, library limits, billing page, admin panel, llms.txt and structured data all read it.
+  - Plans:
+    - Free trial: 1 proposal, lifetime;
+    - Single-bid pass: $149, 1 proposal, 30 days;
+    - Starter: $99/mo or $990/yr, 4 a month, 50 library items, $29 per extra;
+    - Pro: $249/mo or $2,490/yr, 12 a month, $25 per extra, same-day support, setup included on annual;
+    - Consultant: **hidden** until client workspaces exist;
+    - Paid pilot: $299, 60 days, **private**;
+    - Done-with-you setup add-on: $500.
+  - GBP fields are `null` (the `{{GBP_PRICE_*}}` placeholders), and the currency toggle is hidden until all are set.
+- **Grandfathering:**
+  - a new `Subscription.planVersion` column defaults existing rows to `legacy`;
+  - legacy Free (1 a month), Starter ($49, 5 a month), Growth and Team keep their exact terms (`LEGACY_PLANS`);
+  - new accounts get `2026-10`;
+  - an admin plan change moves the account to current pricing; retired plans can't be re-assigned.
+- **Enforcement (server):** `lib/entitlements.ts` computes the allowance per plan period (month, lifetime or pass window) from the usage ledger. `decideUpload` returns:
+  - **402** with the price when an overage plan is past its limit;
+  - **403** with plan-specific next steps for the trial, a pass, or hard limits.
+
+  The upload proceeds only when the client sends back the exact confirmed price. The confirmed charge is stored on `ProposalUsage.overageCents`, to be invoiced (`overageBilledAt` stays null until billed).
+- **UI:**
+  - the upload screen shows the overage confirmation;
+  - a limit notice replaces the upload box on hard stops;
+  - the dashboard header has a "proposals left" badge (streamed in, never blocks the page);
+  - the dashboard stat cards show used and remaining for the plan's period;
+  - the billing page shows the current plan (labelled grandfathered if legacy), usage, owed overage, the plans (request by email) and the setup add-on;
+  - the pricing page has a monthly/annual toggle, a one-time pass, the add-on, and an "On the roadmap" list with no dates.
+- **FAQ rewritten:** "vs ChatGPT", "vs DeepRFP or Pelican Bid" (no competitor prices or features asserted), what counts as a proposal, limits and overage, the pass, payment and cancellation, setup, file types.
+- **Schema (additive):**
+  - enum values `single_bid`, `pro`, `consultant`, `pilot`;
+  - `Subscription.planVersion`, `billingCycle`, `accessEndsAt`;
+  - `Rfp.overageCents`;
+  - `ProposalUsage.overageCents`, `overageBilledAt`.
+- **Not done: checkout in test mode.** Blocked on the payment provider decision and keys (FOUNDER_TODO). Paid plans are requested from the billing page and set up by an admin until then.
+- Tests: plan config, upload decisions, server enforcement (402, confirm, 403, legacy unchanged), library item limit, admin plan change.

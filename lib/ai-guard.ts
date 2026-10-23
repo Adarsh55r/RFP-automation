@@ -22,8 +22,12 @@ export function proposalAllowance(tier: SubscriptionTier): ProposalAllowance {
 /** Monthly AI spend ceiling per account, in US dollars. */
 export const monthlySpendCapUsd: Record<SubscriptionTier, number> = {
   free: 3,
+  single_bid: 6,
   starter: 15,
+  pro: 50,
+  pilot: 50,
   growth: 60,
+  consultant: 120,
   agency: 200,
 };
 
@@ -34,8 +38,12 @@ export const monthlySpendCapUsd: Record<SubscriptionTier, number> = {
  */
 export const dailySpendCapUsd: Record<SubscriptionTier, number> = {
   free: 3,
+  single_bid: 5,
   starter: 8,
+  pro: 20,
+  pilot: 20,
   growth: 20,
+  consultant: 40,
   agency: 40,
 };
 

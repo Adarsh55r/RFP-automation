@@ -44,8 +44,9 @@ describe.skipIf(!hasTestDb)("deleting data", () => {
   it("deleting an RFP removes its file, text and drafts but keeps the plan usage it consumed", async () => {
     const fake = await import("../helpers/fake-supabase");
     const { rfp, path } = await seedRfp(ownerId, "Owner RFP");
-    const { getRfpUploadQuota } = await import("@/lib/rfps");
-    expect((await getRfpUploadQuota(ownerId, "starter")).usedThisMonth).toBe(1);
+    const { getProposalAllowance } = await import("@/lib/entitlements");
+    const terms = { tier: "starter" as const, planVersion: "legacy" };
+    expect((await getProposalAllowance(ownerId, terms)).used).toBe(1);
 
     const { deleteRfp } = await import("@/lib/actions/data-deletion");
     expect((await deleteRfp(rfp.id)).ok).toBe(true);
@@ -54,7 +55,7 @@ describe.skipIf(!hasTestDb)("deleting data", () => {
     expect(await testDb().rfp.count({ where: { id: rfp.id } })).toBe(0);
     expect(await testDb().draft.count({ where: { rfpId: rfp.id } })).toBe(0);
     // Deleting must not hand back the upload: delete-and-re-upload cannot beat the monthly limit.
-    expect((await getRfpUploadQuota(ownerId, "starter")).usedThisMonth).toBe(1);
+    expect((await getProposalAllowance(ownerId, terms)).used).toBe(1);
   });
 
   it("nobody can delete another user's RFP", async () => {

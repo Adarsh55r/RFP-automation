@@ -12,6 +12,10 @@ enum SubscriptionTier {
   starter
   growth
   agency
+  single_bid
+  pro
+  consultant
+  pilot
 }
 
 enum SubscriptionStatus {
@@ -99,6 +103,13 @@ model Subscription {
   status               SubscriptionStatus @default(active)
   stripeSubscriptionId String?
   currentPeriodEnd     DateTime?
+  /// "legacy" for subscriptions created before the October 2026 pricing (they keep
+  /// their original limits and price); "2026-10" for everything after.
+  planVersion          String             @default("legacy")
+  /// "monthly" or "annual" for subscriptions; null for free and one-time plans.
+  billingCycle         String?
+  /// End of access for one-time plans (single-bid pass, pilot).
+  accessEndsAt         DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -125,6 +136,8 @@ model Rfp {
   revisionCount               Int              @default(0)
   lastFullDraftAt             DateTime?
   coverageMap                 String?
+  /// Extra charge (in cents) the user confirmed before uploading beyond the plan's limit.
+  overageCents                Int?
   createdAt                   DateTime         @default(now())
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -189,6 +202,10 @@ model ProposalUsage {
   userId    String
   /// The RFP that used the credit; no foreign key, because the RFP may be deleted.
   rfpId     String?
+  /// Set when this proposal was beyond the plan's limit: the confirmed extra charge, in cents.
+  overageCents Int?
+  /// When the extra charge was billed; null while it is still owed.
+  overageBilledAt DateTime?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

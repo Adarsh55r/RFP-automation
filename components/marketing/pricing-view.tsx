@@ -16,16 +16,18 @@ import { Section } from "@/components/marketing/section";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
 import {
-  annualTotal,
   currencies,
+  displayPrice,
   formatPrice,
+  gbpAvailable,
   publicPlans,
-  pricePerMonth,
+  SETUP_ADDON,
   signupHref,
+  type PlanDef,
 } from "@/lib/plans";
 import { faqs } from "@/lib/faqs";
 import { useAnimatedNumber } from "@/lib/use-animated-number";
-import type { BillingCycle, Currency, Plan } from "@/types";
+import type { BillingCycle, Currency } from "@/types";
 
 function AnimatedPrice({
   amount,
@@ -48,18 +50,26 @@ function PlanCard({
   cycle,
   currency,
 }: {
-  plan: Plan;
+  plan: PlanDef;
   cycle: BillingCycle;
   currency: Currency;
 }) {
-  const monthly = pricePerMonth(plan.monthly[currency], cycle);
-  const yearly = annualTotal(plan.monthly[currency]);
-  const paid = plan.monthly[currency] > 0;
+  const price = displayPrice(plan, currency, cycle);
+  const note =
+    plan.billing.kind === "free"
+      ? "No card required"
+      : plan.billing.kind === "one_time"
+        ? `Pay once · ${plan.billing.accessDays} days of access`
+        : cycle === "annual" && price.yearly !== undefined
+          ? `${formatPrice(price.yearly, currency)} billed yearly · 2 months free`
+          : "Billed monthly · cancel anytime";
+  const suffix =
+    plan.billing.kind === "free" ? "" : plan.billing.kind === "one_time" ? "one-time" : "/mo";
 
   return (
     <Card
       className={cn(
-            "flex h-full flex-col transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
+        "flex h-full flex-col transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
         plan.highlighted && "border-accent shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
       )}
     >
@@ -73,18 +83,10 @@ function PlanCard({
 
       <div className="mt-6">
         <div className="flex flex-wrap items-end gap-2">
-          <AnimatedPrice amount={monthly} currency={currency} />
-          <span className="pb-1 font-sans text-sm font-medium text-slate">
-            {paid ? "/mo" : "forever"}
-          </span>
+          <AnimatedPrice amount={price.amount} currency={currency} />
+          {suffix ? <span className="pb-1 font-sans text-sm font-medium text-slate">{suffix}</span> : null}
         </div>
-        <p className="mt-2 min-h-10 font-mono text-xs tracking-wide text-slate">
-          {paid && cycle === "annual"
-            ? `${formatPrice(yearly, currency)} billed yearly · 2 months free`
-            : paid
-              ? "Billed monthly"
-              : "No card required"}
-        </p>
+        <p className="mt-2 min-h-10 font-mono text-xs tracking-wide text-slate">{note}</p>
       </div>
 
       <ul className="mt-6 flex flex-1 flex-col gap-2">
@@ -111,6 +113,15 @@ function PlanCard({
   );
 }
 
+/** Not part of any plan today, and no dates promised. Remove an item when it ships. */
+const roadmap = [
+  "Team seats, shared comments and an approver step",
+  "Your letterhead on exports",
+  "Separate client workspaces for proposal consultants",
+  "Excel and CSV questionnaires",
+  "Automatic text recognition for scanned PDFs",
+];
+
 export function PricingView() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [currency, setCurrency] = useState<Currency>("usd");
@@ -125,9 +136,9 @@ export function PricingView() {
           Simple pricing for small teams that bid.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate md:text-lg">
-          Start free with one full proposal. Upgrade when RFPs become a weekly
-          habit. Month-to-month, cancel anytime — or pay annually and get two
-          months free. Priced in US dollars and British pounds.
+          Try one real proposal free. Buy a single bid when you need one, or
+          subscribe monthly or annually (two months free on annual). Every plan
+          shows exactly how many proposals it includes.
         </p>
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -159,6 +170,7 @@ export function PricingView() {
               </button>
             ))}
           </div>
+          {gbpAvailable ? (
           <div
             role="group"
             aria-label="Currency"
@@ -182,9 +194,10 @@ export function PricingView() {
               </button>
             ))}
           </div>
+          ) : null}
           {cycle === "annual" ? (
             <p className="font-mono text-xs tracking-wide text-brand">
-              2 months free on paid plans
+              2 months free on Starter and Pro
             </p>
           ) : (
             <p className="font-mono text-xs tracking-wide text-slate">
@@ -193,7 +206,7 @@ export function PricingView() {
           )}
         </div>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {publicPlans.map((plan) => (
             <PlanCard
               key={plan.id}
@@ -202,6 +215,28 @@ export function PricingView() {
               currency={currency}
             />
           ))}
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Card className="flex flex-col gap-2">
+            <h2 className="font-sans text-lg font-semibold text-ink">
+              {SETUP_ADDON.name} · {formatPrice(SETUP_ADDON.price[currency] ?? SETUP_ADDON.price.usd, currency)} one-time
+            </h2>
+            <p className="text-sm leading-relaxed text-slate">
+              {SETUP_ADDON.description} Included free with {SETUP_ADDON.waivedOn}.
+            </p>
+          </Card>
+          <Card className="flex flex-col gap-2">
+            <h2 className="font-sans text-lg font-semibold text-ink">On the roadmap</h2>
+            <p className="text-sm leading-relaxed text-slate">
+              Not included in any plan today, and we don&apos;t promise dates:
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate">
+              {roadmap.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </Card>
         </div>
       </Section>
 

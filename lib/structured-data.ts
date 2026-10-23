@@ -1,5 +1,5 @@
 import { faqs } from "@/lib/faqs";
-import { publicPlans } from "@/lib/plans";
+import { displayPrice, publicPlans } from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const organizationId = `${SITE_URL}/#organization`;
@@ -43,8 +43,8 @@ export function homeStructuredData() {
         ],
         offers: publicPlans.map((plan) => ({
           "@type": "Offer",
-          name: `${plan.name} plan`,
-          price: plan.monthly.usd,
+          name: plan.name,
+          price: displayPrice(plan, "usd", "monthly").amount,
           priceCurrency: "USD",
           url: `${SITE_URL}/pricing`,
           description: plan.summary,

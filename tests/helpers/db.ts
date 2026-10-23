@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/lib/generated/prisma";
+import { PrismaClient, type SubscriptionTier } from "@/lib/generated/prisma";
 
 export const hasTestDb = Boolean(process.env.TEST_DATABASE_URL);
 
@@ -12,7 +12,7 @@ export async function resetDb() {
   );
 }
 
-export async function createUser(clerkId: string, tier: "free" | "starter" | "growth" | "agency" = "starter") {
+export async function createUser(clerkId: string, tier: SubscriptionTier = "starter") {
   return testDb().user.create({
     data: {
       clerkId,

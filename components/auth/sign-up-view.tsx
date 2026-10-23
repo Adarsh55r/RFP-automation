@@ -12,7 +12,7 @@ import {
   INTENDED_PLAN_COOKIE,
   INTENDED_PLAN_COOKIE_MAX_AGE,
 } from "@/lib/intended-plan";
-import { plans } from "@/lib/plans";
+import { isSellablePlan, PLANS } from "@/lib/plans";
 import type { PlanId } from "@/types";
 
 function persistIntendedPlan(planId: PlanId) {
@@ -29,7 +29,7 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
     if (planId) persistIntendedPlan(planId);
   }, [planId]);
 
-  const plan = plans.find((item) => item.id === planId && !item.retired);
+  const plan = planId && isSellablePlan(planId) ? PLANS[planId] : undefined;
 
   return (
     <AuthShell

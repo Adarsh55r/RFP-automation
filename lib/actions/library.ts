@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { LibraryItemType } from "@/lib/generated/prisma";
+import { resolvePlan } from "@/lib/plans";
 import {
   isLibraryItemType,
   LIBRARY_ITEM_MAX_CHARS,
@@ -24,6 +25,7 @@ async function requireLibraryUser() {
 
   const user = await prisma.user.findUnique({
     where: { clerkId },
+    include: { subscription: { select: { tier: true, planVersion: true } } },
   });
 
   if (!user) {
@@ -110,6 +112,17 @@ export async function createLibraryItem(payload: LibraryItemPayload) {
         ok: false as const,
         error:
           "You already have a company profile. Edit the existing one instead of adding another.",
+      };
+    }
+  }
+
+  const maxItems = resolvePlan(authResult.user.subscription).libraryItems;
+  if (maxItems !== null) {
+    const count = await prisma.libraryItem.count({ where: { userId: authResult.user.id } });
+    if (count >= maxItems) {
+      return {
+        ok: false as const,
+        error: `Your plan's library holds up to ${maxItems} items. Combine or remove items you no longer use, or move to Pro for no item limit.`,
       };
     }
   }

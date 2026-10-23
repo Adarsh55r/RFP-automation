@@ -1,12 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
-import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
-import type { Prisma, SubscriptionTier } from "@/lib/generated/prisma";
-
-function startOfMonth() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
+import type { Prisma } from "@/lib/generated/prisma";
 
 /**
  * One RFP for its pages. Leaves out the full document text, which can run to
@@ -41,30 +35,20 @@ export async function getRfpsForClerkUser(clerkId: string) {
   });
 }
 
-export async function getRfpUploadQuota(userId: string, tier: SubscriptionTier) {
-  const monthStart = startOfMonth();
-  // Counted from the usage ledger, so deleting an RFP does not give the upload back.
-  const usedThisMonth = await prisma.proposalUsage.count({
-    where: { userId, createdAt: { gte: monthStart } },
-  });
-
-  const limit = monthlyRfpLimit[tier];
-
-  return {
-    usedThisMonth,
-    limit,
-    remaining: rfpsRemaining(tier, usedThisMonth),
-  };
-}
-
 /**
  * Marks an upload as finished and records that it used one proposal from the
  * plan, together. Abandoned uploads never reach this, so they never count.
  */
-export async function completeRfpUpload(rfpId: string, userId: string, originalFileUrl: string) {
+export async function completeRfpUpload(
+  rfpId: string,
+  userId: string,
+  originalFileUrl: string,
+  overageCents: number | null = null,
+) {
   await prisma.$transaction([
     prisma.rfp.update({ where: { id: rfpId }, data: { originalFileUrl } }),
-    prisma.proposalUsage.create({ data: { userId, rfpId } }),
+    // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
+    prisma.proposalUsage.create({ data: { userId, rfpId, overageCents } }),
   ]);
 }
 

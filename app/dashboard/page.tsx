@@ -40,12 +40,7 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      <StatCards
-        rfpsThisMonth={data.stats.rfpsThisMonth}
-        rfpsRemaining={data.stats.rfpsRemaining}
-        rfpsLimit={data.stats.rfpsLimit}
-        draftsInProgress={data.stats.draftsInProgress}
-      />
+      <StatCards allowance={data.allowance} draftsInProgress={data.draftsInProgress} />
 
       {data.recentRfps.length > 0 ? (
         <RecentRfps rfps={data.recentRfps} />

@@ -14,9 +14,25 @@ import {
   SERVER_UPLOAD_MAX_BYTES,
 } from "@/lib/rfp-upload";
 
+/** The plan's limit is reached and this upload costs extra: the user must confirm the price first. */
+class OverageRequired extends Error {
+  constructor(message: string, readonly priceUsd: number) {
+    super(message);
+  }
+}
+
+type ErrorPayload = { error?: string; overagePriceUsd?: number } | null;
+
+function errorFrom(status: number, payload: ErrorPayload, fallback: string) {
+  if (status === 402 && typeof payload?.overagePriceUsd === "number") {
+    return new OverageRequired(payload.error ?? fallback, payload.overagePriceUsd);
+  }
+  return new Error(payload?.error ?? fallback);
+}
+
 async function readError(response: Response, fallback: string) {
-  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-  return payload?.error ?? fallback;
+  const payload = (await response.json().catch(() => null)) as ErrorPayload;
+  return errorFrom(response.status, payload, fallback);
 }
 
 /**
@@ -24,13 +40,17 @@ async function readError(response: Response, fallback: string) {
  * them straight to storage with a one-time signed URL, then asks the server to
  * verify the file. If anything fails, the half-created RFP is removed.
  */
-async function uploadDirect(file: File, onProgress: (value: number) => void): Promise<string> {
+async function uploadDirect(
+  file: File,
+  onProgress: (value: number) => void,
+  confirmOverageUsd: number | null,
+): Promise<string> {
   const start = await fetch("/api/rfps/upload/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fileName: file.name, size: file.size, contentType: file.type }),
+    body: JSON.stringify({ fileName: file.name, size: file.size, contentType: file.type, confirmOverageUsd }),
   });
-  if (!start.ok) throw new Error(await readError(start, "Upload failed. Try again."));
+  if (!start.ok) throw await readError(start, "Upload failed. Try again.");
   const { id, uploadUrl } = (await start.json()) as { id: string; uploadUrl: string };
 
   const abandon = () => fetch(`/api/rfps/${id}/upload`, { method: "DELETE" }).catch(() => undefined);
@@ -49,7 +69,7 @@ async function uploadDirect(file: File, onProgress: (value: number) => void): Pr
       xhr.send(file);
     });
     const complete = await fetch(`/api/rfps/${id}/upload`, { method: "POST" });
-    if (!complete.ok) throw new Error(await readError(complete, "Upload failed. Try again."));
+    if (!complete.ok) throw await readError(complete, "Upload failed. Try again.");
     onProgress(100);
     return id;
   } catch (error) {
@@ -61,6 +81,7 @@ async function uploadDirect(file: File, onProgress: (value: number) => void): Pr
 function uploadWithProgress(
   file: File,
   onProgress: (value: number) => void,
+  confirmOverageUsd: number | null,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -84,8 +105,7 @@ function uploadWithProgress(
       }
 
       try {
-        const payload = JSON.parse(xhr.responseText) as { error?: string };
-        reject(new Error(payload.error ?? "Upload failed."));
+        reject(errorFrom(xhr.status, JSON.parse(xhr.responseText) as ErrorPayload, "Upload failed."));
       } catch {
         reject(new Error("Upload failed."));
       }
@@ -97,6 +117,7 @@ function uploadWithProgress(
 
     const formData = new FormData();
     formData.append("file", file);
+    if (confirmOverageUsd !== null) formData.append("confirmOverageUsd", String(confirmOverageUsd));
     xhr.send(formData);
   });
 }
@@ -107,6 +128,7 @@ export function RfpUploadZone() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [overage, setOverage] = useState<{ message: string; priceUsd: number } | null>(null);
 
   const onDrop = useCallback((accepted: File[], rejected: FileRejection[]) => {
     setError(null);
@@ -149,9 +171,10 @@ export function RfpUploadZone() {
     setSelectedFile(null);
     setProgress(0);
     setError(null);
+    setOverage(null);
   };
 
-  const handleContinue = async () => {
+  const handleContinue = async (confirmOverageUsd: number | null = null) => {
     if (!selectedFile || uploading) {
       return;
     }
@@ -159,16 +182,21 @@ export function RfpUploadZone() {
     setUploading(true);
     setProgress(0);
     setError(null);
+    setOverage(null);
 
     try {
       const rfpId =
         selectedFile.size > SERVER_UPLOAD_MAX_BYTES
-          ? await uploadDirect(selectedFile, setProgress)
-          : await uploadWithProgress(selectedFile, setProgress);
+          ? await uploadDirect(selectedFile, setProgress, confirmOverageUsd)
+          : await uploadWithProgress(selectedFile, setProgress, confirmOverageUsd);
       router.push(`/dashboard/rfps/${rfpId}`);
     } catch (uploadError) {
       setUploading(false);
       setProgress(0);
+      if (uploadError instanceof OverageRequired) {
+        setOverage({ message: uploadError.message, priceUsd: uploadError.priceUsd });
+        return;
+      }
       setError(
         uploadError instanceof Error
           ? uploadError.message
@@ -267,7 +295,7 @@ export function RfpUploadZone() {
                 <Button type="button" onClick={() => open()}>
                   Replace
                 </Button>
-                <Button type="button" onClick={handleContinue} className="w-full sm:w-auto">
+                <Button type="button" onClick={() => handleContinue()} className="w-full sm:w-auto">
                   Continue
                 </Button>
               </div>
@@ -275,6 +303,23 @@ export function RfpUploadZone() {
           )}
         </div>
       )}
+
+      {overage ? (
+        <div role="alert" className="flex flex-col gap-4 rounded-card border border-accent/40 bg-accent/10 px-4 py-4">
+          <p className="text-sm leading-relaxed text-ink">{overage.message}</p>
+          <p className="text-sm leading-relaxed text-slate">
+            Nothing is charged unless you confirm. Or choose a bigger plan on the billing page.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => handleContinue(overage.priceUsd)}>
+              Confirm ${overage.priceUsd} and upload
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setOverage(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <p role="alert" className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">

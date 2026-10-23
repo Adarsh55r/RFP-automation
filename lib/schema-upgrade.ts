@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
  * schema (migrations 20261015120000_us_uk_market,
  * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits,
  * 20261018090000_review_prompt, 20261023090000_terms_acceptance,
- * 20261023100000_proposal_usage and 20261023110000_ai_daily_ceiling), using the app's own DATABASE_URL so it
+ * 20261023100000_proposal_usage, 20261023110000_ai_daily_ceiling and
+ * 20261024090000_pricing_v2), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -89,6 +90,17 @@ BEGIN
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsVersion" TEXT;
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3);
 
+  -- October 2026 pricing: new plans, grandfathering, one-time access, overage.
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'single_bid';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'pro';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'consultant';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'pilot';
+  -- Existing rows get 'legacy' so they keep their original plan terms.
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "planVersion" TEXT NOT NULL DEFAULT 'legacy';
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "billingCycle" TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "accessEndsAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "overageCents" INTEGER;
+
   -- Daily AI spend ceiling alert.
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "aiDailyAlertDay" TEXT;
 
@@ -101,6 +113,8 @@ BEGIN
     CONSTRAINT "ProposalUsage_pkey" PRIMARY KEY ("id")
   );
   CREATE INDEX IF NOT EXISTS "ProposalUsage_userId_createdAt_idx" ON "ProposalUsage"("userId", "createdAt");
+  ALTER TABLE "ProposalUsage" ADD COLUMN IF NOT EXISTS "overageCents" INTEGER;
+  ALTER TABLE "ProposalUsage" ADD COLUMN IF NOT EXISTS "overageBilledAt" TIMESTAMP(3);
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProposalUsage_userId_fkey') THEN
     ALTER TABLE "ProposalUsage" ADD CONSTRAINT "ProposalUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
@@ -123,7 +137,8 @@ BEGIN
       ('20261018090000_review_prompt', '8cfa77ef427e04d3b6ecc19e893857ac8a34aea642cbfaee84a4c2c5305bb8e0'),
       ('20261023090000_terms_acceptance', '2eaa6834d9350e4e7d9a35e34a0aac65443c27ec60ce5357f9b67fe1f79745a3'),
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
-      ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734')
+      ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
+      ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
       SELECT 1 FROM "_prisma_migrations" p
@@ -170,6 +185,10 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'aiDailyAlertDay'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'ProposalUsage' AND column_name = 'overageCents'
   ) AS "needsUpgrade"
 `;
 

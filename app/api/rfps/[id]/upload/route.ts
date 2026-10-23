@@ -66,7 +66,7 @@ export async function POST(_request: Request, context: RouteContext) {
       await prisma.rfp.delete({ where: { id: rfp.id } });
       return NextResponse.json({ error: invalid }, { status: 400 });
     }
-    await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path));
+    await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path), rfp.overageCents);
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
     console.error("Could not complete a direct upload:", safeErrorSummary(error));

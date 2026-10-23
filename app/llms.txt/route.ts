@@ -1,5 +1,5 @@
 import { faqs } from "@/lib/faqs";
-import { publicPlans } from "@/lib/plans";
+import { displayPrice, publicPlans, SETUP_ADDON } from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -25,12 +25,14 @@ export function GET() {
     `- [Privacy policy](${SITE_URL}/privacy): how customer and RFP data is handled`,
     `- [Sign up](${SITE_URL}/sign-up): start on the free plan`,
     "",
-    "## Plans (per month)",
+    "## Plans (USD)",
     "",
-    ...publicPlans.map(
-      (plan) =>
-        `- ${plan.name}: $${plan.monthly.usd} / £${plan.monthly.gbp}. ${plan.summary} Includes: ${plan.features.join("; ")}.`,
-    ),
+    ...publicPlans.map((plan) => {
+      const monthly = displayPrice(plan, "usd", "monthly");
+      const annual = plan.billing.kind === "subscription" ? ` (or $${plan.billing.annual.usd} a year)` : "";
+      return `- ${plan.name}: $${monthly.amount}${monthly.suffix}${annual}. ${plan.summary} Includes: ${plan.features.join("; ")}.`;
+    }),
+    `- Add-on: ${SETUP_ADDON.name}, $${SETUP_ADDON.price.usd} one-time. ${SETUP_ADDON.description} Included with ${SETUP_ADDON.waivedOn}.`,
     "",
     "## FAQ",
     "",

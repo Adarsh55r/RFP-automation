@@ -17,7 +17,7 @@ export function ClosingCta() {
             <Link href="/sign-up?plan=free">Draft my first proposal free</Link>
           </Button>
           <p className="text-sm text-surface-raised/70">
-            Free plan · No credit card
+            Free trial · No credit card
           </p>
         </div>
       </div>

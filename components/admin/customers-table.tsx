@@ -15,9 +15,13 @@ type SortKey = "company" | "tier" | "rfpsThisMonth" | "aiCallsMonth" | "aiCostMo
 const TIERS = [
   { id: "all", label: "All plans" },
   { id: "free", label: "Free" },
+  { id: "single_bid", label: "Single bid" },
   { id: "starter", label: "Starter" },
-  { id: "growth", label: "Growth" },
-  { id: "agency", label: "Team" },
+  { id: "pro", label: "Pro" },
+  { id: "consultant", label: "Consultant" },
+  { id: "pilot", label: "Pilot" },
+  { id: "growth", label: "Growth (legacy)" },
+  { id: "agency", label: "Team (legacy)" },
 ];
 
 const SEGMENTS = [
@@ -27,7 +31,16 @@ const SEGMENTS = [
   { id: "inactive", label: "Inactive 14d+" },
 ];
 
-const TIER_RANK: Record<string, number> = { free: 0, starter: 1, growth: 2, agency: 3 };
+const TIER_RANK: Record<string, number> = {
+  free: 0,
+  single_bid: 1,
+  starter: 2,
+  pilot: 3,
+  growth: 4,
+  pro: 5,
+  agency: 6,
+  consultant: 7,
+};
 
 function sortValue(row: CustomerRow, key: SortKey): number | string {
   switch (key) {

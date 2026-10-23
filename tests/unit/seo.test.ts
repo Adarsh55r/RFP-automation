@@ -4,7 +4,7 @@ import sitemap from "@/app/sitemap";
 import { GET as llmsTxt } from "@/app/llms.txt/route";
 import { JsonLd } from "@/components/seo/json-ld";
 import { faqs } from "@/lib/faqs";
-import { plans, publicPlans } from "@/lib/plans";
+import { displayPrice, plans, publicPlans } from "@/lib/plans";
 import { faqStructuredData, homeStructuredData } from "@/lib/structured-data";
 
 describe("search engine and AI crawler files", () => {
@@ -34,9 +34,9 @@ describe("search engine and AI crawler files", () => {
     expect(response.headers.get("content-type")).toContain("text/plain");
     const text = await response.text();
     expect(text.startsWith("# DraftBid AI")).toBe(true);
-    for (const plan of publicPlans) expect(text).toContain(`${plan.name}: $${plan.monthly.usd}`);
-    // A plan no longer sold must not be advertised to AI assistants.
-    for (const plan of plans.filter((item) => item.retired)) expect(text).not.toContain(`${plan.name}: $`);
+    for (const plan of publicPlans) expect(text).toContain(`${plan.name}: $${displayPrice(plan, "usd", "monthly").amount}`);
+    // Plans not sold publicly must not be advertised to AI assistants.
+    for (const plan of plans.filter((item) => item.visibility !== "public")) expect(text).not.toContain(`- ${plan.name}: $`);
     for (const faq of faqs) expect(text).toContain(faq.question);
   });
 
@@ -44,7 +44,7 @@ describe("search engine and AI crawler files", () => {
     const software = homeStructuredData()["@graph"].find((node) => node["@type"] === "SoftwareApplication") as {
       offers: { price: number }[];
     };
-    expect(software.offers.map((offer) => offer.price)).toEqual(publicPlans.map((plan) => plan.monthly.usd));
+    expect(software.offers.map((offer) => offer.price)).toEqual(publicPlans.map((plan) => displayPrice(plan, "usd", "monthly").amount));
     expect(faqStructuredData().mainEntity).toHaveLength(faqs.length);
 
     const element = JsonLd({ data: { text: "</script><script>alert(1)</script>" } });

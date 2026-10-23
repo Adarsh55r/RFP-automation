@@ -31,7 +31,13 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 ## Decisions
 - [ ] Brand spelling: "DraftBid AI" (current default) or "DraftBidAI"
 - [ ] **Payment provider** (blocks billing work): Stripe, Paddle, Lemon Squeezy or Dodo Payments. Then share **test-mode** keys. Without a registered company, a merchant-of-record provider is usually easier.
-- [ ] GBP prices, or drop GBP for now
+- [ ] GBP prices, or drop GBP for now. GBP is hidden until every public price has one; fill the `gbp` values in `lib/plans.ts` (`{{GBP_PRICE_*}}`).
+- [ ] Honour these plan promises manually until billing is live:
+  - the $149 single-bid credit;
+  - the done-with-you setup;
+  - same-day support on Pro.
+- [ ] Invoice confirmed overage charges: until checkout exists, they're recorded in `ProposalUsage.overageCents` with `overageBilledAt` empty, and shown on the user's billing page.
+- [ ] Free-trial abuse: someone who deletes their workspace and signs up again gets a new free trial. Decide whether to keep an anonymised record of used trials.
 - [ ] Approval before live payment products and prices are created
 - [ ] Team features: keep them off plans (default) or build them now
 - [ ] Consultant plan: hidden until client workspaces exist (default) or build them now

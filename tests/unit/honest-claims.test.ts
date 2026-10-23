@@ -51,6 +51,6 @@ describe("public claims stay honest", () => {
 
   it("the unlimited plan is no longer sold but still exists for accounts already on it", () => {
     expect(publicPlans.some((plan) => plan.features.some((feature) => /unlimited proposals/i.test(feature)))).toBe(false);
-    expect(plans.find((plan) => plan.id === "agency")?.retired).toBe(true);
+    expect(plans.find((plan) => plan.id === "agency")?.visibility).toBe("retired");
   });
 });

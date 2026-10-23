@@ -8,7 +8,7 @@ import { faqStructuredData } from "@/lib/structured-data";
 export const metadata: Metadata = {
   title: "Pricing — RFP Software for Small Teams",
   description:
-    "DraftBid AI plans in USD and GBP: Free, Starter $49 (£39), Growth $149 (£119), and Team $349 (£279) per month. Month-to-month, with two months free on annual billing.",
+    "DraftBid AI pricing in US dollars: a free trial proposal, a $149 single-bid pass, Starter at $99 a month and Pro at $249 a month, with two months free on annual plans.",
   alternates: { canonical: "/pricing" },
 };
 
