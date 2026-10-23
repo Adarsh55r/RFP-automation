@@ -481,3 +481,16 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **New tables (additive):** `ToolUsage` and `Lead`, migration `20261025140000_free_tool`, plus the boot-time upgrade.
 - **Privacy policy:** updated (version 2026-10-25) to cover the free tool (file not kept, hashed IP for 30 days, opt-in email), website import, and retention.
 - **Tests:** a checklist is returned and nothing is stored about the file; only a hashed IP is kept; the per-visitor limit counts failed attempts, other visitors are unaffected, and no AI runs for refused or scanned files; the daily spend cap; file-type and fake-file refusal; leads need consent and are stored once.
+
+## Phase 4.4: SEO and technical hygiene
+
+- **Canonical host:** I could not check which host Vercel treats as primary (the proxy here gets 403 from the live site).
+  - `SITE_URL` now comes from `NEXT_PUBLIC_SITE_URL` (https only, normalised; default `https://draftbidai.com`), so canonical tags, the sitemap, Open Graph and structured data follow whichever host is primary.
+  - The www/apex redirect is best done in Vercel Domains (FOUNDER_TODO).
+  - A code-level 308 redirect from the twin host is in the middleware but **off unless `CANONICAL_HOST_REDIRECT=1`**, because a Vercel redirect in the opposite direction would loop. It keeps the path and query, and leaves preview hosts alone.
+- **Old Team plan link:** `plan=agency`, `plan=team` and `plan=growth` (old outreach links and bookmarks) now map to Pro, Pro and Starter. No current page links to them. Phase 2 had already replaced the pricing cards' links.
+- **Titles, descriptions, Open Graph and canonicals:** set on every new page (segment, use-case, tool and guide pages). The root layout keeps the title template and Open Graph defaults.
+- **Structured data:** the SoftwareApplication feature list and the site description are updated for Excel/CSV, OCR, addenda and citations. Offers still come from `publicPlans` in the pricing config.
+- **SEO templates** (`/guides/[slug]`, `lib/guides.ts`): the four general topics from the brief plus one checklist page per segment, each with set headings and `{{GUIDE_COPY: …}}` placeholders. Unpublished guides are `noindex`, left out of the sitemap, and return 404 in production; previews show them with a draft banner. Published guides join the sitemap automatically.
+- **Sitemap:** the segment, use-case and tool pages are added (4.2, 4.3); robots.txt and llms.txt are unchanged.
+- **Tests:** the redirect only affects the twin host, keeps the path and query, and does nothing when switched off or on preview hosts; the `SITE_URL` env is handled; plan aliases; the guide list, production hiding and sitemap exclusion.

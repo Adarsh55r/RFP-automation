@@ -1,9 +1,23 @@
-/** The public address search engines and AI assistants should use for every page. */
-export const SITE_URL = "https://draftbidai.com";
+/**
+ * The public address search engines and AI assistants should use for every
+ * page: canonical tags, sitemap, Open Graph. Set NEXT_PUBLIC_SITE_URL to the
+ * domain Vercel serves as primary (www or not); the other one must redirect.
+ */
+export const SITE_URL = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ?? "https://draftbidai.com";
+
+function normalizeSiteUrl(value: string | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
 export const SITE_NAME = "DraftBid AI";
 export const SITE_TAGLINE = "Compliant first drafts of RFP responses, written from your own documents";
 export const SITE_DESCRIPTION =
-  "DraftBid AI is RFP response software for small and mid-sized businesses. Upload an RFP, public-sector tender, or security questionnaire as PDF or Word; it extracts every requirement into a checklist, drafts a compliant proposal from your own past work, flags anything it cannot support, and exports to Word or PDF.";
+  "DraftBid AI is RFP response software for small and mid-sized businesses. Upload an RFP, public-sector tender, or questionnaire as PDF, Word, Excel or a scan; it extracts every requirement into a checklist, drafts a compliant proposal from your own past work with the source of each claim, flags anything it cannot support, and exports to Word or PDF.";
 
 /**
  * Public pages listed in the sitemap. `updated` is when the page's content

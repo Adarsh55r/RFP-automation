@@ -59,6 +59,9 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 - [ ] Emails left on the free tool are stored in the `Lead` table, with consent date. Nothing is sent automatically; follow up by hand, and delete on request.
 - [ ] Lawyer review should cover the privacy policy additions (free tool, hashed IPs, leads, website import).
 
+- [ ] **One canonical host.** In Vercel → Domains, choose the primary domain (`draftbidai.com` or `www.draftbidai.com`) and set the other to redirect to it (308). Set `NEXT_PUBLIC_SITE_URL` to the primary, e.g. `https://draftbidai.com`, so canonical tags and the sitemap match. Only if you cannot use Vercel's redirect, set `CANONICAL_HOST_REDIRECT=1` instead. Never use both pointing in opposite directions.
+- [ ] Write the SEO guides in `lib/guides.ts`: replace each `{{GUIDE_COPY: …}}` and set `published: true`. Until then they are not in the sitemap, are `noindex`, and return 404 in production (visible on previews).
+
 ## Manual checks before launch
 - [ ] Open one exported proposal (.docx) in Microsoft Word and in Google Docs, and one answered questionnaire (.xlsx) in Excel. LibreOffice opens all of them in the automated tests, but Word, Docs and Excel are not available here.
 - [ ] Run one real scanned RFP (OCR) and one real website import on a preview deployment.
