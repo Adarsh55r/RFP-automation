@@ -25,4 +25,5 @@ export const PUBLIC_PAGES = [
   { path: "/for/consultants", updated: "2026-10-25", priority: 0.6 },
   { path: "/use-cases/uk-tenders", updated: "2026-10-25", priority: 0.6 },
   { path: "/use-cases/security-questionnaires", updated: "2026-10-25", priority: 0.6 },
+  { path: "/tools/rfp-checklist", updated: "2026-10-25", priority: 0.7 },
 ] as const;

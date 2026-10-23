@@ -245,3 +245,29 @@ model ProposalUsage {
 
   @@index([userId, createdAt])
 }
+
+/// One run of the free no-signup checklist tool. Only a salted hash of the IP
+/// is kept (for rate limits), never the file or its contents; rows older than
+/// 30 days are deleted.
+model ToolUsage {
+  id         String   @id @default(cuid())
+  tool       String
+  ipHash     String
+  costMicros Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([tool, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+/// Someone who asked to hear from us after using a free tool (explicit consent).
+model Lead {
+  id        String   @id @default(cuid())
+  email     String
+  source    String
+  segment   String?
+  consentAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}

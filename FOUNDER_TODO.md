@@ -55,6 +55,10 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
   - If you change it, update the "Which files can I upload?" FAQ (`lib/faqs.ts`).
   - Check one real scanned RFP on a preview deployment before relying on it.
 
+- [ ] Free checklist tool: set `FREE_TOOL_IP_SALT` in Vercel to a random secret. Optionally tune `FREE_TOOL_PER_IP_PER_DAY` (3), `FREE_TOOL_RUNS_PER_DAY` (200) and `FREE_TOOL_SPEND_PER_DAY_USD` ($25).
+- [ ] Emails left on the free tool are stored in the `Lead` table, with consent date. Nothing is sent automatically; follow up by hand, and delete on request.
+- [ ] Lawyer review should cover the privacy policy additions (free tool, hashed IPs, leads, website import).
+
 ## Manual checks before launch
 - [ ] Open one exported proposal (.docx) in Microsoft Word and in Google Docs, and one answered questionnaire (.xlsx) in Excel. LibreOffice opens all of them in the automated tests, but Word, Docs and Excel are not available here.
 - [ ] Run one real scanned RFP (OCR) and one real website import on a preview deployment.

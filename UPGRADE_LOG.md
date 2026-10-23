@@ -461,3 +461,23 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **Sitemap:** all six pages are added.
 - **Copy:** all of it is first-draft and listed in FOUNDER_TODO for review.
 - **Tests:** the four segments are complete; no outcome promises, "trusted by" or client-workspace claims; sample outputs are empty; every page is in the sitemap. Existing honest-claims and SEO guards pass.
+
+## Phase 4.3: Free no-signup checklist tool
+
+- **`/tools/rfp-checklist`:** upload one PDF or Word RFP (up to 4 MB and 80 pages) and get its checklist without an account: mandatory, evaluation, submission and desirable requirements, questions (first 50), key details with pages, and review flags. It uses the **same extraction pipeline** as the app, including hidden-text removal, verified key-detail pages and deterministic checks. Documents are read up to 200k characters, and the result says when only part was read.
+- **Nothing stored about the file:**
+  - it is read in memory and sent only to the AI provider; there is no storage upload and no RFP row;
+  - the AI cost goes on the run's record, not on any account.
+  - Tested: no RFP rows, no stored files and no `AiUsage` rows after a run.
+- **Limits** (`lib/free-tool.ts`), all enforced on the server:
+  - 3 runs per visitor per day, by a **salted SHA-256 hash of the IP** (the raw IP is never stored; tested);
+  - 200 runs a day in total;
+  - $25 of AI spend a day in total;
+  - failed attempts count too;
+  - scanned PDFs are refused with "create a free account" (no anonymous OCR spend);
+  - run records are deleted after 30 days.
+  - All values can be set by environment variable.
+- **Next steps for the visitor:** "Draft your first proposal free" (sign-up with `seg=checklist-tool`), or leave an email **with an explicit consent checkbox** (`POST /api/tools/lead`). Emails are de-duplicated and rate-limited per IP; there is no automatic sending.
+- **New tables (additive):** `ToolUsage` and `Lead`, migration `20261025140000_free_tool`, plus the boot-time upgrade.
+- **Privacy policy:** updated (version 2026-10-25) to cover the free tool (file not kept, hashed IP for 30 days, opt-in email), website import, and retention.
+- **Tests:** a checklist is returned and nothing is stored about the file; only a hashed IP is kept; the per-visitor limit counts failed attempts, other visitors are unaffected, and no AI runs for refused or scanned files; the daily spend cap; file-type and fake-file refusal; leads need consent and are stored once.

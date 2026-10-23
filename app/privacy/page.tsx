@@ -42,6 +42,8 @@ const sections: LegalSection[] = [
         "Usage records: which plan allowances you have used, and for each AI request the model, the number of tokens and the cost. These records never contain document text.",
         "Payment data: paid checkout is not live yet, so we do not collect payment details. When it opens, the payment provider listed on our subprocessors page will collect them; we will not store full card numbers.",
         "Technical data: IP address, browser type and timestamps in our hosting provider's logs, used for security and debugging.",
+        "Free checklist tool (no account): the file you upload is read in memory to build the checklist and sent to our AI provider for that purpose; it is not stored. To apply the daily limit we keep a one-way hash of your IP address, never the address itself. If you choose to leave your email there, we keep it with the date you agreed to be contacted.",
+        "Website import: if you ask us to import your company website, we read its public pages and send their text to our AI provider to draft library items for you.",
         "Analytics and error reports: cookie-free page-view statistics (Vercel Web Analytics) and technical error reports (Sentry). Error reports include your account ID, the page and the technical error; request bodies, cookies and document content are removed before sending.",
       ],
     ],
@@ -89,6 +91,7 @@ const sections: LegalSection[] = [
       [
         "Uploaded RFP files, their extracted text and requirements, and drafts: until you delete that RFP or your workspace. Deletion removes them from our live systems straight away.",
         "Library items: until you delete them or your workspace.",
+        "Free checklist tool: the file is not kept at all; hashed IP records are deleted after 30 days; an email you left there is kept until you ask us to delete it.",
         "Account data and usage records: while you have a workspace; deleted when you delete your workspace.",
         "We do not create embeddings or other derived copies of your documents beyond the extracted text and requirements described above.",
         `Database backups: overwritten after ${"{{BACKUP_RETENTION}}"}.`,

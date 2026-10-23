@@ -5,6 +5,6 @@
  */
 export const TERMS_VERSION = "2026-10-23";
 export const TERMS_UPDATED = "October 23, 2026";
-export const PRIVACY_VERSION = "2026-10-23";
-export const PRIVACY_UPDATED = "October 23, 2026";
+export const PRIVACY_VERSION = "2026-10-25";
+export const PRIVACY_UPDATED = "October 25, 2026";
 export const DPA_VERSION = "2026-10-23";
