@@ -12,7 +12,7 @@ const sections: LegalSection[] = [
   {
     title: "Why DraftBid AI exists",
     body: [
-      "Small businesses answer requests for proposals without a bid team. DraftBid AI reads the full RFP, builds a compliance checklist you confirm, and drafts a first response from your own past proposals, case studies and résumés, highlighting anything it cannot support so you fill it in rather than guess.",
+      "Small businesses answer requests for proposals without a bid team. DraftBid AI reads the full RFP, builds a compliance checklist you confirm, and drafts a first response from your own case studies, team bios, certifications and past answers, highlighting anything it cannot support so you fill it in rather than guess.",
     ],
   },
   {

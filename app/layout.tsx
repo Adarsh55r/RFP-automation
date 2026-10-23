@@ -36,11 +36,11 @@ export const metadata: Metadata = {
     template: "%s · DraftBid AI",
   },
   description:
-    "Win more RFPs without a bid team. DraftBid AI turns any RFP, tender, or security questionnaire into a compliant first-draft proposal in minutes — written from your own past work. Export to Word or PDF. Start free.",
+    "DraftBid AI turns an RFP, tender or questionnaire into a requirements checklist and a first draft written from your own documents, flagging anything it cannot support. Export to Word or PDF. Start free.",
   openGraph: {
-    title: "DraftBid AI — Win more RFPs, without a bid team",
+    title: "DraftBid AI — Compliant first drafts from your own documents",
     description:
-      "AI proposal software for small businesses: every requirement checked, drafts written from your own work, export to Word or PDF. Start free.",
+      "RFP response software for small businesses: a requirements checklist, drafts written from your own work with gaps flagged, and Word or PDF export. Start free.",
     type: "website",
     siteName: SITE_NAME,
   },

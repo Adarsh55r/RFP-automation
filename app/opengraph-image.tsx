@@ -33,10 +33,10 @@ export default function OpengraphImage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2, maxWidth: 980 }}>
-            Win more RFPs — without a bid team.
+            Turn any RFP into a compliant first draft.
           </div>
           <div style={{ fontSize: 32, color: "rgba(255,255,255,0.78)", maxWidth: 980, lineHeight: 1.3 }}>
-            Upload any RFP. Get every requirement checked and a first draft written from your own work.
+            A requirements checklist, and a draft written from your own documents with gaps flagged.
           </div>
         </div>
         <div style={{ display: "flex", fontSize: 28, color: "#F2B04A" }}>draftbidai.com · Start free</div>

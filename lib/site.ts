@@ -1,7 +1,7 @@
 /** The public address search engines and AI assistants should use for every page. */
 export const SITE_URL = "https://draftbidai.com";
 export const SITE_NAME = "DraftBid AI";
-export const SITE_TAGLINE = "Win more RFPs without a bid team";
+export const SITE_TAGLINE = "Compliant first drafts of RFP responses, written from your own documents";
 export const SITE_DESCRIPTION =
   "DraftBid AI is RFP response software for small and mid-sized businesses. Upload an RFP, public-sector tender, or security questionnaire as PDF or Word; it extracts every requirement into a checklist, drafts a compliant proposal from your own past work, flags anything it cannot support, and exports to Word or PDF.";
 

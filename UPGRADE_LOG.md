@@ -57,3 +57,27 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - a payment processor holding card data (checkout isn't live);
   - plan-based history retention (never implemented).
 - "AI providers do not train on your data" appears only once the founder confirms it (`AI_NO_TRAINING_CONFIRMED`).
+
+## Phase 1.3: Honest marketing claims
+- Replaced outcome promises with descriptions of what the product does:
+  - hero;
+  - positioning strip;
+  - feature grid;
+  - how-it-works steps;
+  - closing CTA;
+  - pricing teaser;
+  - footer;
+  - sign-up title;
+  - site tagline, metadata, OG image and llms.txt.
+- New hero: "Turn any RFP and your company portfolio into a compliant first draft." The subheadline names what the library actually holds today: case studies, team bios, certifications and past answers. The library doesn't take uploaded documents yet; that comes in Phase 3.4.
+- "addenda included" is now "include any addenda in the same file" until multi-file bids ship (Phase 3.2).
+- Security questionnaires are no longer implied to work from Excel or to cover named standards.
+- Hero mock:
+  - "CITY OF MAPLE GROVE" (a real municipality) is now "CITY OF EXAMPLE";
+  - the mock is labelled illustrative, and its "Ready to send" badge is now "Ready for your review".
+- Plans:
+  - every "(coming soon)" item and the unbuilt proposal-history lines are removed;
+  - **Team (unlimited) is retired for new customers** (`retired: true`): it's hidden from pricing, llms.txt and structured data, and refused at signup, but existing `agency` accounts keep their name, limits and price.
+- Brand: "DraftBid AI" everywhere (checked by grep).
+- Guard test `tests/unit/honest-claims.test.ts` fails if outcome promises, "coming soon" plan features or the real place name come back.
+- Still to fix in Phase 2: FAQ answers about billing, cancellation and overages, which describe checkout that isn't live.

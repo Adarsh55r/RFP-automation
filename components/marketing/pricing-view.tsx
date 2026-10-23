@@ -19,7 +19,7 @@ import {
   annualTotal,
   currencies,
   formatPrice,
-  plans,
+  publicPlans,
   pricePerMonth,
   signupHref,
 } from "@/lib/plans";
@@ -193,8 +193,8 @@ export function PricingView() {
           )}
         </div>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan) => (
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {publicPlans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}

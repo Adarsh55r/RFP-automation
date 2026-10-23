@@ -15,4 +15,9 @@ export type Plan = {
   features: string[];
   ctaLabel: string;
   highlighted?: boolean;
+  /**
+   * Not offered to new customers. Kept so accounts already on it (set by an
+   * admin) keep their name, price and limits.
+   */
+  retired?: boolean;
 };

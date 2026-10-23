@@ -4,28 +4,28 @@ import { Section } from "@/components/marketing/section";
 const features = [
   {
     icon: ListChecks,
-    title: "Never miss a requirement",
-    body: "Every mandatory item, scoring weight, deadline, page limit, and required form goes into one checklist. After drafting, an evaluator-style review shows exactly what’s covered and what still needs you — before the buyer finds it.",
+    title: "Requirements in one checklist",
+    body: "Mandatory items, scoring weights, deadlines, page limits and required forms go into one checklist you confirm, with flags where the document is ambiguous. After drafting, a compliance review shows what is covered and what still needs you.",
   },
   {
     icon: BookMarked,
-    title: "Sounds like you — not like AI",
-    body: "Drafts are built from your case studies, team bios, certifications, and approved answers, and cite the buyer’s own requirements by name. When a fact is missing, DraftBid AI flags it for you instead of making it up.",
+    title: "Written from your own work",
+    body: "Drafts are built from your case studies, team bios, certifications and approved answers, and refer to the buyer’s own requirements by name. When a fact is missing, the draft leaves a highlighted gap for you to fill, and certifications your library does not mention are flagged before export.",
   },
   {
     icon: ShieldCheck,
-    title: "Ready for public sector and security reviews",
-    body: "Handles US state and local RFPs, UK tenders with Social Value questions, and security questionnaires (SOC 2, ISO 27001, Cyber Essentials, HIPAA). Every draft matches the buyer’s spelling, currency, and terminology.",
+    title: "Public-sector tenders and questionnaires",
+    body: "Works with commercial RFPs, US state and local RFPs, UK tenders including Social Value questions, and security questionnaires supplied as PDF or Word. Drafts follow the buyer’s spelling and currency.",
   },
   {
     icon: Stamp,
-    title: "Professional Word and PDF",
-    body: "Export a professional proposal with cover page, contents, page numbers, and clean tables — no reformatting at midnight.",
+    title: "Formatted Word and PDF",
+    body: "Export a proposal with a cover page, contents, page numbers and clean tables, ready for your final edits.",
   },
   {
     icon: BadgeDollarSign,
     title: "Priced for small teams",
-    body: "Enterprise RFP platforms sell five-figure annual contracts. DraftBid AI starts free and runs month-to-month. Growth, at $149 (£119) a month, covers a team that bids every week.",
+    body: "Start free with no credit card. Paid plans are month-to-month, with the number of proposals each includes shown up front.",
   },
 ] as const;
 
@@ -36,7 +36,7 @@ export function FeatureGrid() {
         Why DraftBid AI
       </p>
       <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
-        Everything a bid manager does — at a small-business price.
+        The groundwork of a bid response, done before you start writing.
       </h2>
       <ul className="mt-12 divide-y divide-border border-y border-border">
         {features.map((feature) => {

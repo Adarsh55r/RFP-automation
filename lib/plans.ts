@@ -30,12 +30,10 @@ export const plans: Plan[] = [
     ctaLabel: "Get started",
     features: [
       "5 proposals per month",
-      "2 team seats (coming soon)",
       "Upload PDF or Word RFPs (scans need OCR first)",
       "Editable compliance checklist",
       "Library for 25 case studies, bios, and saved answers",
       "Word and PDF export with cover page and contents",
-      "90-day proposal history",
       "Email support next business day",
     ],
   },
@@ -48,13 +46,9 @@ export const plans: Plan[] = [
     highlighted: true,
     features: [
       "20 proposals per month",
-      "5 team seats (coming soon)",
       "Upload PDF or Word RFPs (scans need OCR first)",
       "Editable compliance checklist",
       "Large library: up to 200,000 characters of saved content",
-      "Your letterhead on exports (coming soon)",
-      "12-month proposal history",
-      "Shared comments on a draft (coming soon)",
       "Same-day email support (US & UK hours)",
     ],
   },
@@ -62,22 +56,22 @@ export const plans: Plan[] = [
     id: "agency",
     name: "Team",
     monthly: { usd: 349, gbp: 279 },
-    summary: "For multiple bid owners sharing one library and brand.",
+    summary: "Legacy plan for existing accounts.",
     ctaLabel: "Get started",
+    // Unlimited proposals with uncapped AI cost: no longer sold. Existing accounts keep it.
+    retired: true,
     features: [
       "Unlimited proposals",
-      "15 team seats (coming soon)",
       "Upload PDF or Word RFPs (scans need OCR first)",
       "Editable compliance checklist",
-      "Shared library with folders and per-team access (coming soon)",
-      "Your letterhead on exports (coming soon)",
-      "Full proposal history",
-      "Shared comments plus an approver step (coming soon)",
+      "Word and PDF export with cover page and contents",
       "Priority support (US & UK hours)",
-      "Onboarding call for your bid lead",
     ],
   },
 ];
+
+/** Plans a new customer can choose. */
+export const publicPlans = plans.filter((plan) => !plan.retired);
 
 export const currencies: { value: Currency; label: string }[] = [
   { value: "usd", label: "USD $" },

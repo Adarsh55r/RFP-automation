@@ -1,5 +1,5 @@
 import { faqs } from "@/lib/faqs";
-import { plans } from "@/lib/plans";
+import { publicPlans } from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -27,7 +27,7 @@ export function GET() {
     "",
     "## Plans (per month)",
     "",
-    ...plans.map(
+    ...publicPlans.map(
       (plan) =>
         `- ${plan.name}: $${plan.monthly.usd} / £${plan.monthly.gbp}. ${plan.summary} Includes: ${plan.features.join("; ")}.`,
     ),

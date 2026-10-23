@@ -29,7 +29,7 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
     if (planId) persistIntendedPlan(planId);
   }, [planId]);
 
-  const plan = plans.find((item) => item.id === planId);
+  const plan = plans.find((item) => item.id === planId && !item.retired);
 
   return (
     <AuthShell

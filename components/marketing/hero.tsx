@@ -20,16 +20,16 @@ export function Hero() {
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <p className="font-mono text-xs tracking-wide text-slate uppercase">
-            AI proposal software for small businesses
+            RFP response software for small businesses
           </p>
           <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl md:text-6xl md:leading-[1.15]">
-            Win more RFPs — without a bid team.
+            Turn any RFP and your company portfolio into a compliant first draft.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-slate sm:text-lg">
-            Upload any RFP and get a compliant first draft in minutes — written
-            from your own past work, checked against every requirement, with
-            every gap flagged for you. Review it, fill in the blanks, and export
-            a polished Word or PDF proposal.
+            DraftBid AI reads the full RFP, builds your compliance checklist, and
+            drafts your response from your own case studies, team bios,
+            certifications and past answers, flagging anything it can&apos;t
+            support. You review, then export a formatted Word or PDF file.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button asChild size="lg" variant="accent">
@@ -46,7 +46,8 @@ export function Hero() {
 
         <div className="relative">
           <p className="sr-only">
-            A stack of messy RFP pages settles into one clean, branded proposal.
+            Illustrative example: a stack of messy RFP pages settles into one
+            clean, formatted proposal.
           </p>
           <DocumentTransform />
         </div>
