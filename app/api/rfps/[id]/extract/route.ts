@@ -9,12 +9,11 @@ import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
 import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
+import { readRfpDocument } from "@/lib/ocr";
 import {
   deadlineToDate,
   downloadRfpFile,
   extractRequirementsWithLlm,
-  extractTextFromDocument,
-  NO_TEXT_MESSAGE,
   prepareExtractionText,
 } from "@/lib/rfp-extract";
 import { resetPlanKeepingCover } from "@/lib/rfp-draft";
@@ -97,12 +96,18 @@ export async function POST(_request: Request, context: RouteContext) {
 
   try {
     const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
-    const documentText = await extractTextFromDocument(buffer, fileName);
-    if (!documentText.trim()) {
+    // Scanned PDFs are read with OCR through the same AI provider (metered as "ocr").
+    const read = await readRfpDocument(
+      buffer,
+      fileName,
+      usageRecorder({ userId: user.id, rfpId: rfp.id, action: "ocr" }),
+    );
+    if (!read.ok) {
       await refundAllowance(rfp.id, "extract");
       await prisma.rfp.update({ where: { id: rfp.id }, data: { status: previousStatus } });
-      return NextResponse.json({ error: NO_TEXT_MESSAGE }, { status: 422 });
+      return NextResponse.json({ error: read.error }, { status: 422 });
     }
+    const documentText = read.text;
     const extracted = await extractRequirementsWithLlm(
       documentText,
       usageRecorder({ userId: user.id, rfpId: rfp.id, action: "extract" }),
@@ -111,6 +116,7 @@ export async function POST(_request: Request, context: RouteContext) {
     // Deterministic checks against the document, plus a notice if it was too long to read in full.
     const { truncated, readPercent } = prepareExtractionText(documentText);
     const flags = [
+      ...read.flags,
       ...extracted.flaggedForReview,
       ...verifyExtraction(extracted, documentText).flags,
       ...(truncated

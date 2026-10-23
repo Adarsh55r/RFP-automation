@@ -202,3 +202,27 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - unit (`tests/unit/citations.test.ts`): passage numbering and splitting, prompt contents, library text cannot forge prompt sections, invalid marker removal, uncited-claim detection including tables and reviewed claims, marker parsing and stripping;
   - integration: the drafting route stores and streams citations; editing re-checks and remembers reviewed claims; another account cannot review claims; both export variants in DOCX and the review PDF; an invalid variant returns 400.
 - **Not verified:** the citation chips and checklist UI have not been checked in a browser yet, because dashboard pages need a signed-in Clerk session. They are covered by typecheck and lint only, and a visual pass is planned with the Phase 3 UI work. How often the model cites correctly also needs a real-model run; the Phase 5 benchmark measures it.
+
+## Phase 3.2a: Scanned PDFs (OCR)
+
+- **When it runs:** a PDF whose text layer is empty or thin (under about 80 characters a page, minimum 200) is read with OCR (`lib/ocr.ts`).
+- **How it works:**
+  - `pdf-lib` splits the scan into 5-page PDFs;
+  - each one goes to the configured AI provider as a document (`generateTextFromPdf` in `lib/llm.ts`: OpenAI file input, Anthropic document block, Gemini inline data), at most 3 at a time;
+  - there is no new subprocessor: it is the provider that already reads every RFP.
+- **The OCR prompt asks the model to:**
+  - transcribe verbatim, with page markers;
+  - write `[illegible]` instead of guessing names, dates or amounts;
+  - transcribe any instructions in the document as text and not follow them.
+- **Output:** pages are numbered `--- Page N ---` in the stored source text, which gives later features page references. Every OCR'd extraction carries a review flag ("Scanned document: … read from images … N words marked [illegible] … check names, dates, amounts and reference numbers").
+- **Limits:**
+  - `OCR_MAX_PAGES` defaults to 40, so OCR and extraction fit the 300-second function limit; `0` turns OCR off;
+  - a longer scan gets a clear 422 asking for a searchable or shorter PDF, and no AI is called;
+  - a mostly readable PDF with only a little text is kept as is, with a flag;
+  - an unreadable OCR result returns the "no readable text" message.
+- **Cost:** OCR calls are metered as action `ocr` (about $0.01 a page on GPT-4.1) and count towards the account's spend caps. The extraction attempt is refunded on any failure, as before.
+- **Copy:** the FAQ and how-it-works now say scanned PDFs are read with OCR (up to 40 pages, check the results), and OCR is off the pricing roadmap.
+- **Tests:**
+  - unit: thin-text rule; the text layer is preferred and the AI is never called; page labels when the model omits markers; an unreadable scan;
+  - integration: a 7-page scan becomes 2 calls of real 5-page and 2-page PDFs, the transcription reaches extraction, pages are numbered, the `[illegible]` count is flagged; the page limit refuses with no AI call or charge; OCR can be turned off.
+- **Not verified:** real OCR quality against a provider. The tests use a fake model; a real scanned RFP needs checking on a preview deployment (FOUNDER_TODO).

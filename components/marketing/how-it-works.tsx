@@ -8,7 +8,7 @@ const steps = [
   {
     icon: Upload,
     title: "Upload the RFP",
-    body: "Drop in an RFP, tender or questionnaire as a PDF or Word file; include any addenda in the same file. Scanned PDFs need searchable text (OCR) first.",
+    body: "Drop in an RFP, tender or questionnaire as a PDF or Word file; include any addenda in the same file. Scanned PDFs are read with text recognition (OCR).",
   },
   {
     icon: ListChecks,

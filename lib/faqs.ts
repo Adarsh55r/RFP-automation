@@ -59,7 +59,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "Which files can I upload?",
     answer:
-      "PDF and Word (.docx) files up to 25 MB. Scanned PDFs need searchable text (OCR) first, and Excel questionnaires are not supported yet; both are on our roadmap. If an RFP has addenda, include them in the same file.",
+      "PDF and Word (.docx) files up to 25 MB. Scanned PDFs of up to 40 pages are read with text recognition (OCR); check names, dates and numbers afterwards, because OCR can misread them. Excel questionnaires are not supported yet and are on our roadmap. If an RFP has addenda, include them in the same file.",
   },
   {
     question: "Does it work for public-sector bids?",

@@ -31,3 +31,14 @@ export async function makePdf(text: string, table?: string[][], twoColumn?: [str
     pdfMake.createPdf({ content }).getBuffer((buffer: Uint8Array) => resolve(Buffer.from(buffer)));
   });
 }
+
+/** A "scanned" PDF: pages with only drawn shapes, no text layer (what a scanner without OCR produces). */
+export async function makeScannedPdf(pages: number) {
+  const { PDFDocument, rgb } = await import("pdf-lib");
+  const doc = await PDFDocument.create();
+  for (let i = 0; i < pages; i++) {
+    const page = doc.addPage([612, 792]);
+    page.drawRectangle({ x: 72, y: 600, width: 400, height: 120, color: rgb(0.85, 0.85, 0.85) });
+  }
+  return Buffer.from(await doc.save());
+}

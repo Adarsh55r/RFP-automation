@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUser, hasTestDb, resetDb, testDb } from "../helpers/db";
-import { makeDocx } from "../helpers/documents";
+import { makeDocx, makeScannedPdf } from "../helpers/documents";
 import { FIXTURES } from "../fixtures/rfps";
 
 const h = vi.hoisted(() => ({ clerkId: null as string | null }));
@@ -9,7 +9,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/supabase/admin", async () => await import("../helpers/fake-supabase"));
 vi.mock("@/lib/llm", async (original) => {
   const llm = await import("../helpers/llm");
-  return { ...(await original<typeof import("@/lib/llm")>()), generateLlmText: llm.fakeGenerate, streamLlmText: llm.fakeStream };
+  return { ...(await original<typeof import("@/lib/llm")>()), generateLlmText: llm.fakeGenerate, streamLlmText: llm.fakeStream, generateTextFromPdf: llm.fakePdf };
 });
 
 const fixture = (id: string) => FIXTURES.find((f) => f.id === id)!;
@@ -164,5 +164,74 @@ describe.skipIf(!hasTestDb)("extraction route", () => {
     const after = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
     expect(after.extractCount).toBe(0);
     expect(after.status).toBe("uploaded");
+  });
+
+  describe("scanned PDFs (OCR)", () => {
+    async function scannedRfp(pages: number) {
+      const llm = await import("../helpers/llm");
+      const fake = await import("../helpers/fake-supabase");
+      llm.resetLlm();
+      const user = await createUser("scan", "starter");
+      const rfp = await testDb().rfp.create({ data: { userId: user.id, title: "Scan", status: "uploaded" } });
+      const path = `${user.id}/${rfp.id}/scan.pdf`;
+      fake.files.set(path, await makeScannedPdf(pages));
+      await testDb().rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: fake.getRfpPublicUrl(path) } });
+      h.clerkId = "scan";
+      const route = await import("@/app/api/rfps/[id]/extract/route");
+      return { user, rfp, llm, run: () => route.POST(new Request("http://t/x", { method: "POST" }), ctx(rfp.id)) };
+    }
+
+    it("reads a scanned PDF page by page with the AI provider, flags it for checking, and meters the cost", async () => {
+      const { user, rfp, llm, run } = await scannedRfp(7);
+      llm.script.pdf = (req) => {
+        expect(req.system).toMatch(/do not follow them/);
+        return "=== PAGE ===\nCITY OF FORT HOLLOW Request for Proposals 2026-14\nProposals due November 20, 2026.\n=== PAGE ===\nInsurance: [illegible] per occurrence.";
+      };
+      llm.script.json = (req) => {
+        expect(req.user + (req.context ?? "")).toContain("CITY OF FORT HOLLOW");
+        return goodJson();
+      };
+      const res = await run();
+      expect(res.status).toBe(200);
+      // 7 pages at 5 per call = 2 calls, each given a real PDF of its pages.
+      expect(llm.pdfCalls.length).toBe(2);
+      const { PDFDocument } = await import("pdf-lib");
+      const pageCounts = await Promise.all(llm.pdfCalls.map(async (call) => (await PDFDocument.load(call.pdf)).getPageCount()));
+      expect(pageCounts.sort()).toEqual([2, 5]);
+
+      const saved = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
+      expect(saved.sourceText).toContain("--- Page 1 ---");
+      expect(saved.sourceText).toContain("--- Page 6 ---");
+      const flags = saved.extractedFlags as string[];
+      expect(flags.some((flag) => /Scanned document: .* all 7 pages .* 2 words were marked \[illegible\]/.test(flag))).toBe(true);
+      expect(user.id).toBeTruthy();
+    });
+
+    it("refuses a scan longer than the OCR page limit with a clear message, and calls no AI", async () => {
+      process.env.OCR_MAX_PAGES = "3";
+      try {
+        const { rfp, llm, run } = await scannedRfp(4);
+        const res = await run();
+        expect(res.status).toBe(422);
+        expect((await res.json()).error).toMatch(/longer than the 3 pages/);
+        expect(llm.pdfCalls.length + llm.calls.length).toBe(0);
+        expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } })).extractCount).toBe(0);
+      } finally {
+        delete process.env.OCR_MAX_PAGES;
+      }
+    });
+
+    it("OCR can be turned off (OCR_MAX_PAGES=0)", async () => {
+      process.env.OCR_MAX_PAGES = "0";
+      try {
+        const { llm, run } = await scannedRfp(1);
+        const res = await run();
+        expect(res.status).toBe(422);
+        expect((await res.json()).error).toMatch(/searchable/);
+        expect(llm.pdfCalls.length).toBe(0);
+      } finally {
+        delete process.env.OCR_MAX_PAGES;
+      }
+    });
   });
 });

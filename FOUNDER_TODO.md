@@ -50,6 +50,10 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 - [ ] Sentry: set `NEXT_PUBLIC_SENTRY_DSN` and add an email alert rule for new issues (failed uploads, extractions and drafts are reported there)
 - [ ] Run the restore test in `docs/operations.md` and record the result in UPGRADE_LOG.md
 - [ ] Decide on backups for uploaded files in Supabase Storage (not covered by Neon's history)
+- [ ] OCR for scanned PDFs is **on** by default for scans of up to 40 pages. It sends page images to the same AI provider that already reads every RFP and costs roughly $0.01 a page on GPT-4.1, recorded as `ocr` in AI costs.
+  - Set `OCR_MAX_PAGES` in Vercel to change the limit, or `0` to turn OCR off.
+  - If you change it, update the "Which files can I upload?" FAQ (`lib/faqs.ts`).
+  - Check one real scanned RFP on a preview deployment before relying on it.
 
 ## Content
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark

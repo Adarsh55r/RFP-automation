@@ -119,7 +119,6 @@ const roadmap = [
   "Your letterhead on exports",
   "Separate client workspaces for proposal consultants",
   "Excel and CSV questionnaires",
-  "Automatic text recognition for scanned PDFs",
 ];
 
 export function PricingView() {

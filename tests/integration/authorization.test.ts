@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/supabase/admin", async () => await import("../helpers/fake-supabase"));
 vi.mock("@/lib/llm", async (original) => {
   const llm = await import("../helpers/llm");
-  return { ...(await original<typeof import("@/lib/llm")>()), generateLlmText: llm.fakeGenerate, streamLlmText: llm.fakeStream };
+  return { ...(await original<typeof import("@/lib/llm")>()), generateLlmText: llm.fakeGenerate, streamLlmText: llm.fakeStream, generateTextFromPdf: llm.fakePdf };
 });
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

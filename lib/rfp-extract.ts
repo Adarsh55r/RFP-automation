@@ -115,6 +115,10 @@ export function prepareExtractionText(documentText: string) {
 export const NO_TEXT_MESSAGE =
   "No readable text was found in this file. If it is a scanned PDF, make it searchable first (for example with your scanner's OCR or Acrobat's \"Recognize text\"), then upload it again.";
 
+export function scannedTooLongMessage(maxPages: number) {
+  return `This looks like a scanned PDF with no text layer, and it is longer than the ${maxPages} pages DraftBid AI reads from images. Make it searchable first (for example with Acrobat's "Recognize text"), or upload the sections you need as a shorter PDF.`;
+}
+
 export function storagePathFromPublicUrl(fileUrl: string): string | null {
   try {
     const url = new URL(fileUrl);
@@ -160,10 +164,14 @@ export async function downloadRfpFile(fileUrl: string): Promise<{
   return { buffer, fileName };
 }
 
-export async function extractTextFromDocument(
-  buffer: Buffer,
-  fileName: string,
-): Promise<string> {
+export type DocumentText = {
+  text: string;
+  /** PDF page count; null for Word documents. */
+  pageCount: number | null;
+};
+
+/** Reads a PDF's text layer (with its page count) or a Word document's text. */
+export async function readDocumentText(buffer: Buffer, fileName: string): Promise<DocumentText> {
   const lower = fileName.toLowerCase();
   const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
@@ -184,7 +192,7 @@ export async function extractTextFromDocument(
     }
     try {
       const result = await extractText(pdf, { mergePages: true });
-      return (typeof result.text === "string" ? result.text : "").trim();
+      return { text: (typeof result.text === "string" ? result.text : "").trim(), pageCount: pdf.numPages };
     } catch {
       throw new DocumentReadError("damaged");
     }
@@ -195,13 +203,17 @@ export async function extractTextFromDocument(
     const mammoth = await import("mammoth");
     try {
       const result = await mammoth.extractRawText({ buffer });
-      return (result.value ?? "").trim();
+      return { text: (result.value ?? "").trim(), pageCount: null };
     } catch {
       throw new DocumentReadError("damaged");
     }
   }
 
   throw new Error("Only PDF and DOCX files are supported for extraction.");
+}
+
+export async function extractTextFromDocument(buffer: Buffer, fileName: string): Promise<string> {
+  return (await readDocumentText(buffer, fileName)).text;
 }
 
 function stripCodeFences(text: string) {
