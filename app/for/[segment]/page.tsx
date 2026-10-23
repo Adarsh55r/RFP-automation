@@ -4,6 +4,7 @@ import { SegmentLanding } from "@/components/marketing/segment-landing";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { getSegment, SEGMENTS } from "@/lib/segments";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 type Props = { params: Promise<{ segment: string }> };
 
@@ -29,6 +30,7 @@ export default async function SegmentPage({ params }: Props) {
   if (!segment) notFound();
   return (
     <>
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content">
         <SegmentLanding segment={segment} />

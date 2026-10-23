@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { getGuide, guideVisible, GUIDES } from "@/lib/guides";
 import { getSegment } from "@/lib/segments";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -33,6 +34,7 @@ export default async function GuidePage({ params }: Props) {
   const segment = guide.segment ? getSegment(guide.segment) : null;
   return (
     <>
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content" className="bg-surface">
         <article className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">

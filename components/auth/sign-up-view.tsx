@@ -24,7 +24,7 @@ function persistIntendedPlan(planId: PlanId) {
   }
 }
 
-export function SignUpView({ planId }: { planId?: PlanId }) {
+export function SignUpView({ planId, segment }: { planId?: PlanId; segment?: string }) {
   useEffect(() => {
     if (planId) persistIntendedPlan(planId);
   }, [planId]);
@@ -70,6 +70,8 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
         fallbackRedirectUrl="/onboarding"
         unsafeMetadata={{
           intendedPlan: planId ?? null,
+          // Which landing page or campaign the sign-up came from (funnel report).
+          seg: segment ?? null,
         }}
       />
       <p className="mt-4 text-xs leading-relaxed text-slate">

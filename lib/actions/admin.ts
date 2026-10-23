@@ -5,6 +5,7 @@ import { assertAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
 import { CURRENT_PLAN_VERSION, PLANS } from "@/lib/plans";
+import { recordFirst } from "@/lib/funnel";
 
 /** Plans an admin can assign. Legacy Growth and Team are not re-assignable; existing accounts keep them. */
 const TIERS: SubscriptionTier[] = ["free", "single_bid", "starter", "pro", "consultant", "pilot"];
@@ -43,6 +44,7 @@ export async function adminSetPlan(userId: string, tier: string) {
       update: terms,
       create: { userId, ...terms },
     });
+    if (plan.billing.kind !== "free") await recordFirst("paid", userId);
   }, [`/admin/customers/${userId}`, "/admin/customers", "/admin"]);
 }
 

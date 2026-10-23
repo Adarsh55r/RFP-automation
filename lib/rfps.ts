@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma";
+import { recordFirst } from "@/lib/funnel";
 
 /**
  * One RFP for its pages. Leaves out the full document text, which can run to
@@ -50,6 +51,9 @@ export async function completeRfpUpload(
     // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
     prisma.proposalUsage.create({ data: { userId, rfpId, overageCents } }),
   ]);
+  const proposals = await prisma.proposalUsage.count({ where: { userId } });
+  if (proposals === 1) await recordFirst("first_upload", userId);
+  if (proposals === 2) await recordFirst("second_proposal", userId);
 }
 
 /** Upload attempts allowed per account per hour, finished or not. */

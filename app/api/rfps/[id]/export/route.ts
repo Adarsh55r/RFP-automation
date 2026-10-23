@@ -17,6 +17,7 @@ import { PDFDocument } from "pdf-lib";
 import { storedKeyDetails } from "@/lib/key-details";
 import { pageLimitFrom, pageLimitWarning } from "@/lib/page-limit";
 import { downloadRfpFile } from "@/lib/rfp-extract";
+import { recordFirst } from "@/lib/funnel";
 import {
   matchAnswers,
   parseQuestionnaireMap,
@@ -134,6 +135,7 @@ export async function POST(request: Request, context: RouteContext) {
         where: { id: rfp.id },
         data: { status: RfpStatus.exported },
       });
+      await recordFirst("first_export", user.id);
     }
 
     const fileName = proposalExportFileName(doc.cover.projectTitle, format, variant);
@@ -194,6 +196,7 @@ async function exportSpreadsheet(clerkId: string, id: string) {
       bytes = new TextEncoder().encode(writeAnswersToCsv(buffer.toString("utf8"), map, answers));
     }
     await prisma.rfp.update({ where: { id: rfp.id }, data: { status: RfpStatus.exported } });
+    await recordFirst("first_export", user.id);
 
     const base = storedName.replace(/\.(xlsx|csv)$/i, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "questionnaire";
     return new NextResponse(new Uint8Array(bytes), {

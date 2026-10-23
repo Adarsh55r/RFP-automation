@@ -15,6 +15,7 @@ import {
 } from "@/components/marketing";
 import { JsonLd } from "@/components/seo/json-ld";
 import { homeStructuredData } from "@/lib/structured-data";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -25,6 +26,7 @@ export default function Home() {
     <>
       <JsonLd data={homeStructuredData()} />
       <HashScroll />
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content">
         <Hero />

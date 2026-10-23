@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { CURRENCIES, isOutcome } from "@/lib/outcomes";
+import { recordFirst } from "@/lib/funnel";
 
 /** Records what happened to a bid. Every field is optional; empty clears it. */
 export async function updateBidOutcome(input: {
@@ -55,6 +56,7 @@ export async function updateBidOutcome(input: {
       hoursSaved: hours,
     },
   });
+  if (outcome || submittedAt) await recordFirst("outcome_logged", user.id);
   revalidatePath(`/dashboard/rfps/${rfp.id}`);
   revalidatePath("/dashboard");
   return { ok: true as const };

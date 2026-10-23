@@ -134,6 +134,21 @@ BEGIN
   -- Spreadsheet questionnaire column mapping.
   ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "questionnaireMap" JSONB;
 
+  -- Funnel analytics (own database) and segment attribution.
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "signupSegment" TEXT;
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "industry" TEXT;
+  CREATE TABLE IF NOT EXISTS "FunnelEvent" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "userId" TEXT,
+    "segment" TEXT,
+    "path" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "FunnelEvent_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "FunnelEvent_event_createdAt_idx" ON "FunnelEvent"("event", "createdAt");
+  CREATE INDEX IF NOT EXISTS "FunnelEvent_userId_event_idx" ON "FunnelEvent"("userId", "event");
+
   -- Free checklist tool: rate-limit records (hashed IPs only) and opted-in leads.
   CREATE TABLE IF NOT EXISTS "ToolUsage" (
     "id" TEXT NOT NULL,
@@ -199,6 +214,7 @@ BEGIN
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
       ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
       ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261025150000_funnel_events', 'd3c17b1f73a2da9fc71a8b87904678f2a84f0079ce921b61bebf1b97920256d6'),
       ('20261025140000_free_tool', 'c9b93e096b9152ec00202fc106a30d88d24bfaeb1188910c51d17d53e479a446'),
       ('20261025130000_bid_outcomes', '3153d823c3393f20d0ac68c3d35b067f2d57610167289b98876afbfb8e78d024'),
       ('20261025120000_key_details', '0197716203261ec688e17926b6a71ddfb0f9093019de5ed5c9a85a44c328a44f'),
@@ -274,7 +290,8 @@ SELECT
     WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'hoursSaved'
   )
   OR to_regclass('"ToolUsage"') IS NULL
-  OR to_regclass('"Lead"') IS NULL AS "needsUpgrade"
+  OR to_regclass('"Lead"') IS NULL
+  OR to_regclass('"FunnelEvent"') IS NULL AS "needsUpgrade"
 `;
 
 export { NEEDS_UPGRADE_SQL, UPGRADE_SQL };

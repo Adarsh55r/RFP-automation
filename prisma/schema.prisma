@@ -67,6 +67,10 @@ enum RfpDocumentType {
 }
 
 model User {
+  /// First-touch marketing segment from ?seg= on sign-up links (lib/segments.ts), for the funnel report.
+  signupSegment     String?
+  /// Optional answer to "What industry are you in?" at onboarding.
+  industry          String?
   id                String    @id @default(cuid())
   clerkId           String    @unique
   email             String
@@ -270,4 +274,19 @@ model Lead {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+/// Product funnel events, stored in our own database (no third party). Never
+/// holds document content: only the event name, the account (if signed in),
+/// and for anonymous page events the path and marketing segment.
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  event     String
+  userId    String?
+  segment   String?
+  path      String?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, event])
 }

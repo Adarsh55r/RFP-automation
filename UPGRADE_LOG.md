@@ -494,3 +494,33 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **SEO templates** (`/guides/[slug]`, `lib/guides.ts`): the four general topics from the brief plus one checklist page per segment, each with set headings and `{{GUIDE_COPY: …}}` placeholders. Unpublished guides are `noindex`, left out of the sitemap, and return 404 in production; previews show them with a draft banner. Published guides join the sitemap automatically.
 - **Sitemap:** the segment, use-case and tool pages are added (4.2, 4.3); robots.txt and llms.txt are unchanged.
 - **Tests:** the redirect only affects the twin host, keeps the path and query, and does nothing when switched off or on preview hosts; the `SITE_URL` env is handled; plan aliases; the guide list, production hiding and sitemap exclusion.
+
+## Phase 4.5: Funnel analytics with segment attribution
+
+- **Events in our own database** (`FunnelEvent`; `lib/funnel.ts`): no third party, no cookies, no IP addresses, and no document content. The table's columns are only the event name, the account, the path, the segment and a time; a test pins this.
+- **Events** (the brief's list):
+  - **From the marketing site:** `visit`, `visit_pricing` and `start_signup` come from a small beacon. They go through `POST /api/events`, which accepts only these three anonymous events, strips query strings from paths and keeps only known segments. Signed-in milestones can't be sent from the browser (tested).
+  - **Recorded on the server where they happen, the first time for each account:**
+    - `complete_signup`: onboarding;
+    - `first_upload` and `second_proposal`: from the usage ledger;
+    - `checklist_confirmed`, `first_draft` (full drafts only) and `first_export` (submission or spreadsheet export);
+    - `upgrade_viewed`: billing page;
+    - `checkout_started`: a "Request plan" click, since checkout isn't live;
+    - `paid`: an admin assigning a paid plan;
+    - `outcome_logged`.
+- **Segment attribution without browser storage:**
+  - `?seg=<segment>` on outreach links is carried onto the page's internal links by the beacon, so it reaches sign-up through the URL;
+  - sign-up stores it in the Clerk sign-up metadata, and onboarding saves it **once**, as first touch, on the new `User.signupSegment`;
+  - segment pages and the free tool add `seg=` to their sign-up links themselves.
+- **Onboarding question:** an optional "What industry are you in?" (5 options or "Prefer not to say"), saved as `User.industry`.
+- **Report:** `/admin/funnel`, with periods of 30, 90 or 365 days:
+  - visits → sign-ups → first draft → paid → second proposal for each segment, the free checklist tool and "no segment", with step-to-step conversion;
+  - totals for every event.
+
+  The AI costs page now also labels the `ocr` and `website_import` actions.
+- **Schema (additive):** `FunnelEvent`, `User.signupSegment` and `User.industry`, migration `20261025150000_funnel_events`, plus the boot-time upgrade. No drift.
+- **Privacy policy:** now describes product events, anonymous page views and the industry answer.
+- **Verified:**
+  - integration tests: endpoint allow-list and sanitising; onboarding first-touch segment, industry validation and a single `complete_signup`; milestones recorded once from their real sources; the funnel maths by segment; no content columns;
+  - **in development:** a headless run of the marketing pages showed each page sending its event (`visit`, `visit_pricing`, `start_signup`) and the endpoint answering 204. The dev server could not *write* them, because the app's Neon database driver cannot reach the local test Postgres. Writes are covered by the integration tests.
+- **Phase 4 visual check:** homepage, segment, use-case, tool, pricing, guide and sign-up pages, at 1280 px and 390 px. An old `plan=agency` link shows "Pro" on sign-up. No issues found.

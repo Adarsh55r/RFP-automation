@@ -10,6 +10,10 @@ export type OnboardingPayload = {
   agencyName: string;
   teamSize: TeamSize;
   intendedPlan?: string;
+  /** Optional answer to "What industry are you in?". */
+  industry?: string;
+  /** Marketing segment the sign-up came from (?seg=), recorded once. */
+  segment?: string;
   /** The user ticked "I agree to the Terms of Service and Privacy Policy". */
   acceptTerms: boolean;
 };

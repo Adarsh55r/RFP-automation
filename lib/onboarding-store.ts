@@ -4,6 +4,8 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { CURRENT_PLAN_VERSION } from "@/lib/plans";
 import type { OnboardingPayload } from "@/lib/onboarding";
 import { teamSizeOptions } from "@/lib/onboarding";
+import { recordEvent } from "@/lib/funnel";
+import { isAttributionSource, isIndustry } from "@/lib/funnel-sources";
 import { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prisma";
 
 function isTeamSize(
@@ -52,6 +54,9 @@ export async function saveOnboarding(
     return { ok: false as const, error: "Your account needs an email address." };
   }
 
+  const industry = isIndustry(payload.industry) ? payload.industry : undefined;
+  const existed = Boolean(await prisma.user.findUnique({ where: { clerkId }, select: { id: true } }));
+
   const user = await prisma.user.upsert({
     where: { clerkId },
     create: {
@@ -60,6 +65,8 @@ export async function saveOnboarding(
       agencyName,
       teamSize: payload.teamSize,
       ...acceptance,
+      industry,
+      signupSegment: isAttributionSource(payload.segment) ? payload.segment : null,
       subscription: {
         create: {
           tier: SubscriptionTier.free,
@@ -74,8 +81,12 @@ export async function saveOnboarding(
       agencyName,
       teamSize: payload.teamSize,
       ...acceptance,
+      ...(industry ? { industry } : {}),
     },
   });
+  if (!existed) {
+    await recordEvent("complete_signup", { userId: user.id, segment: user.signupSegment });
+  }
 
   return { ok: true as const, userId: user.id };
 }

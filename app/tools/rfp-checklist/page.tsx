@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { FreeChecklistTool } from "@/components/marketing/free-checklist-tool";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 export const metadata: Metadata = {
   title: "Free RFP requirement checklist, no signup",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default function FreeChecklistPage() {
   return (
     <>
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content" className="bg-surface">
         <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">

@@ -10,6 +10,8 @@ import { TermsCheckbox } from "@/components/legal/terms-checkbox";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
+import { Select } from "@/components/ui/select";
+import { INDUSTRIES } from "@/lib/funnel-sources";
 import {
   INTENDED_PLAN_COOKIE,
   parsePlanId,
@@ -40,6 +42,7 @@ export function OnboardingFlow() {
   const [agencyName, setAgencyName] = useState("");
   const [teamSize, setTeamSize] = useState<TeamSize | null>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [industry, setIndustry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -82,6 +85,8 @@ export function OnboardingFlow() {
         agencyName: agencyName.trim(),
         teamSize,
         intendedPlan,
+        industry: industry || undefined,
+        segment: typeof user.unsafeMetadata?.seg === "string" ? user.unsafeMetadata.seg : undefined,
         acceptTerms,
       });
 
@@ -173,6 +178,17 @@ export function OnboardingFlow() {
                 );
               })}
             </div>
+            <label htmlFor="industry" className="mt-2 flex flex-col gap-2 text-sm font-medium text-ink">
+              What industry are you in? (optional)
+              <Select id="industry" value={industry} onChange={(event) => setIndustry(event.target.value)}>
+                <option value="">Prefer not to say</option>
+                {INDUSTRIES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </label>
             <TermsCheckbox checked={acceptTerms} onChange={setAcceptTerms} />
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="flex flex-col gap-2 sm:flex-row">

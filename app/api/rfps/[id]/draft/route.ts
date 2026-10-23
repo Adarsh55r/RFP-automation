@@ -38,6 +38,7 @@ import {
   type MetaBlock,
 } from "@/lib/rfp-draft";
 import { getRfpSourceText } from "@/lib/rfp-extract";
+import { recordFirst } from "@/lib/funnel";
 import {
   editableTextToList,
   listToEditableText,
@@ -411,6 +412,7 @@ export async function POST(request: Request, context: RouteContext) {
         if (!wroteAnything) {
           throw new Error("Drafting failed for every section. Try again in a moment.");
         }
+        if (!onlySection) await recordFirst("first_draft", user.id);
 
         // 3. Compliance review of the actual draft against every requirement.
         send({ type: "phase", phase: "reviewing" });

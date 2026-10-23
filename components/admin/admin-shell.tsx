@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, BellRing, Coins, CreditCard, LayoutDashboard, Search, Settings2, Users } from "lucide-react";
+import { ArrowLeft, BellRing, Coins, CreditCard, Filter, LayoutDashboard, Search, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/costs", label: "AI costs", icon: Coins },
+  { href: "/admin/funnel", label: "Funnel", icon: Filter },
   { href: "/admin/alerts", label: "Alerts", icon: BellRing },
   { href: "/admin/setup", label: "Setup", icon: Settings2 },
 ];

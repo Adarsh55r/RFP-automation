@@ -10,6 +10,8 @@ import { requireDashboardUser } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
 import { getProposalAllowance } from "@/lib/entitlements";
 import { displayPrice, formatPrice, publicPlans, SETUP_ADDON } from "@/lib/plans";
+import { recordFirst } from "@/lib/funnel";
+import { PlanRequestLink } from "@/components/dashboard/plan-request-link";
 
 export const metadata: Metadata = {
   title: "Billing",
@@ -34,6 +36,7 @@ export default async function BillingPage() {
     redirect("/onboarding");
   }
 
+  await recordFirst("upgrade_viewed", user.id);
   const [allowance, owed] = await Promise.all([
     getProposalAllowance(user.id, user.subscription),
     prisma.proposalUsage.aggregate({
@@ -129,7 +132,7 @@ export default async function BillingPage() {
                   <Badge variant="success" className="w-fit">Current plan</Badge>
                 ) : option.billing.kind === "free" ? null : (
                   <Button asChild variant="secondary" className="w-full">
-                    <a href={requestHref(option.name)}>Request {option.name}</a>
+                    <PlanRequestLink href={requestHref(option.name)}>Request {option.name}</PlanRequestLink>
                   </Button>
                 )}
               </Card>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { SignUpView } from "@/components/auth/sign-up-view";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
+import { isAttributionSource } from "@/lib/funnel-sources";
 import { parsePlanId } from "@/lib/intended-plan";
 
 export const metadata: Metadata = {
@@ -10,10 +12,15 @@ export const metadata: Metadata = {
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; seg?: string }>;
 }) {
-  const { plan } = await searchParams;
+  const { plan, seg } = await searchParams;
   const planId = parsePlanId(plan);
 
-  return <SignUpView planId={planId} />;
+  return (
+    <>
+      <FunnelBeacon event="start_signup" />
+      <SignUpView planId={planId} segment={isAttributionSource(seg) ? seg : undefined} />
+    </>
+  );
 }

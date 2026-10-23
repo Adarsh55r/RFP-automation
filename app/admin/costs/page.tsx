@@ -13,6 +13,8 @@ const ACTION_LABELS: Record<string, string> = {
   extract: "Requirement extraction",
   full_draft: "Full drafts",
   revision: "Section revisions",
+  ocr: "Reading scanned pages (OCR)",
+  website_import: "Website import",
 };
 
 export default async function AdminCostsPage() {

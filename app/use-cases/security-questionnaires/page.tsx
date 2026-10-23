@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { UseCasePage, type UseCase } from "@/components/marketing/use-case-page";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 const useCase: UseCase = {
   eyebrow: "Use case · Security questionnaires",
@@ -33,6 +34,7 @@ export const metadata: Metadata = {
 export default function SecurityQuestionnairesPage() {
   return (
     <>
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content">
         <UseCasePage useCase={useCase} />

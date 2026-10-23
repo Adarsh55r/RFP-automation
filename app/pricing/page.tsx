@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { faqStructuredData } from "@/lib/structured-data";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 export const metadata: Metadata = {
   title: "Pricing — RFP Software for Small Teams",
@@ -16,6 +17,7 @@ export default function PricingPage() {
   return (
     <>
       <JsonLd data={faqStructuredData()} />
+      <FunnelBeacon event="visit_pricing" />
       <SiteHeader />
       <main id="main-content">
         <PricingView />
