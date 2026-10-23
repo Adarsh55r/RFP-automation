@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { DeleteWorkspaceCard } from "@/components/dashboard/delete-workspace-card";
 import { SettingsView } from "@/components/dashboard/settings-view";
 import { requireDashboardUser } from "@/lib/dashboard";
 
@@ -24,8 +25,8 @@ export default async function SettingsPage() {
           Company profile
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-          This name appears on proposal cover pages. Team size only shapes
-          defaults — it is not a seat limit.
+          This name appears on proposal cover pages. Team size is for our
+          information only; it does not limit anything.
         </p>
       </header>
 
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
         teamSize={user.teamSize}
         email={user.email}
       />
+      <DeleteWorkspaceCard />
     </div>
   );
 }

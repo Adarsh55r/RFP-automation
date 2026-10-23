@@ -31,3 +31,18 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - The workspace-repair path on `/onboarding` (which rebuilds a missing database row from Clerk metadata) no longer counts as acceptance. Saving the workspace moved to `lib/onboarding-store.ts`, so the only callable onboarding action is the one that requires the checkbox.
 - Onboarding copy no longer mentions "seats and library folders", which don't exist.
 - Limitation: acceptance gates the dashboard UI. API routes don't re-check it; a signed-in user who skipped the screen could still call them directly.
+
+## Phase 1.2b: Users can delete their data
+- **Usage ledger** (`ProposalUsage`, additive, backfilled once from existing finished uploads). Each finished upload records one use of the plan in the same transaction. Quota and dashboard counts read the ledger, so deleting an RFP cannot be used to beat the monthly limit.
+- **Delete an RFP** (RFP page → "Delete RFP"):
+  - removes the stored file, extracted text, requirements and drafts;
+  - refused while that RFP's AI task is running;
+  - the usage record stays.
+- **Delete workspace** (Settings → "Delete workspace", type DELETE):
+  - removes every stored file, then the user row, which cascades to the subscription, RFPs, drafts, library, AI-usage and plan-usage records;
+  - clears the "onboarding completed" flag in Clerk and signs out;
+  - leaves the Clerk sign-in for the user to remove.
+- If storage deletion fails, nothing is deleted, so a file is never orphaned without a record.
+- Why: the privacy policy promised deletion, but users could not delete anything themselves.
+- Tests: owner delete, cross-user refusal, refusal mid-task, workspace delete scope (the other user untouched), backfill idempotency.
+- Known gap: a user who deletes the workspace and onboards again gets a fresh Free allowance. To address with Phase 2 trial rules.

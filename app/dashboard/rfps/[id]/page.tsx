@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
 import { proposalAllowance } from "@/lib/ai-guard";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +113,9 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         ) : (
           <p className="mt-2 text-sm text-slate">File URL not available.</p>
         )}
+        <div className="mt-4 border-t border-border pt-4">
+          <DeleteRfpButton rfpId={rfp.id} title={rfp.title} />
+        </div>
       </Card>
 
       <RfpExtractionPanel
