@@ -524,3 +524,21 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - integration tests: endpoint allow-list and sanitising; onboarding first-touch segment, industry validation and a single `complete_signup`; milestones recorded once from their real sources; the funnel maths by segment; no content columns;
   - **in development:** a headless run of the marketing pages showed each page sending its event (`visit`, `visit_pricing`, `start_signup`) and the endpoint answering 204. The dev server could not *write* them, because the app's Neon database driver cannot reach the local test Postgres. Writes are covered by the integration tests.
 - **Phase 4 visual check:** homepage, segment, use-case, tool, pricing, guide and sign-up pages, at 1280 px and 390 px. An old `plan=agency` link shows "Pro" on sign-up. No issues found.
+
+## Phase 5: Accuracy benchmark harness
+
+- **`npm run benchmark`** (`scripts/benchmark/run.ts`, run with `tsx`):
+  - reads public RFPs from `benchmark/rfps/` and gold lists from `benchmark/gold/*.json`;
+  - runs the **app's real reading and extraction**: OCR for scans, hidden-text removal, key details;
+  - writes `benchmark/results/<date>.md`.
+
+  `--only=<text>` runs a subset. It needs an AI key and no database.
+- **Scoring** (`scripts/benchmark/score.ts`, unit-tested):
+  - **Matching:** a gold requirement counts as found when one extracted item covers at least 60% of its meaningful words and **every number** in it, so a wrong amount counts as a miss. Matching is one-to-one, best pairs first.
+  - **What counts as extracted:** mandatory, submission, desirable and evaluation items, questions, key details and the deadline.
+  - **Metrics:** recall, **mandatory recall** and precision, pooled over requirements. Precision is labelled a lower bound, because gold lists may be incomplete.
+  - **Also reported:** time and AI cost per RFP (average and p95), breakdowns by segment and by sector, every missed mandatory requirement, and failed runs listed separately.
+  - **Launch target:** the report states plainly whether mandatory recall of at least 85% across 20 RFPs was met.
+- **`benchmark/README.md`:** the gold-file format and how to write gold lists. `example-format.json` shows the format and is ignored by the runner.
+- **Tests:** coverage, including the wrong-number rule; one-to-one matching; per-RFP metrics; pooled totals with failed runs excluded; report wording.
+- **Verified:** a smoke run of the runner end to end without an AI key. The failure is reported in the table and the report is still written; the smoke files were deleted afterwards. **No real benchmark run exists:** it needs your 20 public RFPs, their gold lists, and an AI key. No numbers are claimed.

@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:integration": "vitest run tests/integration",
     "eval:ai": "vitest run tests/eval",
-    "report:ai-cost": "node scripts/ai-cost-report.mjs"
+    "report:ai-cost": "node scripts/ai-cost-report.mjs",
+    "benchmark": "tsx --env-file-if-exists=.env.local scripts/benchmark/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -62,6 +63,7 @@
     "pg": "^8.23.1",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^3.2.7"
   }
