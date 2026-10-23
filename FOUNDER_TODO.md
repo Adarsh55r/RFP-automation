@@ -22,6 +22,9 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
   - `{{SUPABASE_REGION}}` (Supabase → project settings);
   - payment provider name and region once chosen.
 - [ ] Security page: `{{BACKUP_RETENTION}}` (Neon → Backup & restore / history retention)
+- [ ] Privacy page placeholders:
+  - `{{LOG_RETENTION}}` (Vercel log retention on your plan, and Sentry data retention);
+  - `{{AI_PROVIDER_RETENTION}}` (for example OpenAI API abuse-monitoring retention; confirm in your provider's terms).
 - [ ] **Lawyer review** of the Terms, Privacy Policy, DPA and subprocessor list (see `docs/legal/README.md`)
 - [ ] **AI provider data terms:** from each provider's account settings or contract, confirm that API data is not used for training and note its retention period. Then set `AI_NO_TRAINING_CONFIRMED = true` in `lib/company.ts`. Until then the site does not claim the provider does not train on your data.
 

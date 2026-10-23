@@ -46,3 +46,14 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - Why: the privacy policy promised deletion, but users could not delete anything themselves.
 - Tests: owner delete, cross-user refusal, refusal mid-task, workspace delete scope (the other user untouched), backfill idempotency.
 - Known gap: a user who deletes the workspace and onboards again gets a fresh Free allowance. To address with Phase 2 trial rules.
+
+## Phase 1.2: Privacy policy
+- Rewritten on the shared legal layout and versioned (`PRIVACY_VERSION`).
+- Names the operating entity (placeholder) and explains the controller/processor split, linking to the DPA.
+- Names every subprocessor and the AI provider (OpenAI by default; Anthropic or Gemini only if configured), and links to `/subprocessors`.
+- Retention now matches the code: kept until the user deletes the RFP or workspace, which they can now do themselves; no embeddings; backups, logs and AI-provider retention left as placeholders.
+- Removed statements the product doesn't support:
+  - teammates;
+  - a payment processor holding card data (checkout isn't live);
+  - plan-based history retention (never implemented).
+- "AI providers do not train on your data" appears only once the founder confirms it (`AI_NO_TRAINING_CONFIRMED`).
