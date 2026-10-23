@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Inbox } from "lucide-react";
 import { RecentRfps } from "@/components/dashboard/recent-rfps";
 import { SetupChecklist } from "@/components/dashboard/setup-checklist";
+import { OutcomesSummary } from "@/components/dashboard/outcomes-summary";
 import { StatCards } from "@/components/dashboard/stat-cards";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -44,6 +45,8 @@ export default async function DashboardPage() {
       <SetupChecklist steps={data.setup} />
 
       <StatCards allowance={data.allowance} draftsInProgress={data.draftsInProgress} />
+
+      <OutcomesSummary summary={data.outcomes} />
 
       {data.recentRfps.length > 0 ? (
         <RecentRfps rfps={data.recentRfps} />

@@ -6,6 +6,7 @@ import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
 import { SpreadsheetColumnsCard } from "@/components/dashboard/spreadsheet-columns-card";
 import { AddendaCard } from "@/components/dashboard/addenda-card";
+import { BidOutcomeCard } from "@/components/dashboard/bid-outcome-card";
 import { KeyDetailsCard } from "@/components/dashboard/key-details-card";
 import { storedKeyDetails } from "@/lib/key-details";
 import { prisma } from "@/lib/db";
@@ -162,6 +163,20 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
           }))}
           changes={parseExtractionChanges(rfp.extractionChanges)}
           extracted={Boolean(rfp.extractedDocumentType)}
+        />
+      ) : null}
+
+      {rfp.status === "drafted" || rfp.status === "exported" || rfp.submittedAt || rfp.outcome ? (
+        <BidOutcomeCard
+          rfpId={rfp.id}
+          initial={{
+            submittedAt: rfp.submittedAt ? rfp.submittedAt.toISOString().slice(0, 10) : "",
+            outcome: rfp.outcome ?? "",
+            contractValue: rfp.contractValueCents !== null ? String(rfp.contractValueCents / 100) : "",
+            contractCurrency: rfp.contractCurrency ?? "USD",
+            notes: rfp.outcomeNotes ?? "",
+            hoursSaved: rfp.hoursSaved !== null ? String(rfp.hoursSaved) : "",
+          }}
         />
       ) : null}
 

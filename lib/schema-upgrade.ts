@@ -7,8 +7,8 @@ import { prisma } from "@/lib/db";
  * 20261018090000_review_prompt, 20261023090000_terms_acceptance,
  * 20261023100000_proposal_usage, 20261023110000_ai_daily_ceiling,
  * 20261024090000_pricing_v2, 20261025090000_draft_citations,
- * 20261025100000_questionnaire_map, 20261025110000_addenda and
- * 20261025120000_key_details), using the app's own DATABASE_URL so it
+ * 20261025100000_questionnaire_map, 20261025110000_addenda,
+ * 20261025120000_key_details and 20261025130000_bid_outcomes), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -133,6 +133,15 @@ BEGIN
   -- Spreadsheet questionnaire column mapping.
   ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "questionnaireMap" JSONB;
 
+  -- Bid outcome tracking.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcome" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcomeAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "contractValueCents" INTEGER;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "contractCurrency" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcomeNotes" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "hoursSaved" DOUBLE PRECISION;
+
   -- Key details with verified page references.
   ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "extractedDetails" JSONB;
 
@@ -167,6 +176,7 @@ BEGIN
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
       ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
       ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261025130000_bid_outcomes', '3153d823c3393f20d0ac68c3d35b067f2d57610167289b98876afbfb8e78d024'),
       ('20261025120000_key_details', '0197716203261ec688e17926b6a71ddfb0f9093019de5ed5c9a85a44c328a44f'),
       ('20261025110000_addenda', 'bd7421ae9a5a21457dbeb1c5a79b707d283e3cd765dd3965a2cf896c37543ea6'),
       ('20261025100000_questionnaire_map', '475732645a35588d44d91139e235d9f8513b8e987de9e859a88d5dfe36564b7e'),
@@ -234,6 +244,10 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'extractedDetails'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'hoursSaved'
   ) AS "needsUpgrade"
 `;
 

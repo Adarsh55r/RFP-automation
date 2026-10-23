@@ -380,3 +380,27 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **Not verified:**
   - **Google Docs:** opening exports in Google Docs is not possible from this environment. The DOCX is standard OOXML from the `docx` library, and opening it in Docs is in FOUNDER_TODO.
   - **Microsoft Word:** Word itself isn't available here either.
+
+## Phase 3.7: Bid outcome tracking
+
+- **Fields on `Rfp`:** `submittedAt`, `outcome`, `outcomeAt`, `contractValueCents`, `contractCurrency`, `outcomeNotes` and `hoursSaved`.
+  - Outcomes are pending, won, lost, cancelled/no award, or not submitted.
+  - Currencies are USD, GBP, EUR, CAD and AUD.
+  - **Hours saved is labelled everywhere as the user's own estimate.**
+  - Migration `20261025130000_bid_outcomes`, plus the boot-time upgrade; no drift.
+- **"Bid outcome" card:** on the RFP page once the RFP is drafted or exported (or already has an outcome), backed by `updateBidOutcome`.
+  - It checks ownership and validates each field (no future submission dates, a value of at most 10M, hours 0–1000, notes up to 2,000 characters).
+  - Empty fields clear the record.
+- **"Your bid results" on the dashboard** (`summarizeOutcomes`), shown once anything is recorded:
+  - bids submitted, awaiting decision, won and lost;
+  - **win rate** over decided bids only, hidden until a bid is decided;
+  - value won per currency, and total self-reported hours.
+
+  These are the user's private numbers. They are not aggregated across customers or used in marketing; the no-unsupported-claims rule still applies to the site.
+- **Tests:**
+  - unit: counts, win rate over decided bids only, value per currency, hours;
+  - integration: save → dashboard summary → clear; invalid outcome, value, currency, hours or future date rejected; another account cannot write.
+
+## Phase 3.8: Team features
+
+- **Teams stay off** (option b, the default). Plans list no seats, comments or approvals, and the pricing roadmap still names them without dates. Nothing was built.
