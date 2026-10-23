@@ -11,12 +11,18 @@ export const SITE_DESCRIPTION =
  * trust lastmod dates that are accurate.
  */
 export const PUBLIC_PAGES = [
-  { path: "/", updated: "2026-10-23", priority: 1 },
-  { path: "/pricing", updated: "2026-10-23", priority: 0.8 },
+  { path: "/", updated: "2026-10-25", priority: 1 },
+  { path: "/pricing", updated: "2026-10-25", priority: 0.8 },
   { path: "/privacy", updated: "2026-10-23", priority: 0.3 },
   { path: "/terms", updated: "2026-10-23", priority: 0.3 },
   { path: "/security", updated: "2026-10-23", priority: 0.5 },
   { path: "/subprocessors", updated: "2026-10-23", priority: 0.3 },
   { path: "/dpa", updated: "2026-10-23", priority: 0.3 },
   { path: "/about", updated: "2026-10-23", priority: 0.4 },
+  { path: "/for/it-services", updated: "2026-10-25", priority: 0.7 },
+  { path: "/for/consultancies", updated: "2026-10-25", priority: 0.7 },
+  { path: "/for/service-contractors", updated: "2026-10-25", priority: 0.7 },
+  { path: "/for/consultants", updated: "2026-10-25", priority: 0.6 },
+  { path: "/use-cases/uk-tenders", updated: "2026-10-25", priority: 0.6 },
+  { path: "/use-cases/security-questionnaires", updated: "2026-10-25", priority: 0.6 },
 ] as const;

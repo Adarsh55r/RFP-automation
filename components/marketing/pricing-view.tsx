@@ -28,6 +28,7 @@ import {
 import { faqs } from "@/lib/faqs";
 import { useAnimatedNumber } from "@/lib/use-animated-number";
 import type { BillingCycle, Currency } from "@/types";
+import { setupRequestHref } from "@/lib/company";
 
 function AnimatedPrice({
   amount,
@@ -216,13 +217,19 @@ export function PricingView() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Card className="flex flex-col gap-2">
+          <Card id="setup" className="flex scroll-mt-24 flex-col gap-3">
             <h2 className="font-sans text-lg font-semibold text-ink">
               {SETUP_ADDON.name} · {formatPrice(SETUP_ADDON.price[currency] ?? SETUP_ADDON.price.usd, currency)} one-time
             </h2>
             <p className="text-sm leading-relaxed text-slate">
               {SETUP_ADDON.description} Included free with {SETUP_ADDON.waivedOn}.
             </p>
+            <Button asChild variant="secondary" className="w-fit">
+              <a href={setupRequestHref()}>Get help with your first bid</a>
+            </Button>
+            {setupRequestHref().startsWith("/sign-up") ? (
+              <p className="text-xs text-slate">Create a free account, then request setup from the Billing page.</p>
+            ) : null}
           </Card>
           <Card className="flex flex-col gap-2">
             <h2 className="font-sans text-lg font-semibold text-ink">On the roadmap</h2>

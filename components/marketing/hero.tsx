@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DocumentTransform } from "@/components/marketing/document-transform";
 import { HeroAtmosphere } from "@/components/marketing/hero-atmosphere";
-import { SmoothLink } from "@/components/marketing/smooth-link";
+import { setupHelpHref } from "@/lib/company";
 
 export function Hero() {
   const reduceMotion = useReducedMotion();
@@ -26,21 +26,21 @@ export function Hero() {
             Turn any RFP and your company portfolio into a compliant first draft.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-slate sm:text-lg">
-            DraftBid AI reads the full RFP, builds your compliance checklist, and
-            drafts your response from your own case studies, team bios,
-            certifications and past answers, flagging anything it can&apos;t
-            support. You review, then export a formatted Word or PDF file.
+            DraftBid AI reads the full RFP and addenda, builds your compliance
+            checklist, and drafts your response from your past proposals, case
+            studies and résumés, flagging anything it can&apos;t support. You
+            review, then export a formatted Word file.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button asChild size="lg" variant="accent">
-              <Link href="/sign-up?plan=free">Draft my first proposal free</Link>
+              <Link href="/sign-up?plan=free">Draft your first proposal free</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <SmoothLink href="/#how-it-works">See how it works</SmoothLink>
+              <Link href={setupHelpHref()}>Get help with your first bid</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-slate">
-            Free trial · No credit card · Works with PDF and Word RFPs
+            Free trial · No credit card · PDF, Word, Excel and scanned RFPs
           </p>
         </motion.div>
 

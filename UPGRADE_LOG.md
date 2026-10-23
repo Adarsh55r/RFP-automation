@@ -436,3 +436,28 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - **Word:** 2,400 words, numbers included;
   - **PDF:** words checked, but bare numbers are skipped, because pdf.js reads list-number glyphs next to the text beside them.
 - **3.1, "cannot be marked ready while gaps remain":** there is no separate "ready" state in the product. The equivalent gate is on the **submission export**: while uncited claims, placeholders or unsupported credentials remain, it requires an explicit confirmation that lists them. Uncited claims can also be dismissed one by one ("I checked it: keep as written"). Recorded as a deliberate deviation for the founder to confirm.
+
+## Phase 4.1: Homepage
+
+- **Hero:** your copy.
+  - Headline: "Turn any RFP and your company portfolio into a compliant first draft."
+  - Subheadline: reads the RFP **and addenda**, drafts from **past proposals, case studies and résumés**, and flags anything unsupported. This is now accurate, given addenda (3.2c), library document upload and citations.
+  - CTAs: "Draft your first proposal free" and "Get help with your first bid". The second goes to `{{SETUP_BOOKING_URL}}` once set, otherwise to the setup add-on on the pricing page (`/pricing#setup`, which now has its own request button).
+- **Sections:**
+  - **Three pillars,** your copy: "Never miss a requirement", "Nothing invented", "Written from your own work".
+  - **"Who it's for" strip** linking to the four segment pages and the two use-case pages.
+  - **How it works,** updated for scans and addenda.
+  - **How it compares, sample outputs and testimonials:** built, but **rendered only from real content** in `lib/marketing-content.ts`, which is empty, so they're hidden. Nothing invented is shown; filling them in is in FOUNDER_TODO.
+- **Removed from the homepage** (components kept): the positioning strip and the old five-item feature grid, replaced by the three pillars.
+- **Navigation:** "How it works · Who it's for · Pricing".
+
+## Phase 4.2: Segment and use-case pages
+
+- **`/for/[segment]`:** one template (`components/marketing/segment-landing.tsx`) driven by `lib/segments.ts`. Each segment has a headline, subheadline, 3–5 pains, checklist examples, "upload first" documents, an optional template starter set and an optional sample output (hidden until real).
+  - The pages are `it-services`, `consultancies`, `service-contractors` and `consultants`, pre-rendered at build time; unknown slugs return 404.
+  - Sign-up links carry `?seg=<slug>` for attribution (4.5).
+  - The consultants page does **not** mention client workspaces, which aren't built.
+- **Use-case pages:** `/use-cases/uk-tenders` and `/use-cases/security-questionnaires`. Each lists what DraftBid AI does and, as plainly, what it doesn't: no portal submission, no tender discovery, no certification or audit, no guaranteed score.
+- **Sitemap:** all six pages are added.
+- **Copy:** all of it is first-draft and listed in FOUNDER_TODO for review.
+- **Tests:** the four segments are complete; no outcome promises, "trusted by" or client-workspace claims; sample outputs are empty; every page is in the sitemap. Existing honest-claims and SEO guards pass.

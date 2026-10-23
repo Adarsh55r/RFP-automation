@@ -13,7 +13,7 @@ import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
 
 const publicLinks = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#product", label: "Why DraftBid AI" },
+  { href: "/#who-its-for", label: "Who it's for" },
   { href: "/#pricing", label: "Pricing" },
 ];
 

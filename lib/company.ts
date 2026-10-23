@@ -34,3 +34,23 @@ export function companyPlaceholders() {
     .filter(([, value]) => isPlaceholder(value))
     .map(([key]) => key);
 }
+
+/**
+ * Optional booking page for the done-with-you setup (e.g. a scheduling link).
+ * Until it is set, "Get help with your first bid" goes to the setup add-on on
+ * the pricing page.
+ */
+export const SETUP_BOOKING_URL = "{{SETUP_BOOKING_URL}}";
+
+export function setupHelpHref() {
+  return isPlaceholder(SETUP_BOOKING_URL) ? "/pricing#setup" : SETUP_BOOKING_URL;
+}
+
+/** Where the setup add-on's own button goes: booking page, then email, then sign-up (request it from Billing). */
+export function setupRequestHref() {
+  if (!isPlaceholder(SETUP_BOOKING_URL)) return SETUP_BOOKING_URL;
+  if (!isPlaceholder(COMPANY.contactEmail)) {
+    return `mailto:${COMPANY.contactEmail}?subject=${encodeURIComponent("Done-with-you setup")}`;
+  }
+  return "/sign-up?plan=free";
+}

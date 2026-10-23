@@ -8,7 +8,7 @@ const steps = [
   {
     icon: Upload,
     title: "Upload the RFP",
-    body: "Drop in an RFP, tender or questionnaire as a PDF, Word, Excel or CSV file; include any addenda in the same file. Scanned PDFs are read with text recognition (OCR).",
+    body: "Drop in an RFP, tender or questionnaire as a PDF, Word, Excel or CSV file, or a scan. Add addenda as they arrive and see what changed.",
   },
   {
     icon: ListChecks,
@@ -18,7 +18,7 @@ const steps = [
   {
     icon: Library,
     title: "Get a first draft",
-    body: "Cover letter, executive summary, approach, team, pricing, and question-by-question answers — written from your past work, with anything it can't support marked for you to fill instead of guessed.",
+    body: "Cover letter, executive summary, approach, team, pricing, and question-by-question answers, written from your past work. Each claim shows its source; anything unsupported is marked for you to fill.",
   },
   {
     icon: FileDown,

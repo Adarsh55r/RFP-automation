@@ -14,7 +14,7 @@ export function ClosingCta() {
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button asChild size="lg" variant="accent">
-            <Link href="/sign-up?plan=free">Draft my first proposal free</Link>
+            <Link href="/sign-up?plan=free">Draft your first proposal free</Link>
           </Button>
           <p className="text-sm text-surface-raised/70">
             Free trial · No credit card
