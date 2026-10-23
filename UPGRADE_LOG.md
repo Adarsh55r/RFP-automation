@@ -404,3 +404,14 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 ## Phase 3.8: Team features
 
 - **Teams stay off** (option b, the default). Plans list no seats, comments or approvals, and the pricing roadmap still names them without dates. Nothing was built.
+
+## Phase 3 visual check
+
+- **What was rendered:** a temporary, uncommitted preview page showed every new Phase 3 component with sample data, screenshotted at 1280 px and 390 px:
+  - setup checklist and bid results;
+  - website import, key details and draft strength;
+  - addenda with changes, and spreadsheet columns;
+  - bid outcome;
+  - the draft view with a citation chip, the "No source" claim list, "N without a source" badges, the page-limit line and the review/submission choice.
+- **Fixed from it:** the "Re-read requirements" button text overflowed on desktop, and addendum dates wrapped on mobile.
+- **Not covered:** the real dashboard pages need a signed-in Clerk session. They were checked through typecheck, lint, the build and route/action tests, not clicked through. A walkthrough on a preview deployment is in Phase 6.

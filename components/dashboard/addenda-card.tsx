@@ -96,7 +96,7 @@ export function AddendaCard({
                 <span className="block truncate font-medium text-ink">
                   {index + 1}. {file.fileName}
                 </span>
-                <span className="font-mono text-xs text-slate">Added {file.createdAt.slice(0, 10)}</span>
+                <span className="font-mono text-xs whitespace-nowrap text-slate">Added {file.createdAt.slice(0, 10)}</span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <Badge variant={file.included ? "success" : "accent"}>{file.included ? "Read" : "Not read yet"}</Badge>
@@ -129,7 +129,7 @@ export function AddendaCard({
             size="sm"
             disabled={busy !== null}
             onClick={() => void call("reread", () => fetch(`/api/rfps/${rfpId}/extract`, { method: "POST" }))}
-            className="w-full gap-2 sm:w-fit"
+            className="w-full shrink-0 gap-2 whitespace-nowrap sm:w-fit"
           >
             {busy === "reread" ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
             {busy === "reread" ? "Re-reading…" : "Re-read requirements"}
