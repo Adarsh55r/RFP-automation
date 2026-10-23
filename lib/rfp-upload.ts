@@ -65,3 +65,12 @@ export function formatFileSize(bytes: number) {
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** Storage content type from the file name, for browsers that send none. */
+export function contentTypeFor(name: string) {
+  const lower = name.toLowerCase();
+  const match = Object.entries(RFP_ACCEPTED_MIME_TYPES).find(([, extensions]) =>
+    extensions.some((extension) => lower.endsWith(extension)),
+  );
+  return match?.[0] ?? "application/octet-stream";
+}

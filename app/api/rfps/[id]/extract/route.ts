@@ -10,6 +10,7 @@ import { friendlyLlmError } from "@/lib/llm";
 import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
 import { readRfpDocument } from "@/lib/ocr";
+import { changesFlag, diffRequirements, type RequirementLists } from "@/lib/requirement-diff";
 import {
   detectQuestionnaire,
   readSpreadsheet,
@@ -26,6 +27,28 @@ import {
 import { resetPlanKeepingCover } from "@/lib/rfp-draft";
 
 export const runtime = "nodejs";
+
+class AddendumError extends Error {}
+
+const asList = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+
+function requirementLists(rfp: {
+  extractedDeadline: Date | null;
+  extractedEligibility: unknown;
+  extractedDesirable: unknown;
+  extractedEvaluationCriteria: unknown;
+  extractedSubmission: unknown;
+  extractedQuestionnaire: unknown;
+}): RequirementLists {
+  return {
+    deadline: rfp.extractedDeadline ? rfp.extractedDeadline.toISOString().slice(0, 10) : null,
+    eligibility: asList(rfp.extractedEligibility),
+    desirable: asList(rfp.extractedDesirable),
+    evaluation: asList(rfp.extractedEvaluationCriteria),
+    submission: asList(rfp.extractedSubmission),
+    questionnaire: asList(rfp.extractedQuestionnaire),
+  };
+}
 // Long RFPs take more than a minute to read; a killed request would leave the RFP stuck.
 export const maxDuration = 300;
 
@@ -55,6 +78,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const rfp = await prisma.rfp.findFirst({
     where: { id, userId: user.id },
+    include: { files: { orderBy: { createdAt: "asc" } } },
   });
 
   if (!rfp) {
@@ -114,7 +138,22 @@ export async function POST(_request: Request, context: RouteContext) {
       await prisma.rfp.update({ where: { id: rfp.id }, data: { status: previousStatus } });
       return NextResponse.json({ error: read.error }, { status: 422 });
     }
-    const documentText = read.text;
+    // Addenda are read after the original; later ones override earlier text (extraction rule 2).
+    const onUsage = usageRecorder({ userId: user.id, rfpId: rfp.id, action: "ocr" });
+    const addendumTexts: string[] = [];
+    for (const [index, file] of rfp.files.entries()) {
+      const download = await downloadRfpFile(file.fileUrl);
+      const addendum = await readRfpDocument(download.buffer, download.fileName, onUsage);
+      if (!addendum.ok) {
+        throw new AddendumError(`Addendum "${file.fileName}" could not be read: ${addendum.error}`);
+      }
+      read.flags.push(...addendum.flags);
+      addendumTexts.push(
+        `=== ADDENDUM ${index + 1}: ${file.fileName} (added ${file.createdAt.toISOString().slice(0, 10)}; overrides the original and earlier addenda) ===\n${addendum.text}`,
+      );
+    }
+    const documentText = [read.text, ...addendumTexts].join("\n\n");
+    const newAddenda = rfp.files.filter((file) => !file.includedAt);
     // Spreadsheet questionnaires: the questions are the sheet's rows, so each answer can go back in its row.
     const format = spreadsheetFormat(fileName);
     const sheets = format ? await readSpreadsheet(new Uint8Array(buffer), format) : [];
@@ -146,6 +185,26 @@ export async function POST(_request: Request, context: RouteContext) {
     ];
     extracted.flaggedForReview = [...new Set(flags)];
 
+    // When new addenda were read into an earlier extraction, record what they changed.
+    const changes =
+      newAddenda.length > 0 && rfp.extractedDocumentType
+        ? diffRequirements(
+            requirementLists(rfp),
+            requirementLists({
+              extractedDeadline: deadlineToDate(extracted.deadline),
+              extractedEligibility: extracted.eligibilityCriteria,
+              extractedDesirable: extracted.desirableCriteria,
+              extractedEvaluationCriteria: extracted.evaluationCriteria,
+              extractedSubmission: extracted.submissionRequirements,
+              extractedQuestionnaire: extracted.questionnaireItems,
+            }),
+            newAddenda.map((file) => file.fileName),
+          )
+        : null;
+    if (changes) {
+      extracted.flaggedForReview = [changesFlag(changes), ...extracted.flaggedForReview];
+    }
+
     const updated = await prisma.rfp.update({
       where: { id: rfp.id },
       data: {
@@ -162,9 +221,17 @@ export async function POST(_request: Request, context: RouteContext) {
         // Postgres text columns reject NUL bytes, which some PDFs contain.
         sourceText: documentText.replace(/\u0000/g, ""),
         questionnaireMap: questionnaireMap ?? Prisma.DbNull,
+        ...(changes ? { extractionChanges: changes as unknown as Prisma.InputJsonValue } : {}),
         draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       },
     });
+
+    if (newAddenda.length > 0) {
+      await prisma.rfpFile.updateMany({
+        where: { id: { in: newAddenda.map((file) => file.id) } },
+        data: { includedAt: new Date() },
+      });
+    }
 
     return NextResponse.json({
       id: updated.id,
@@ -191,7 +258,7 @@ export async function POST(_request: Request, context: RouteContext) {
     // A failed attempt should not use up one of the proposal's extractions.
     await refundAllowance(rfp.id, "extract");
 
-    if (error instanceof DocumentReadError) {
+    if (error instanceof DocumentReadError || error instanceof AddendumError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
 

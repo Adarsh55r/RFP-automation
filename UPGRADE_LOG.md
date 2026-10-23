@@ -264,3 +264,30 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - unit: detection on a styled two-sheet questionnaire; macro refusal; no-header sheets; answer matching (out of order, unanswered rows, gaps kept, markers removed); write-back preserving fill, dropdown, bold title, formula and the other sheet (checked by reading back with `exceljs`); **LibreOffice headless opens the filled workbook and shows the answer**; formula cells are not overwritten; CSV quoting, semicolons and embedded newlines;
   - integration: upload → extraction → stored mapping and questions → export into the workbook; changing columns, including a refused bad choice and another account being refused; the CSV round trip; macro, renamed-executable and fake-xlsx uploads refused; a normal RFP cannot be exported as a spreadsheet.
 - **Not verified:** opening the exported file in Microsoft Excel itself (not available here). LibreOffice and `exceljs` both read it. The spreadsheet card and button have not been checked in a browser yet.
+
+## Phase 3.2c: Addenda
+
+- **Adding addenda:** on the RFP page, the "Addenda" card adds PDF or Word files the buyer issued after the RFP (`POST /api/rfps/[id]/addenda`).
+  - Each one gets a new `RfpFile` row.
+  - Files are stored flat in the RFP's storage folder (`addendum-<time>-<name>`), so deleting the RFP or workspace also removes them (tested).
+  - Checks: ownership, content type, macro and zip-bomb checks, at most 4 MB, at most 10 per bid.
+  - An addendum is part of the same proposal, so it does not use a proposal from the plan.
+  - Addenda can be removed with `DELETE ?fileId=`, which removes the file from storage.
+- **Re-reading:**
+  - extraction reads the original and then each addendum in upload order, with OCR if scanned. Each addendum is marked `=== ADDENDUM n: <name> (added <date>; overrides the original and earlier addenda) ===`;
+  - extraction rule 2 now names these markers, says later addenda win, and asks for each change to be noted;
+  - an unreadable addendum stops extraction with a message naming the file, and the attempt is refunded;
+  - re-reading uses one of the proposal's extractions, and the card says so.
+- **What changed (`lib/requirement-diff.ts`):** when new addenda (`RfpFile.includedAt` still empty) are read into an earlier extraction, the new requirement lists are compared with the old ones.
+  - It reports the deadline change, plus items added, removed or reworded (word-overlap matching, so a reordered list is not a change).
+  - The result is stored in `Rfp.extractionChanges` and shown as "What the addenda changed".
+  - A summary flag is put first in the review flags.
+  - Re-reading without new addenda keeps the recorded changes and adds no new flag.
+- **Schema (additive):** the `RfpFile` table (cascade on RFP delete) and `Rfp.extractionChanges JSONB`, migration `20261025110000_addenda`, plus the boot-time upgrade. A `prisma migrate diff` of the migrated test database against the schema is empty, so there is no drift.
+- **Tests:**
+  - unit: deadline, reworded, added and removed items, reordering ignored, the no-change message;
+  - integration: the full flow (extract → add addendum → re-extract → amended deadline, stored diff, flag, `includedAt` set, no proposal used, a second re-read adds no flag); wrong types and fake content refused; another account cannot add or remove; removal deletes the stored file; an unreadable addendum returns 422 and refunds; deleting the RFP removes the addendum files.
+- **Not verified:**
+  - addenda over 4 MB are refused rather than uploaded directly to storage like large RFPs; the message suggests a smaller PDF;
+  - the card has not been checked in a browser yet;
+  - drafted sections are not rewritten automatically after an addendum, so the flag tells the user to update affected sections.

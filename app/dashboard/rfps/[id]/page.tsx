@@ -5,6 +5,9 @@ import { ArrowLeft } from "lucide-react";
 import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
 import { SpreadsheetColumnsCard } from "@/components/dashboard/spreadsheet-columns-card";
+import { AddendaCard } from "@/components/dashboard/addenda-card";
+import { prisma } from "@/lib/db";
+import { parseExtractionChanges } from "@/lib/requirement-diff";
 import { proposalAllowance } from "@/lib/ai-guard";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -59,6 +62,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
     notFound();
   }
   const sheetMap = parseQuestionnaireMap(rfp.questionnaireMap);
+  const addenda = await prisma.rfpFile.findMany({ where: { rfpId: rfp.id }, orderBy: { createdAt: "asc" } });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
@@ -139,6 +143,20 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         }}
         extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
       />
+
+      {rfp.originalFileUrl && rfp.status !== "extracting" ? (
+        <AddendaCard
+          rfpId={rfp.id}
+          files={addenda.map((file) => ({
+            id: file.id,
+            fileName: file.fileName,
+            createdAt: file.createdAt.toISOString(),
+            included: Boolean(file.includedAt),
+          }))}
+          changes={parseExtractionChanges(rfp.extractionChanges)}
+          extracted={Boolean(rfp.extractedDocumentType)}
+        />
+      ) : null}
 
       {sheetMap && rfp.status !== "extracting" ? (
         <SpreadsheetColumnsCard

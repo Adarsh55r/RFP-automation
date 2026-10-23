@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import {
   isAllowedRfpFile,
+  contentTypeFor,
   looksLikeRfpFile,
   RFP_MAX_BYTES,
   SERVER_UPLOAD_MAX_BYTES,
@@ -126,11 +127,7 @@ export async function POST(request: Request) {
   try {
     const supabase = getSupabaseAdmin();
     const buffer = Buffer.from(bytes);
-    const contentType =
-      file.type ||
-      (safeName.toLowerCase().endsWith(".pdf")
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    const contentType = file.type || contentTypeFor(safeName);
 
     const { error: uploadError } = await supabase.storage
       .from(getRfpStorageBucket())

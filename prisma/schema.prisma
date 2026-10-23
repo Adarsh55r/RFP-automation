@@ -89,10 +89,10 @@ model User {
   termsVersion      String?
   termsAcceptedAt   DateTime?
 
-  subscription Subscription?
-  rfps         Rfp[]
-  libraryItems LibraryItem[]
-  aiUsage      AiUsage[]
+  subscription  Subscription?
+  rfps          Rfp[]
+  libraryItems  LibraryItem[]
+  aiUsage       AiUsage[]
   proposalUsage ProposalUsage[]
 }
 
@@ -131,7 +131,9 @@ model Rfp {
   extractedSubmission         Json?
   sourceText                  String?
   /// Spreadsheet questionnaires: which sheet, question and answer columns, and which rows hold questions (lib/spreadsheet.ts).
-  questionnaireMap Json?
+  questionnaireMap            Json?
+  /// What the last re-extraction with new addenda changed (lib/requirement-diff.ts).
+  extractionChanges           Json?
   draftPlan                   Json?
   extractCount                Int              @default(0)
   fullDraftCount              Int              @default(0)
@@ -142,8 +144,9 @@ model Rfp {
   overageCents                Int?
   createdAt                   DateTime         @default(now())
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   drafts Draft[]
+  files  RfpFile[]
 
   @@index([userId])
 }
@@ -159,6 +162,22 @@ model LibraryItem {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Extra files for a bid: addenda, amendments and clarifications issued after the RFP.
+model RfpFile {
+  id         String    @id @default(cuid())
+  rfpId      String
+  kind       String    @default("addendum")
+  fileName   String
+  fileUrl    String
+  /// When an extraction first read this file; null until requirements are re-read with it.
+  includedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  rfp Rfp @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+
+  @@index([rfpId])
 }
 
 model Draft {
@@ -202,15 +221,15 @@ model AiUsage {
 /// One row per RFP upload that counts against the plan. Kept when the RFP is
 /// deleted, so deleting and re-uploading cannot get around the monthly limit.
 model ProposalUsage {
-  id        String   @id @default(cuid())
-  userId    String
+  id              String    @id @default(cuid())
+  userId          String
   /// The RFP that used the credit; no foreign key, because the RFP may be deleted.
-  rfpId     String?
+  rfpId           String?
   /// Set when this proposal was beyond the plan's limit: the confirmed extra charge, in cents.
-  overageCents Int?
+  overageCents    Int?
   /// When the extra charge was billed; null while it is still owed.
   overageBilledAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
