@@ -81,3 +81,26 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - Brand: "DraftBid AI" everywhere (checked by grep).
 - Guard test `tests/unit/honest-claims.test.ts` fails if outcome promises, "coming soon" plan features or the real place name come back.
 - Still to fix in Phase 2: FAQ answers about billing, cancellation and overages, which describe checkout that isn't live.
+
+## Phase 1.4: Tenant isolation tests
+- Added cross-user tests for:
+  - finishing and abandoning another user's upload;
+  - opening another user's file link;
+  - settings and Terms actions, which only ever touch the caller's own row;
+  - deletion (Phase 1.2b).
+- Every data endpoint listed in AUDIT.md §4 now has a cross-user test.
+- There is no vector or semantic search today, so retrieval isolation is not applicable yet. It will be tested when citations add passage retrieval (Phase 3.1).
+
+## Phase 1.5: Safer uploads
+- `lib/document-safety.ts` adds the following checks, at upload and again when the text is read:
+  - **macro-enabled Word files are refused** (a `vbaProject.bin` in the zip);
+  - **zip bombs are refused** (over 150 MB declared unpacked size, read from the zip directory without unpacking);
+  - **password-protected PDFs** get a clear "remove the password" message;
+  - **PDFs over 600 pages** are refused;
+  - **damaged files** get a "re-save and upload again" message instead of a generic 500.
+- The extraction route returns these as 422s, refunds the attempt and makes no AI call.
+- Files are only ever read as text; nothing in them is executed.
+- **Not done: malware scanning.** Vercel serverless functions can't run ClamAV, and a scanning service is a new subprocessor and cost, so it's listed in FOUNDER_TODO. Mitigations in place:
+  - files are stored privately and only opened through 60-second owner-only links;
+  - files are never executed;
+  - macro-enabled documents are refused.

@@ -1,3 +1,4 @@
+import { assertSafeDocx, DocumentReadError, MAX_PDF_PAGES } from "@/lib/document-safety";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateLlmText } from "@/lib/llm";
 import {
@@ -163,23 +164,40 @@ export async function extractTextFromDocument(
   fileName: string,
 ): Promise<string> {
   const lower = fileName.toLowerCase();
+  const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
   if (lower.endsWith(".pdf")) {
     // unpdf avoids Next/webpack pdfjs-dist bundling failures from pdf-parse.
-    const { extractText } = await import("unpdf");
-    const data = new Uint8Array(
-      buffer.buffer,
-      buffer.byteOffset,
-      buffer.byteLength,
-    );
-    const result = await extractText(data, { mergePages: true });
-    return (typeof result.text === "string" ? result.text : "").trim();
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    let pdf: Awaited<ReturnType<typeof getDocumentProxy>>;
+    try {
+      // pdf.js may detach the buffer it is given, so it gets its own copy.
+      pdf = await getDocumentProxy(data.slice());
+    } catch (error) {
+      throw new DocumentReadError(
+        error instanceof Error && error.name === "PasswordException" ? "encrypted" : "damaged",
+      );
+    }
+    if (pdf.numPages > MAX_PDF_PAGES) {
+      throw new DocumentReadError("too_many_pages");
+    }
+    try {
+      const result = await extractText(pdf, { mergePages: true });
+      return (typeof result.text === "string" ? result.text : "").trim();
+    } catch {
+      throw new DocumentReadError("damaged");
+    }
   }
 
   if (lower.endsWith(".docx")) {
+    assertSafeDocx(data);
     const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return (result.value ?? "").trim();
+    try {
+      const result = await mammoth.extractRawText({ buffer });
+      return (result.value ?? "").trim();
+    } catch {
+      throw new DocumentReadError("damaged");
+    }
   }
 
   throw new Error("Only PDF and DOCX files are supported for extraction.");

@@ -6,6 +6,7 @@ import { Prisma, RfpStatus } from "@/lib/generated/prisma";
 import { beginAiOperation, refundAllowance } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
+import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
 import {
   deadlineToDate,
@@ -160,6 +161,10 @@ export async function POST(_request: Request, context: RouteContext) {
       .catch(() => undefined);
     // A failed attempt should not use up one of the proposal's extractions.
     await refundAllowance(rfp.id, "extract");
+
+    if (error instanceof DocumentReadError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
 
     const message = friendlyLlmError(error, "extraction", "Extraction failed. Try again in a moment.");
 

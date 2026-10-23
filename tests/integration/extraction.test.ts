@@ -142,4 +142,27 @@ describe.skipIf(!hasTestDb)("extraction route", () => {
     expect((await res.json()).error).toMatch(/text|scan/i);
     expect(llm.calls.length).toBe(0);
   });
+
+  it("refuses a macro-enabled Word file with a clear message, refunds the attempt, and calls no AI", async () => {
+    const JSZip = (await import("jszip")).default;
+    const llm = await import("../helpers/llm");
+    const fake = await import("../helpers/fake-supabase");
+    llm.resetLlm();
+    const user = await createUser("u3");
+    const rfp = await testDb().rfp.create({ data: { userId: user.id, title: "Macro", status: "uploaded" } });
+    const zip = await JSZip.loadAsync(await makeDocx("Requirement text"));
+    zip.file("word/vbaProject.bin", "macro");
+    const path = `${user.id}/${rfp.id}/macro.docx`;
+    fake.files.set(path, Buffer.from(await zip.generateAsync({ type: "uint8array" })));
+    await testDb().rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: fake.getRfpPublicUrl(path) } });
+    h.clerkId = "u3";
+    const route = await import("@/app/api/rfps/[id]/extract/route");
+    const res = await route.POST(new Request("http://t/x", { method: "POST" }), ctx(rfp.id));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toMatch(/macros/i);
+    expect(llm.calls.length).toBe(0);
+    const after = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
+    expect(after.extractCount).toBe(0);
+    expect(after.status).toBe("uploaded");
+  });
 });
