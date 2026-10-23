@@ -1,6 +1,7 @@
 import { safeErrorSummary } from "@/lib/safe-log";
 import { assertSafeDocx, DocumentReadError, MAX_PDF_PAGES } from "@/lib/document-safety";
 import { readSpreadsheet, sheetsToText, spreadsheetFormat } from "@/lib/spreadsheet";
+import { docxHiddenText, pdfHiddenText, removeHidden } from "@/lib/hidden-text";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateLlmText } from "@/lib/llm";
 import {
@@ -185,6 +186,8 @@ export type DocumentText = {
   text: string;
   /** PDF page count; null for Word documents. */
   pageCount: number | null;
+  /** Passages invisible to readers, already removed from `text` (lib/hidden-text.ts). */
+  hidden: string[];
 };
 
 /** Reads a PDF's text layer (with its page count), a Word document's text, or a spreadsheet's cells. */
@@ -208,13 +211,16 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
       throw new DocumentReadError("too_many_pages");
     }
     try {
+      const hidden = await pdfHiddenText(pdf);
       const result = await extractText(pdf, { mergePages: false });
-      const pages = (Array.isArray(result.text) ? result.text : [String(result.text ?? "")]).map((page) => page.trim());
+      const pages = (Array.isArray(result.text) ? result.text : [String(result.text ?? "")]).map((page) =>
+        removeHidden(page, hidden).trim(),
+      );
       // Page markers let key details point to the page they are on (lib/key-details.ts).
       const text = pages.some(Boolean)
         ? pages.map((page, index) => `--- Page ${index + 1} ---\n${page}`).join("\n\n")
         : "";
-      return { text, pageCount: pdf.numPages };
+      return { text, pageCount: pdf.numPages, hidden };
     } catch {
       throw new DocumentReadError("damaged");
     }
@@ -224,8 +230,9 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
     assertSafeDocx(data);
     const mammoth = await import("mammoth");
     try {
+      const hidden = await docxHiddenText(data);
       const result = await mammoth.extractRawText({ buffer });
-      return { text: (result.value ?? "").trim(), pageCount: null };
+      return { text: removeHidden(result.value ?? "", hidden).trim(), pageCount: null, hidden };
     } catch {
       throw new DocumentReadError("damaged");
     }
@@ -233,7 +240,7 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
 
   const format = spreadsheetFormat(fileName);
   if (format) {
-    return { text: sheetsToText(await readSpreadsheet(data, format)).trim(), pageCount: null };
+    return { text: sheetsToText(await readSpreadsheet(data, format)).trim(), pageCount: null, hidden: [] };
   }
 
   throw new Error("Only PDF, Word, Excel and CSV files are supported for extraction.");

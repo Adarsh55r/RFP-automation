@@ -1,6 +1,7 @@
 import { PDFDocument } from "pdf-lib";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateTextFromPdf } from "@/lib/llm";
+import { hiddenTextFlags } from "@/lib/hidden-text";
 import { NO_TEXT_MESSAGE, readDocumentText, scannedTooLongMessage } from "@/lib/rfp-extract";
 
 /**
@@ -112,9 +113,11 @@ export async function readRfpDocument(
   fileName: string,
   onUsage?: (usage: LlmUsage) => void,
 ): Promise<ReadResult> {
-  const { text, pageCount } = await readDocumentText(buffer, fileName);
+  const { text, pageCount, hidden } = await readDocumentText(buffer, fileName);
   if (pageCount === null || !textLayerIsThin(text, pageCount)) {
-    return text.trim() ? { ok: true, text, flags: [], ocrPages: 0 } : { ok: false, error: NO_TEXT_MESSAGE };
+    return text.trim()
+      ? { ok: true, text, flags: hiddenTextFlags(hidden, text), ocrPages: 0 }
+      : { ok: false, error: NO_TEXT_MESSAGE };
   }
 
   const maxPages = ocrMaxPages();
@@ -124,7 +127,10 @@ export async function readRfpDocument(
       return {
         ok: true,
         text,
-        flags: ["Little text could be read from this PDF; parts of it may be scanned images. Check the original for requirements that are missing here."],
+        flags: [
+          "Little text could be read from this PDF; parts of it may be scanned images. Check the original for requirements that are missing here.",
+          ...hiddenTextFlags(hidden, text),
+        ],
         ocrPages: 0,
       };
     }
@@ -135,5 +141,5 @@ export async function readRfpDocument(
   if (result.text.replace(/\[(illegible|blank page|signature|stamp)\]|--- Pages? [\d–]+ ---/gi, "").trim().length < 50) {
     return { ok: false, error: NO_TEXT_MESSAGE };
   }
-  return { ok: true, text: result.text, flags: [ocrFlag(result)], ocrPages: result.pages };
+  return { ok: true, text: result.text, flags: [ocrFlag(result), ...hiddenTextFlags([], result.text)], ocrPages: result.pages };
 }

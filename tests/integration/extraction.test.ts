@@ -276,4 +276,24 @@ describe.skipIf(!hasTestDb)("extraction route", () => {
     const context = buildDraftingContext({ companyName: "X", rfp: saved, libraryItems: [], sourceText: "" });
     expect(context).toContain("- Bonds and guarantees (mandatory): 5% bid bond [page 2]");
   });
+
+  it("hidden instructions in an uploaded RFP never reach the model, and the user is told", async () => {
+    const { INJECTION_FIXTURES, PAYLOAD_MARKER } = await import("../fixtures/injection");
+    const llm = await import("../helpers/llm");
+    const fake = await import("../helpers/fake-supabase");
+    llm.resetLlm();
+    const user = await createUser("inj", "starter");
+    const rfp = await testDb().rfp.create({ data: { userId: user.id, title: "Inj", status: "uploaded" } });
+    const path = `${user.id}/${rfp.id}/rfp.docx`;
+    fake.files.set(path, await INJECTION_FIXTURES.find((f) => f.id === "docx-hidden")!.build());
+    await testDb().rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: fake.getRfpPublicUrl(path) } });
+    h.clerkId = "inj";
+    llm.script.json = () => goodJson();
+    const route = await import("@/app/api/rfps/[id]/extract/route");
+    expect((await route.POST(new Request("http://t/x", { method: "POST" }), ctx(rfp.id))).status).toBe(200);
+    expect(llm.calls.map((call) => call.user + (call.context ?? "")).join("")).not.toContain(PAYLOAD_MARKER);
+    const saved = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
+    expect(saved.sourceText).not.toContain(PAYLOAD_MARKER);
+    expect((saved.extractedFlags as string[]).some((flag) => flag.startsWith("Hidden text: 1 passage"))).toBe(true);
+  });
 });

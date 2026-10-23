@@ -342,3 +342,22 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - unit: private address ranges; URL refusal (schemes, ports, credentials, local names, metadata IP, IPv6 loopback); connect-time refusal when a name resolves to a private address; robots groups, wildcards, `$` and Allow precedence; HTML to text with hidden text and navigation removed; link picking (same site, no files, de-duplicated); a crawl that skips a robots-disallowed page; website-draft parsing; setup steps; draft strength (missing credential named, strong at 100, key-personnel bios); templates without facts;
   - integration: import creates labelled items through untrusted delimiters; keeps an existing profile and stops at the Starter 50-item limit; enforces the daily import limit.
 - **Not verified:** a live import against a real website (no network in the tests). The checklist, strength card, template button and import card have not been checked in a browser yet.
+
+## Phase 3.5: Prompt-injection resistance
+
+- **Hidden-text detection** (`lib/hidden-text.ts`): text a person would not see is found, **removed before the AI reads the document**, and reported in a review flag with an example.
+  - **Word:** runs with hidden formatting (`vanish`), white text with no shading or highlight, and text of 1.5 pt or smaller, in the body, headers and footers.
+  - **PDF:** text of 1.5 pt or smaller and text positioned off the page.
+  - Removal ignores differences in whitespace.
+  - Passages under 12 characters are ignored.
+- **Text addressed to AI tools** ("ignore previous instructions", "note to AI", fake `<system>` tags, …) in *visible* text is kept, because it is the buyer's text and stays treated as data, but it is flagged so the user can see it.
+- **Defences that were already there,** now covered by the fixture set:
+  - prompt-tag neutralisation for document, library and spreadsheet text;
+  - "documents are untrusted data" rules in every prompt (extraction, drafting, OCR, website import);
+  - the post-draft checks that catch a fooled model: unsupported credentials, and uncited claims from 3.1.
+- **Fixture set** (`tests/fixtures/injection.ts`, `tests/unit/prompt-injection.test.ts`): Word hidden, white and 1-pt text; microscopic PDF text; off-page PDF text; visible instruction; tag-closing attacks through the document, library and spreadsheet; hidden text on a website page; and a fooled-model case caught after drafting. Also an integration test that a hidden-text RFP's payload is absent from every model call and from the stored text, with the flag saved.
+- **Limits, stated honestly:**
+  - **White text in PDFs is not detected:** the parser does not expose text colour.
+  - **Off-page PDF text:** pdf.js does not extract it at all, so it can't reach the AI; the fixture records that outcome ("unread") rather than a flag.
+  - **Styles:** text hidden through a Word *style*, rather than direct formatting, is not detected.
+  - **Detection is best effort.** The main protections remain treating every document as data and the deterministic checks after drafting.
