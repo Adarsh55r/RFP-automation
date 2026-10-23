@@ -5,6 +5,7 @@ import { Fraunces, IBM_Plex_Mono, Manrope } from "next/font/google";
 import { SentryUser } from "@/components/sentry-user";
 import { ToastProvider } from "@/components/ui/toast";
 import { clerkAppearance } from "@/lib/clerk-appearance";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -29,7 +30,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://draftbidai.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "DraftBid AI — RFP Response Software for Small Businesses",
     template: "%s · DraftBid AI",
@@ -41,9 +42,9 @@ export const metadata: Metadata = {
     description:
       "AI proposal software for small businesses: every requirement checked, drafts written from your own work, export to Word or PDF. Start free.",
     type: "website",
-    siteName: "DraftBid AI",
-    url: "/",
+    siteName: SITE_NAME,
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
