@@ -132,6 +132,8 @@ model Rfp {
   sourceText                  String?
   /// Spreadsheet questionnaires: which sheet, question and answer columns, and which rows hold questions (lib/spreadsheet.ts).
   questionnaireMap            Json?
+  /// Key details (limits, forms, insurance, SLAs…) with category, kind, quote and verified page (lib/key-details.ts).
+  extractedDetails  Json?
   /// What the last re-extraction with new addenda changed (lib/requirement-diff.ts).
   extractionChanges           Json?
   draftPlan                   Json?

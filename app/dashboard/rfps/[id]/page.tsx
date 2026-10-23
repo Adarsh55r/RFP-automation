@@ -6,6 +6,8 @@ import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
 import { SpreadsheetColumnsCard } from "@/components/dashboard/spreadsheet-columns-card";
 import { AddendaCard } from "@/components/dashboard/addenda-card";
+import { KeyDetailsCard } from "@/components/dashboard/key-details-card";
+import { storedKeyDetails } from "@/lib/key-details";
 import { prisma } from "@/lib/db";
 import { parseExtractionChanges } from "@/lib/requirement-diff";
 import { proposalAllowance } from "@/lib/ai-guard";
@@ -62,6 +64,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
     notFound();
   }
   const sheetMap = parseQuestionnaireMap(rfp.questionnaireMap);
+  const keyDetails = storedKeyDetails(rfp.extractedDetails);
   const addenda = await prisma.rfpFile.findMany({ where: { rfpId: rfp.id }, orderBy: { createdAt: "asc" } });
 
   return (
@@ -143,6 +146,10 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         }}
         extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
       />
+
+      {keyDetails.length > 0 && rfp.status !== "extracting" ? (
+        <KeyDetailsCard rfpId={rfp.id} details={keyDetails} />
+      ) : null}
 
       {rfp.originalFileUrl && rfp.status !== "extracting" ? (
         <AddendaCard

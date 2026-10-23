@@ -42,3 +42,15 @@ export async function makeScannedPdf(pages: number) {
   }
   return Buffer.from(await doc.save());
 }
+
+/** A PDF with a real text layer, one string per page (lines split on "\n"). */
+export async function makeTextPdf(pages: string[]) {
+  const { PDFDocument, StandardFonts } = await import("pdf-lib");
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  for (const text of pages) {
+    const page = doc.addPage([612, 792]);
+    text.split("\n").forEach((line, index) => page.drawText(line, { x: 50, y: 740 - index * 16, size: 11, font }));
+  }
+  return Buffer.from(await doc.save());
+}

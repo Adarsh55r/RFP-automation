@@ -29,6 +29,8 @@ export type ExtractionResult = {
   questionnaireItems: string[];
   flaggedForReview: string[];
   submissionRequirements: string[];
+  /** Raw key details from the model; checked against the document by parseKeyDetails. */
+  keyDetails?: unknown[];
 };
 
 const EXTRACTION_SYSTEM = `You are an extraction engine for proposal software used by small and mid-sized businesses (mainly in the United States and United Kingdom) that respond to RFPs. You read commercial RFPs, public-sector solicitations and tenders, RFIs, supplier questionnaires, and security questionnaires, and extract structured requirements — you do not draft, summarize opinions, or add anything the document does not state.
@@ -64,7 +66,8 @@ Return ONLY valid JSON matching this schema (no markdown fencing, no commentary,
   "evaluationCriteria": ["string", "..."],
   "submissionRequirements": ["string", "..."],
   "questionnaireItems": ["string", "..."],
-  "flaggedForReview": ["string", "..."]
+  "flaggedForReview": ["string", "..."],
+  "keyDetails": [{ "category": "string", "detail": "string", "kind": "mandatory" | "scored" | "info", "quote": "string" }]
 }
 
 Field rules:
@@ -76,6 +79,11 @@ Field rules:
 - flaggedForReview: list any field name (e.g. "deadline", "evaluationCriteria") where the document was ambiguous, contradictory across addenda, or where a page appeared corrupted/illegible in a way that affects that field. Empty array if nothing needs review.
 - Dates must be ISO calendar dates only when a clear, unambiguous deadline exists. Read US dates as MM/DD/YYYY and UK/EU dates as DD/MM/YYYY based on the buyer's location; if the format is genuinely ambiguous, flag "deadline".
 - Keep list items short and specific — one requirement or question per item, no bundling.
+- keyDetails: the practical facts a bid team must not miss, whatever the industry. One item per fact, only facts the document states. "category" is one of:
+  submission_deadline (date, time and time zone), clarification_deadline, submission_method (portal, email, hard copies), length_limit (page or word limits), formatting (font, size, file type, numbering), evaluation_weighting, pass_fail, required_attachment, references (how many, from whom), key_personnel (named roles, CVs), pricing_format (template, lump sum, rates, currency, VAT), contract_term (length, extensions, value or budget),
+  required_form (signed forms and declarations), insurance (type and minimum cover), bonding (bid, performance or payment bonds, guarantees), preference (small business, local, veteran, diversity, Social Value), registration (SAM.gov, state or council registration, licences, Find a Tender, Cyber Essentials),
+  security (data protection, security standards, background checks), service_levels (SLAs, response and resolution times, availability), legal_terms (liability caps, indemnities, IP, termination, governing law), timeline (start date, milestones, go-live), other.
+  "detail": the fact in a short sentence, with exact figures, dates, times and time zones as written. "kind": "mandatory" if failing it disqualifies the bid or the document says must/shall/required, "scored" if it is evaluated for points, otherwise "info". "quote": 5-25 words copied exactly from the document that state the fact, so it can be found and checked; never paraphrase the quote.
 
 <example>
 Input excerpt: "Offerors must hold a current SOC 2 Type II report (mandatory). Experience with municipal clients is preferred. Addendum 2 extends the proposal due date from 03/20/2026 to 03/27/2026 at 2:00 PM CST. Written questions are due by 03/10/2026. Proposals shall not exceed 25 pages excluding appendices. Submit a completed W-9 and a certificate of insurance. Technical Approach — 60 points; Cost — 40 points."
@@ -90,7 +98,15 @@ Expected output:
   "evaluationCriteria": ["Technical Approach: 60 points", "Cost: 40 points"],
   "submissionRequirements": ["Proposals due 03/27/2026 at 2:00 PM CST (per Addendum 2)", "Written questions due 03/10/2026", "Maximum 25 pages excluding appendices", "Completed W-9", "Certificate of insurance"],
   "questionnaireItems": [],
-  "flaggedForReview": []
+  "flaggedForReview": [],
+  "keyDetails": [
+    { "category": "submission_deadline", "detail": "Proposals due 03/27/2026 at 2:00 PM CST (extended by Addendum 2)", "kind": "mandatory", "quote": "extends the proposal due date from 03/20/2026 to 03/27/2026 at 2:00 PM CST" },
+    { "category": "clarification_deadline", "detail": "Written questions due 03/10/2026", "kind": "info", "quote": "Written questions are due by 03/10/2026" },
+    { "category": "length_limit", "detail": "Maximum 25 pages excluding appendices", "kind": "mandatory", "quote": "Proposals shall not exceed 25 pages excluding appendices" },
+    { "category": "required_form", "detail": "Completed W-9", "kind": "mandatory", "quote": "Submit a completed W-9 and a certificate of insurance" },
+    { "category": "insurance", "detail": "Certificate of insurance required", "kind": "mandatory", "quote": "Submit a completed W-9 and a certificate of insurance" },
+    { "category": "evaluation_weighting", "detail": "Technical Approach 60 points, Cost 40 points", "kind": "scored", "quote": "Technical Approach — 60 points; Cost — 40 points" }
+  ]
 }
 </example>`;
 
@@ -192,8 +208,13 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
       throw new DocumentReadError("too_many_pages");
     }
     try {
-      const result = await extractText(pdf, { mergePages: true });
-      return { text: (typeof result.text === "string" ? result.text : "").trim(), pageCount: pdf.numPages };
+      const result = await extractText(pdf, { mergePages: false });
+      const pages = (Array.isArray(result.text) ? result.text : [String(result.text ?? "")]).map((page) => page.trim());
+      // Page markers let key details point to the page they are on (lib/key-details.ts).
+      const text = pages.some(Boolean)
+        ? pages.map((page, index) => `--- Page ${index + 1} ---\n${page}`).join("\n\n")
+        : "";
+      return { text, pageCount: pdf.numPages };
     } catch {
       throw new DocumentReadError("damaged");
     }
@@ -272,6 +293,7 @@ export function parseExtractionJson(raw: string): ExtractionResult {
     questionnaireItems: asStringArray(parsed.questionnaireItems),
     flaggedForReview: asStringArray(parsed.flaggedForReview),
     submissionRequirements: asStringArray(parsed.submissionRequirements),
+    keyDetails: Array.isArray(parsed.keyDetails) ? parsed.keyDetails : [],
   };
 }
 

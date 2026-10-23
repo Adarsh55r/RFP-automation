@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUser, hasTestDb, resetDb, testDb } from "../helpers/db";
-import { makeDocx, makeScannedPdf } from "../helpers/documents";
+import { makeDocx, makeScannedPdf, makeTextPdf } from "../helpers/documents";
 import { FIXTURES } from "../fixtures/rfps";
 
 const h = vi.hoisted(() => ({ clerkId: null as string | null }));
@@ -233,5 +233,47 @@ describe.skipIf(!hasTestDb)("extraction route", () => {
         delete process.env.OCR_MAX_PAGES;
       }
     });
+  });
+
+  it("stores key details with the page their wording is on, and marks ones it cannot find", async () => {
+    const llm = await import("../helpers/llm");
+    const fake = await import("../helpers/fake-supabase");
+    llm.resetLlm();
+    const user = await createUser("kd", "starter");
+    const rfp = await testDb().rfp.create({ data: { userId: user.id, title: "KD", status: "uploaded" } });
+    const path = `${user.id}/${rfp.id}/rfp.pdf`;
+    fake.files.set(
+      path,
+      await makeTextPdf([
+        "City of Fort Hollow - Request for Proposals 2026-14\nManaged information technology services for 85 users across three sites.\nProposals are due November 20, 2026 at 2:00 PM Eastern.",
+        "Section 4. Submission requirements\nResponses shall not exceed 20 pages excluding appendices.\nA bid bond of 5% of the proposed price is required.\nThe City may reject any proposal that does not follow these instructions.",
+      ]),
+    );
+    await testDb().rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: fake.getRfpPublicUrl(path) } });
+    h.clerkId = "kd";
+    llm.script.json = () =>
+      goodJson({
+        keyDetails: [
+          { category: "submission_deadline", detail: "Due 20 Nov 2026, 2:00 PM Eastern", kind: "mandatory", quote: "Proposals are due November 20, 2026 at 2:00 PM Eastern" },
+          { category: "length_limit", detail: "Max 20 pages", kind: "mandatory", quote: "Responses shall not exceed 20 pages" },
+          { category: "bonding", detail: "5% bid bond", kind: "mandatory", quote: "A bid bond of 5% of the proposed price is required" },
+          { category: "insurance", detail: "$10M cyber cover", kind: "mandatory", quote: "cyber insurance of $10,000,000" },
+        ],
+      });
+    const route = await import("@/app/api/rfps/[id]/extract/route");
+    expect((await route.POST(new Request("http://t/x", { method: "POST" }), ctx(rfp.id))).status).toBe(200);
+    const saved = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
+    const details = saved.extractedDetails as { category: string; page: number | null; verified: boolean }[];
+    expect(details.map((d) => [d.category, d.page, d.verified])).toEqual([
+      ["submission_deadline", 1, true],
+      ["length_limit", 2, true],
+      ["bonding", 2, true],
+      ["insurance", null, false],
+    ]);
+    expect((saved.extractedFlags as string[]).some((flag) => /Key details: 1 could not be matched/.test(flag))).toBe(true);
+    // Drafting sees them.
+    const { buildDraftingContext } = await import("@/lib/rfp-draft");
+    const context = buildDraftingContext({ companyName: "X", rfp: saved, libraryItems: [], sourceText: "" });
+    expect(context).toContain("- Bonds and guarantees (mandatory): 5% bid bond [page 2]");
   });
 });

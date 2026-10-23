@@ -30,7 +30,7 @@ export function ocrMaxPages() {
  * document (a scan with a stamped header, say): under ~80 characters a page.
  */
 export function textLayerIsThin(text: string, pageCount: number) {
-  const characters = text.replace(/\s+/g, "").length;
+  const characters = text.replace(/^--- Pages? [\d–]+ ---$/gm, "").replace(/\s+/g, "").length;
   return characters < Math.max(200, pageCount * 80);
 }
 

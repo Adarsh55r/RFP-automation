@@ -11,6 +11,7 @@ import {
 } from "@/lib/rfp-extract-form";
 import { rfpDocumentTypeLabel } from "@/lib/rfp-document-type";
 import { buildSourceIndex, type SourceIndex } from "@/lib/citations";
+import { keyDetailsForPrompt, storedKeyDetails } from "@/lib/key-details";
 
 /** Every proposal section in document order. Which ones an RFP gets: `sectionsForRfp`. */
 export const DRAFT_SECTIONS: DraftSection[] = [
@@ -392,6 +393,9 @@ ${list(rfp.extractedSubmission) || "(none)"}
 
 ## Questions to answer
 ${list(rfp.extractedQuestionnaire) || "(none)"}
+
+## Key details (limits, forms, deadlines, terms)
+${neutralizePromptTags(keyDetailsForPrompt(storedKeyDetails(rfp.extractedDetails))) || "(none)"}
 
 ## Flagged as ambiguous
 ${list(rfp.extractedFlags) || "(none)"}

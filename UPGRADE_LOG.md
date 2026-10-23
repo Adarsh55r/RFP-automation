@@ -291,3 +291,26 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - addenda over 4 MB are refused rather than uploaded directly to storage like large RFPs; the message suggests a smaller PDF;
   - the card has not been checked in a browser yet;
   - drafted sections are not rewritten automatically after an addendum, so the flag tells the user to update affected sections.
+
+## Phase 3.3: Key details with type tags and source pages
+
+- **New extraction output `keyDetails`:** each item has a category, the detail, a kind (`mandatory`, `scored` or `info`) and a 5–25 word **verbatim quote**. The categories (`lib/key-details.ts`) are industry-neutral and grouped as:
+  - **Every bid:** submission deadline and time zone, clarification deadline, how to submit, page or word limits, formatting, evaluation weighting, pass/fail, required attachments, references, key personnel, pricing format, contract term and value.
+  - **Public sector:** forms and declarations, insurance, bonds, preferences and Social Value, registrations and licences.
+  - **Commercial:** security and data protection, service levels, legal and contract terms, project timeline.
+  - **Other.**
+- **Source pages are computed, not trusted:**
+  - PDF text now keeps `--- Page N ---` markers (OCR already wrote them);
+  - the server finds each quote in the document, ignoring line breaks, curly quotes, dashes and page breaks, and takes the page from where it is found;
+  - a page number the model gives is ignored;
+  - details whose quote is not in the document are stored `verified: false`, shown with a "Check" label, and counted in a review flag;
+  - Word documents have no pages, so found details have no page number.
+
+  The quote index is linear in document length, so a 600-page PDF is fine. The thin-text OCR check ignores the page markers.
+- **Shown:** a "Key details" card on the RFP page, grouped by category, with Must or Scored tags and a `p. N` link that opens the PDF at that page.
+- **Drafting:** the details, with their pages, are added to the drafting context under the extracted requirements.
+- **Schema (additive):** `Rfp.extractedDetails JSONB`, migration `20261025120000_key_details`, plus the boot-time upgrade. No drift against the schema.
+- **Tests:**
+  - unit: quote location across line breaks, curly quotes and page breaks; Word documents (no page); parsing ignores the model's page, maps unknown categories to Other, drops empty or invalid items, and builds the prompt text; a real 2-page PDF has page markers and a detail found on page 2;
+  - integration: the extraction route stores verified pages for a real PDF, marks and flags an unmatched detail, and the drafting context includes the details.
+- **Not verified:** how completely the real model fills `keyDetails`. That needs real RFPs and is what the Phase 5 benchmark is for. The existing requirement lists keep no page references; only key details have them.

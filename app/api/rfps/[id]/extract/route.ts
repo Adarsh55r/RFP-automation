@@ -9,6 +9,7 @@ import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
 import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
+import { parseKeyDetails } from "@/lib/key-details";
 import { readRfpDocument } from "@/lib/ocr";
 import { changesFlag, diffRequirements, type RequirementLists } from "@/lib/requirement-diff";
 import {
@@ -171,6 +172,10 @@ export async function POST(_request: Request, context: RouteContext) {
 
     // Deterministic checks against the document, plus a notice if it was too long to read in full.
     const { truncated, readPercent } = prepareExtractionText(documentText);
+    // Each detail's page comes from finding its quote in the document, not from the model.
+    const keyDetails = parseKeyDetails(extracted.keyDetails, documentText);
+    const unverified = keyDetails.filter((detail) => !detail.verified).length;
+
     if (sheet?.questions) {
       extracted.questionnaireItems = sheet.questions;
     }
@@ -179,6 +184,9 @@ export async function POST(_request: Request, context: RouteContext) {
       ...read.flags,
       ...extracted.flaggedForReview,
       ...verifyExtraction(extracted, documentText).flags,
+      ...(unverified > 0
+        ? [`Key details: ${unverified} could not be matched to the document's wording and are marked "check". Confirm them against the original.`]
+        : []),
       ...(truncated
         ? [`Document length: only the first ${readPercent}% of this document was read. Check the later sections (appendices, forms, questionnaires) and add any requirements they contain.`]
         : []),
@@ -221,6 +229,7 @@ export async function POST(_request: Request, context: RouteContext) {
         // Postgres text columns reject NUL bytes, which some PDFs contain.
         sourceText: documentText.replace(/\u0000/g, ""),
         questionnaireMap: questionnaireMap ?? Prisma.DbNull,
+        extractedDetails: keyDetails as unknown as Prisma.InputJsonValue,
         ...(changes ? { extractionChanges: changes as unknown as Prisma.InputJsonValue } : {}),
         draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       },
