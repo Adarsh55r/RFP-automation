@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Privacy policy",
   description:
     "How DraftBid AI collects, uses, stores, and deletes company and RFP data, including your rights under GDPR, UK GDPR, and US state privacy laws such as the CCPA.",
+  alternates: { canonical: "/privacy" },
 };
 
 const sections = [
@@ -120,7 +121,7 @@ export default function PrivacyPage() {
             Privacy policy
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-            Last updated October 17, 2026. This is how DraftBid AI handles personal
+            Last updated October 22, 2026. This is how DraftBid AI handles personal
             and company data. It is written in plain language for businesses in
             the US, UK, and elsewhere. It is not legal advice.
           </p>
