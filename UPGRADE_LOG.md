@@ -542,3 +542,11 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **`benchmark/README.md`:** the gold-file format and how to write gold lists. `example-format.json` shows the format and is ignored by the runner.
 - **Tests:** coverage, including the wrong-number rule; one-to-one matching; per-RFP metrics; pooled totals with failed runs excluded; report wording.
 - **Verified:** a smoke run of the runner end to end without an AI key. The failure is reported in the table and the report is still written; the smoke files were deleted afterwards. **No real benchmark run exists:** it needs your 20 public RFPs, their gold lists, and an AI key. No numbers are claimed.
+
+## Phase 6: Final verification and reports
+
+- **Checks:** full suite **224 tests in 42 files pass**. Typecheck, lint and production build are clean, and the migration diff is empty.
+- **End-to-end test:** `tests/integration/main-flow.test.ts` covers the brief's whole walkthrough through the real routes and actions, with only Clerk, storage and AI faked. It found and fixed one bug: funnel events were left behind when a workspace was deleted.
+- **`npm audit --omit=dev`:** PostCSS advisories bundled in Next.js 15. They were there before this work and are build-time only; the only fix is the breaking Next.js 16 upgrade, logged in FOUNDER_TODO.
+- **Reports:** `FINAL_REPORT.md` written; `FOUNDER_TODO.md` has a new "Before you merge" section (approval, the 11 additive migrations, a Preview database branch, environment variables, a preview walkthrough, the "ready" deviation, the Next.js upgrade).
+- **Not done:** a click-through with real keys on a preview deployment. It is in FOUNDER_TODO.

@@ -2,6 +2,31 @@
 
 Everything only you can provide or decide. Items marked **blocks launch** must be done before merging to `main` (merging deploys to production).
 
+## Before you merge (merging deploys to production)
+- [ ] **Your approval to merge** draft PR #17. Nothing has been merged or deployed.
+- [ ] **Schema changes apply on the first start after deploy.** `lib/schema-upgrade.ts` applies them; they are all additive (new columns and tables only, nothing dropped or rewritten):
+  - `20261023090000_terms_acceptance`
+  - `20261023100000_proposal_usage`
+  - `20261023110000_ai_daily_ceiling`
+  - `20261024090000_pricing_v2`
+  - `20261025090000_draft_citations`
+  - `20261025100000_questionnaire_map`
+  - `20261025110000_addenda`
+  - `20261025120000_key_details`
+  - `20261025130000_bid_outcomes`
+  - `20261025140000_free_tool`
+  - `20261025150000_funnel_events`
+
+  Take a Neon backup or branch first.
+- [ ] Give Preview deployments their own Neon branch (below) **before** opening a preview of this branch, so the upgrade runs there first.
+- [ ] **Environment variables:**
+  - **Set:** `NEXT_PUBLIC_SITE_URL`, `FREE_TOOL_IP_SALT`.
+  - **Optional:** `OCR_MAX_PAGES`, `FREE_TOOL_*` limits, `CANONICAL_HOST_REDIRECT`.
+  - **Existing:** `OPENAI_API_KEY` and `ADMIN_EMAILS` remain required.
+- [ ] **Walk the main flow yourself on the preview:** sign up → free proposal → scanned PDF → checklist → draft with citations → export → limit → upgrade → outcome → delete workspace. The same flow passes as an automated test with Clerk, storage and the AI faked (`tests/integration/main-flow.test.ts`). A real click-through with your keys has not been done.
+- [ ] **Confirm one deviation:** the brief said a draft "cannot be marked ready" while gaps remain. There is no "ready" state. Instead, the submission export asks for explicit confirmation while uncited claims, placeholders or unsupported credentials remain, and uncited claims can be dismissed one by one. Say if you want a separate "ready" status.
+- [ ] **Dependency advisory:** `npm audit` reports PostCSS issues inside Next.js 15. They were already there before this work, are build-time only, and only touch our own CSS. The only fix is a Next.js 16 upgrade. Decide when to schedule it.
+
 ## Company and legal (blocks launch)
 Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 - [ ] `{{LEGAL_ENTITY_NAME}}`, `{{REGISTERED_ADDRESS}}`, `{{COMPANY_NUMBER}}` (or remove the number if there is none)
@@ -54,11 +79,9 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
   - Set `OCR_MAX_PAGES` in Vercel to change the limit, or `0` to turn OCR off.
   - If you change it, update the "Which files can I upload?" FAQ (`lib/faqs.ts`).
   - Check one real scanned RFP on a preview deployment before relying on it.
-
 - [ ] Free checklist tool: set `FREE_TOOL_IP_SALT` in Vercel to a random secret. Optionally tune `FREE_TOOL_PER_IP_PER_DAY` (3), `FREE_TOOL_RUNS_PER_DAY` (200) and `FREE_TOOL_SPEND_PER_DAY_USD` ($25).
 - [ ] Emails left on the free tool are stored in the `Lead` table, with consent date. Nothing is sent automatically; follow up by hand, and delete on request.
 - [ ] Lawyer review should cover the privacy policy additions (free tool, hashed IPs, leads, website import).
-
 - [ ] **One canonical host.** In Vercel → Domains, choose the primary domain (`draftbidai.com` or `www.draftbidai.com`) and set the other to redirect to it (308). Set `NEXT_PUBLIC_SITE_URL` to the primary, e.g. `https://draftbidai.com`, so canonical tags and the sitemap match. Only if you cannot use Vercel's redirect, set `CANONICAL_HOST_REDIRECT=1` instead. Never use both pointing in opposite directions.
 - [ ] Write the SEO guides in `lib/guides.ts`: replace each `{{GUIDE_COPY: …}}` and set `published: true`. Until then they are not in the sitemap, are `noindex`, and return 404 in production (visible on previews).
 
