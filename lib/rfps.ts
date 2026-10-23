@@ -67,3 +67,16 @@ export async function completeRfpUpload(rfpId: string, userId: string, originalF
     prisma.proposalUsage.create({ data: { userId, rfpId } }),
   ]);
 }
+
+/** Upload attempts allowed per account per hour, finished or not. */
+export const UPLOADS_PER_HOUR = 10;
+
+/** Message when the hourly upload rate limit is reached, or null when there is room. */
+export async function uploadRateLimited(userId: string) {
+  const recent = await prisma.rfp.count({
+    where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  return recent >= UPLOADS_PER_HOUR
+    ? "You have uploaded a lot of files in the last hour. Please wait a few minutes and try again."
+    : null;
+}

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
  * Brings a database created before the US/UK release up to the current
  * schema (migrations 20261015120000_us_uk_market,
  * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits,
- * 20261018090000_review_prompt, 20261023090000_terms_acceptance and
- * 20261023100000_proposal_usage), using the app's own DATABASE_URL so it
+ * 20261018090000_review_prompt, 20261023090000_terms_acceptance,
+ * 20261023100000_proposal_usage and 20261023110000_ai_daily_ceiling), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -89,6 +89,9 @@ BEGIN
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsVersion" TEXT;
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3);
 
+  -- Daily AI spend ceiling alert.
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "aiDailyAlertDay" TEXT;
+
   -- Plan usage ledger (survives RFP deletion).
   CREATE TABLE IF NOT EXISTS "ProposalUsage" (
     "id" TEXT NOT NULL,
@@ -119,7 +122,8 @@ BEGIN
       ('20261017090000_ai_usage_limits', '291108a67b31cfa6b1eed95c210e49c5fe9164c48cca825ff4c69c8498ec0141'),
       ('20261018090000_review_prompt', '8cfa77ef427e04d3b6ecc19e893857ac8a34aea642cbfaee84a4c2c5305bb8e0'),
       ('20261023090000_terms_acceptance', '2eaa6834d9350e4e7d9a35e34a0aac65443c27ec60ce5357f9b67fe1f79745a3'),
-      ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387')
+      ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
+      ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
       SELECT 1 FROM "_prisma_migrations" p
@@ -162,7 +166,11 @@ SELECT
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'termsVersion'
   )
-  OR to_regclass('"ProposalUsage"') IS NULL AS "needsUpgrade"
+  OR to_regclass('"ProposalUsage"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'aiDailyAlertDay'
+  ) AS "needsUpgrade"
 `;
 
 export { NEEDS_UPGRADE_SQL, UPGRADE_SQL };

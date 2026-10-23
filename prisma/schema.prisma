@@ -73,6 +73,8 @@ model User {
   aiBusyUntil       DateTime?
   /// Month ("2026-10") the spend-cap alert was last sent, so it fires once per month.
   aiAlertMonth      String?
+  /// Day ("2026-10-23") the daily spend-ceiling alert was last sent.
+  aiDailyAlertDay   String?
   /// Review request shown after an export: how many times, when, and the answer
   /// ("reviewed" | "feedback" | "later" | "declined").
   reviewPromptCount Int       @default(0)

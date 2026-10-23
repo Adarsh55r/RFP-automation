@@ -79,7 +79,7 @@ export function getSubprocessors(): Subprocessor[] {
     {
       name: "Slack Technologies (internal alerts)",
       purpose: "Alerting our team when an account reaches its AI usage limit",
-      data: "Account email and usage amount",
+      data: "Account ID and usage amount (no email or document content)",
       location: "United States",
       inUse: has("ALERT_WEBHOOK_URL"),
     },

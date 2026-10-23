@@ -26,6 +26,18 @@ export const monthlySpendCapUsd: Record<SubscriptionTier, number> = {
   agency: 200,
 };
 
+/**
+ * Daily AI spend ceiling per account, in US dollars. High enough for one
+ * worst-case proposal (about $3.50), low enough that a runaway or abused
+ * account cannot burn a month's budget in a day.
+ */
+export const dailySpendCapUsd: Record<SubscriptionTier, number> = {
+  free: 3,
+  starter: 8,
+  growth: 20,
+  agency: 40,
+};
+
 export const FULL_DRAFT_COOLDOWN_SECONDS = 60;
 export const HOURLY_CALL_LIMIT = 120;
 /** Longest an AI task can hold the account lock if it never releases (crash, timeout). */
@@ -44,24 +56,44 @@ function startOfMonthUtc(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-export async function monthlySpendUsd(userId: string, now = new Date()) {
+function startOfDayUtc(now: Date) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+async function spendSinceUsd(userId: string, since: Date) {
   const total = await prisma.aiUsage.aggregate({
-    where: { userId, createdAt: { gte: startOfMonthUtc(now) } },
+    where: { userId, createdAt: { gte: since } },
     _sum: { costMicros: true },
   });
   return (total._sum.costMicros ?? 0) / 1_000_000;
 }
 
-async function alertSpendCap(user: { id: string; email: string }, spentUsd: number, capUsd: number) {
-  const month = new Date().toISOString().slice(0, 7);
-  // Only the first request to flip the flag this month sends the alert.
+export async function monthlySpendUsd(userId: string, now = new Date()) {
+  return spendSinceUsd(userId, startOfMonthUtc(now));
+}
+
+export async function dailySpendUsd(userId: string, now = new Date()) {
+  return spendSinceUsd(userId, startOfDayUtc(now));
+}
+
+async function alertSpendCap(
+  user: { id: string; email: string },
+  period: "month" | "day",
+  spentUsd: number,
+  capUsd: number,
+) {
+  const now = new Date().toISOString();
+  const key = period === "month" ? now.slice(0, 7) : now.slice(0, 10);
+  const field = period === "month" ? "aiAlertMonth" : "aiDailyAlertDay";
+  // Only the first request to flip the flag in this period sends the alert.
   const claimed = await prisma.user.updateMany({
-    where: { id: user.id, OR: [{ aiAlertMonth: null }, { aiAlertMonth: { not: month } }] },
-    data: { aiAlertMonth: month },
+    where: { id: user.id, OR: [{ [field]: null }, { [field]: { not: key } }] },
+    data: { [field]: key },
   });
   if (claimed.count === 0) return;
 
-  const text = `[DraftBid AI] AI spend cap reached: ${user.email} (user ${user.id}) spent $${spentUsd.toFixed(2)} of $${capUsd} in ${month}. AI features are paused for this account until next month.`;
+  const until = period === "month" ? "until next month" : "until tomorrow (UTC)";
+  const text = `[DraftBid AI] AI ${period === "month" ? "monthly" : "daily"} spend cap reached: user ${user.id} spent $${spentUsd.toFixed(2)} of $${capUsd} in ${key}. AI features are paused for this account ${until}.`;
   console.error(`[ai-budget] ALERT ${text}`);
   const webhook = process.env.ALERT_WEBHOOK_URL?.trim();
   if (webhook) {
@@ -86,10 +118,22 @@ export async function beginAiOperation(input: {
   const { user, tier, rfpId, operation } = input;
   const now = new Date();
 
+  const dayCapUsd = dailySpendCapUsd[tier];
+  const spentTodayUsd = await dailySpendUsd(user.id, now);
+  if (spentTodayUsd >= dayCapUsd) {
+    await alertSpendCap(user, "day", spentTodayUsd, dayCapUsd);
+    return {
+      ok: false,
+      status: 429,
+      error:
+        "This account has reached its AI usage limit for today. It resets at midnight UTC; contact support if you need more capacity sooner.",
+    };
+  }
+
   const capUsd = monthlySpendCapUsd[tier];
   const spentUsd = await monthlySpendUsd(user.id, now);
   if (spentUsd >= capUsd) {
-    await alertSpendCap(user, spentUsd, capUsd);
+    await alertSpendCap(user, "month", spentUsd, capUsd);
     return {
       ok: false,
       status: 429,

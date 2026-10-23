@@ -104,3 +104,16 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - files are stored privately and only opened through 60-second owner-only links;
   - files are never executed;
   - macro-enabled documents are refused.
+
+## Phase 1.6: Usage caps and cost controls
+- **The unlimited Team plan is no longer sold** (Phase 1.3). Existing accounts keep it, but its AI spend stays bounded by the caps below.
+- **Daily AI spend ceiling per account** (`dailySpendCapUsd`: Free $3, Starter $8, Growth $20, Team $40), checked before any AI task alongside the existing monthly cap.
+  - When it's reached, AI tasks pause until midnight UTC, and one alert per account per day goes to the server log and to `ALERT_WEBHOOK_URL`.
+  - Additive column `User.aiDailyAlertDay`.
+  - Alerts now carry the account ID only, not the email.
+- **Upload rate limit:** 10 upload attempts per account per hour, on both upload paths (429).
+- Per-plan monthly proposal limits remain enforced on the server at upload, now counted from the usage ledger.
+- **Cost reporting:**
+  - `/admin/costs` shows the p95 cost per proposal next to the average;
+  - `npm run report:ai-cost` (`scripts/ai-cost-report.mjs`, read-only SQL over `AiUsage`) prints the average, median, p95 and max per proposal, plus a breakdown by pipeline step and model.
+  - Verified against seeded data locally. **Measuring production requires running it with the production `DATABASE_URL`**, which this environment does not have.

@@ -12,7 +12,7 @@ import {
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
-import { completeRfpUpload, getRfpUploadQuota } from "@/lib/rfps";
+import { completeRfpUpload, getRfpUploadQuota, uploadRateLimited } from "@/lib/rfps";
 import {
   getRfpPublicUrl,
   getRfpStorageBucket,
@@ -61,6 +61,11 @@ export async function POST(request: Request) {
       },
       { status: 403 },
     );
+  }
+
+  const rateLimited = await uploadRateLimited(user.id);
+  if (rateLimited) {
+    return NextResponse.json({ error: rateLimited }, { status: 429 });
   }
 
   let formData: FormData;

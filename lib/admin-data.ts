@@ -396,9 +396,15 @@ export async function getAiCosts() {
       orderBy: { _sum: { costMicros: "desc" } },
       take: 8,
     }),
-    prisma.$queryRaw<{ proposals: number; cost: number }[]>`
-      SELECT COUNT(DISTINCT "rfpId")::int AS proposals, (COALESCE(SUM("costMicros"), 0) / 1e6)::float8 AS cost
-      FROM "AiUsage" WHERE "createdAt" >= ${monthStart} AND "rfpId" IS NOT NULL`,
+    prisma.$queryRaw<{ proposals: number; cost: number; p95: number | null }[]>`
+      SELECT COUNT(*)::int AS proposals,
+             COALESCE(SUM(cost), 0)::float8 AS cost,
+             percentile_cont(0.95) WITHIN GROUP (ORDER BY cost)::float8 AS p95
+      FROM (
+        SELECT "rfpId", SUM("costMicros") / 1e6 AS cost
+        FROM "AiUsage" WHERE "createdAt" >= ${monthStart} AND "rfpId" IS NOT NULL
+        GROUP BY "rfpId"
+      ) per_proposal`,
     prisma.$queryRaw<{ day: Date; action: string; value: number }[]>`
       SELECT date_trunc('day', "createdAt") AS day, action, (SUM("costMicros") / 1e6)::float8 AS value
       FROM "AiUsage" WHERE "createdAt" >= ${since30} GROUP BY 1, 2 ORDER BY 1`,
@@ -417,7 +423,7 @@ export async function getAiCosts() {
   }, 0);
   const inputTokens = byModel.reduce((sum, row) => sum + (row._sum.inputTokens ?? 0), 0);
   const cachedTokens = byModel.reduce((sum, row) => sum + (row._sum.cachedInputTokens ?? 0), 0);
-  const proposals = proposalRows[0] ?? { proposals: 0, cost: 0 };
+  const proposals = proposalRows[0] ?? { proposals: 0, cost: 0, p95: null };
 
   const actions = ["extract", "full_draft", "revision"] as const;
   const days = fillDays([], 30, now).map((point) => point.day);
@@ -436,6 +442,7 @@ export async function getAiCosts() {
     totalUsd,
     calls: byModel.reduce((sum, row) => sum + row._count._all, 0),
     avgPerProposalUsd: proposals.proposals > 0 ? proposals.cost / proposals.proposals : 0,
+    p95PerProposalUsd: proposals.p95 ?? 0,
     proposals: proposals.proposals,
     cacheSavingsUsd,
     cacheHitPct: inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0,

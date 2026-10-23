@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import { reportError } from "@/lib/monitoring";
 import { isAllowedRfpName, RFP_MAX_BYTES, sanitizeStorageFilename, titleFromFilename } from "@/lib/rfp-upload";
-import { getRfpUploadQuota } from "@/lib/rfps";
+import { getRfpUploadQuota, uploadRateLimited } from "@/lib/rfps";
 import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -45,6 +45,11 @@ export async function POST(request: Request) {
       { error: "You have reached your monthly RFP limit. Upgrade your plan to upload more." },
       { status: 403 },
     );
+  }
+
+  const rateLimited = await uploadRateLimited(user.id);
+  if (rateLimited) {
+    return NextResponse.json({ error: rateLimited }, { status: 429 });
   }
 
   const rfp = await prisma.rfp.create({
