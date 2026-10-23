@@ -1,6 +1,7 @@
 import { PDFDocument } from "pdf-lib";
 import type { LlmUsage } from "@/lib/ai-usage";
 import { generateTextFromPdf } from "@/lib/llm";
+import { DocumentReadError } from "@/lib/document-safety";
 import { hiddenTextFlags } from "@/lib/hidden-text";
 import { NO_TEXT_MESSAGE, readDocumentText, scannedTooLongMessage } from "@/lib/rfp-extract";
 
@@ -97,9 +98,32 @@ export async function ocrPdf(bytes: Uint8Array, onUsage?: (usage: LlmUsage) => v
 
 /** Review flag shown with the extracted requirements whenever OCR was used. */
 export function ocrFlag(result: OcrResult) {
-  return `Scanned document: the text of all ${result.pages} pages was read from images (OCR)${
+  return `Scanned document: the text of ${result.pages === 1 ? "the page" : `all ${result.pages} pages`} was read from images (OCR)${
     result.illegible > 0 ? ` and ${result.illegible} word${result.illegible === 1 ? " was" : "s were"} marked [illegible]` : ""
   }. Check names, dates, amounts and reference numbers against the original before you rely on them.`;
+}
+
+export function imageKind(fileName: string): "png" | "jpg" | null {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".png")) return "png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "jpg";
+  return null;
+}
+
+/** A one-page PDF holding the image at its own size, for the OCR path. */
+export async function imageToPdf(bytes: Uint8Array, kind: "png" | "jpg") {
+  const doc = await PDFDocument.create();
+  let image;
+  try {
+    image = kind === "png" ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+  } catch {
+    throw new DocumentReadError("damaged");
+  }
+  // Keep the page a sensible size: scale large photos down to fit A4/Letter width.
+  const scale = Math.min(1, 612 / image.width);
+  const page = doc.addPage([image.width * scale, image.height * scale]);
+  page.drawImage(image, { x: 0, y: 0, width: image.width * scale, height: image.height * scale });
+  return doc.save();
 }
 
 export type ReadResult = { ok: true; text: string; flags: string[]; ocrPages: number } | { ok: false; error: string };
@@ -113,6 +137,17 @@ export async function readRfpDocument(
   fileName: string,
   onUsage?: (usage: LlmUsage) => void,
 ): Promise<ReadResult> {
+  // Photos or scans saved as images go straight to OCR, as a one-page PDF.
+  const image = imageKind(fileName);
+  if (image) {
+    if (ocrMaxPages() === 0) return { ok: false, error: NO_TEXT_MESSAGE };
+    const result = await ocrPdf(await imageToPdf(new Uint8Array(buffer), image), onUsage);
+    if (result.text.replace(/\[(illegible|blank page|signature|stamp)\]|--- Pages? [\d–]+ ---/gi, "").trim().length < 50) {
+      return { ok: false, error: "No readable text was found in this image. Upload a clearer photo or scan." };
+    }
+    return { ok: true, text: result.text, flags: [ocrFlag(result), ...hiddenTextFlags([], result.text)], ocrPages: 1 };
+  }
+
   const { text, pageCount, hidden } = await readDocumentText(buffer, fileName);
   if (pageCount === null || !textLayerIsThin(text, pageCount)) {
     return text.trim()

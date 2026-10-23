@@ -243,6 +243,9 @@ export async function readDocumentText(buffer: Buffer, fileName: string): Promis
     return { text: sheetsToText(await readSpreadsheet(data, format)).trim(), pageCount: null, hidden: [] };
   }
 
+  // Images have no text layer; they are read with OCR (lib/ocr.ts).
+  if (/\.(png|jpe?g)$/.test(lower)) return { text: "", pageCount: 1, hidden: [] };
+
   throw new Error("Only PDF, Word, Excel and CSV files are supported for extraction.");
 }
 

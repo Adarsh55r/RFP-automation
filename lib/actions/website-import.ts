@@ -6,9 +6,8 @@ import { beginAccountAiTask } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
 import { prisma } from "@/lib/db";
 import { LibraryItemType } from "@/lib/generated/prisma";
-import { LIBRARY_ITEM_MAX_CHARS, LIBRARY_TOTAL_MAX_CHARS } from "@/lib/library";
+import { addLibraryItems } from "@/lib/library-store";
 import { friendlyLlmError, generateLlmText } from "@/lib/llm";
-import { resolvePlan } from "@/lib/plans";
 import { neutralizePromptTags } from "@/lib/rfp-draft";
 import { safeErrorSummary } from "@/lib/safe-log";
 import { UnsafeUrlError } from "@/lib/safe-fetch";
@@ -68,36 +67,16 @@ export async function importFromWebsite(siteUrl: string) {
     });
     const draft = parseWebsiteDraft(raw);
 
-    const existing = await prisma.libraryItem.findMany({ where: { userId: user.id }, select: { type: true, title: true, content: true } });
-    const maxItems = resolvePlan(user.subscription).libraryItems;
-    let room = LIBRARY_TOTAL_MAX_CHARS - existing.reduce((sum, item) => sum + item.title.length + item.content.length, 0);
-    let slots = maxItems === null ? Infinity : maxItems - existing.length;
     const source = normalizeSiteUrl(siteUrl);
     const note = `Imported from ${source} on ${new Date().toISOString().slice(0, 10)}. Check every detail and remove marketing claims you cannot back up before relying on this.`;
-
     const candidates: { type: LibraryItemType; title: string; content: string }[] = [];
-    const hasProfile = existing.some((item) => item.type === LibraryItemType.company_profile);
-    if (draft.companyProfile && !hasProfile) {
-      candidates.push({ type: LibraryItemType.company_profile, title: "Company profile (from website)", content: draft.companyProfile });
+    if (draft.companyProfile) {
+      candidates.push({ type: LibraryItemType.company_profile, title: "Company profile (from website)", content: `${note}\n\n${draft.companyProfile}` });
     }
     for (const study of draft.caseStudies) {
-      candidates.push({ type: LibraryItemType.case_study, title: `${study.title} (from website)`, content: study.content });
+      candidates.push({ type: LibraryItemType.case_study, title: `${study.title} (from website)`, content: `${note}\n\n${study.content}` });
     }
-
-    const created: string[] = [];
-    let skipped = 0;
-    for (const candidate of candidates) {
-      const content = `${note}\n\n${candidate.content}`.slice(0, LIBRARY_ITEM_MAX_CHARS);
-      const title = candidate.title.slice(0, 200);
-      if (slots <= 0 || content.length + title.length > room) {
-        skipped += 1;
-        continue;
-      }
-      await prisma.libraryItem.create({ data: { userId: user.id, type: candidate.type, title, content } });
-      created.push(title);
-      slots -= 1;
-      room -= content.length + title.length;
-    }
+    const { created, skippedForLimits, keptExistingProfile } = await addLibraryItems(user, candidates);
 
     revalidatePath("/dashboard/library");
     revalidatePath("/dashboard");
@@ -106,8 +85,8 @@ export async function importFromWebsite(siteUrl: string) {
       created,
       pagesRead: site.pages.length,
       skippedByRobots: site.skippedByRobots,
-      skippedForLimits: skipped,
-      keptExistingProfile: Boolean(draft.companyProfile && hasProfile),
+      skippedForLimits,
+      keptExistingProfile,
     };
   } catch (error) {
     if (error instanceof UnsafeUrlError) return { ok: false as const, error: error.message };

@@ -234,6 +234,56 @@ describe.skipIf(!hasTestDb)("exporting a proposal", () => {
     }
   }, 240_000);
 
+  it("no content is lost between the editor and the Word or PDF export of a long draft", async () => {
+    const { markdownToPlainText } = await import("@/lib/markdown");
+    const { stripCitations } = await import("@/lib/citations");
+    const section = (n: number) =>
+      [
+        `## ${n}. Service area ${n}`,
+        `Paragraph ${n} describes the work at site ${n}, with **bold terms**, *emphasis* and a citation [S${n}].`,
+        "",
+        `1. First numbered step for area ${n}`,
+        `2. Second numbered step for area ${n}`,
+        `   - Nested detail ${n}a`,
+        `   - Nested detail ${n}b`,
+        "",
+        "| Role | Hours | Note |",
+        "| --- | --- | --- |",
+        `| Engineer ${n} | ${n * 3} | On site weekly |`,
+        "",
+        `> **Benefit to the City:** outcome statement ${n}.`,
+        "",
+        `We will confirm [[Confirm: contact for area ${n}]].`,
+      ].join("\n");
+    const markdown = Array.from({ length: 40 }, (_, i) => section(i + 1)).join("\n\n");
+    await testDb().draft.updateMany({ where: { rfpId, sectionName: "exec_summary" }, data: { content: markdown } });
+
+    const words = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+    // List numbers and bullets are drawn by Word's own list formatting, not stored as text.
+    const expected = words(markdownToPlainText(stripCitations(markdown)).replace(/^(\d+\.|•) /gm, ""));
+    const inOrder = (haystack: string[]) => {
+      let at = 0;
+      for (const word of haystack) if (word === expected[at]) at += 1;
+      return at;
+    };
+
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const docx = await POST(new Request("http://t/x?format=docx", { method: "POST" }), ctx(rfpId));
+    const mammoth = await import("mammoth");
+    const docxText = (await mammoth.extractRawText({ buffer: Buffer.from(await docx.arrayBuffer()) })).value;
+    expect(inOrder(words(docxText))).toBe(expected.length);
+
+    const pdf = await POST(new Request("http://t/x?format=pdf", { method: "POST" }), ctx(rfpId));
+    const { text } = await extractText(new Uint8Array(await pdf.arrayBuffer()), { mergePages: true });
+    // pdf.js reads a list number's glyph next to the text beside it ("area 1" + "1." becomes "area 11"),
+    // so the PDF check compares words and skips bare numbers; the Word check above includes them.
+    const notNumber = (word: string) => !/^\d+$/.test(word);
+    let at = 0;
+    const expectedWords = expected.filter(notNumber);
+    for (const word of words(String(text)).filter(notNumber)) if (word === expectedWords[at]) at += 1;
+    expect(at).toBe(expectedWords.length);
+  }, 60_000);
+
   it("refuses to export when nothing has been drafted", async () => {
     await testDb().draft.deleteMany({ where: { rfpId } });
     const { POST } = await import("@/app/api/rfps/[id]/export/route");

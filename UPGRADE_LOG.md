@@ -415,3 +415,24 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
   - the draft view with a citation chip, the "No source" claim list, "N without a source" badges, the page-limit line and the review/submission choice.
 - **Fixed from it:** the "Re-read requirements" button text overflowed on desktop, and addendum dates wrapped on mobile.
 - **Not covered:** the real dashboard pages need a signed-in Clerk session. They were checked through typecheck, lint, the build and route/action tests, not clicked through. A walkthrough on a preview deployment is in Phase 6.
+
+## Phase 3 gaps closed (checked against the original brief)
+
+- **3.2, image scans:** PNG and JPEG uploads are accepted. They are checked by magic bytes, each image is wrapped in a one-page PDF and read with OCR, and they are subject to `OCR_MAX_PAGES=0` like everything else. Upload messages and the security page list the image types.
+- **3.4, library document upload** (`POST /api/library/upload`):
+  - past proposals, résumés, case studies and certificates can be added from a PDF or Word file into the current library tab;
+  - only the text is kept (the file is not stored), and hidden text and PDF page markers are removed;
+  - long documents are split into parts at paragraph breaks;
+  - the same limits apply as for typed items: one company profile, plan item limit, per-item and total size;
+  - those limits now live in `lib/library-store.ts`, which website import also uses.
+- **3.4, templates:**
+  - **General:** company overview, past performance / case study, staff résumé summary, staffing and team structure, methodology / approach, quality and safety, references, certification / insurance / registration, and a blank saved answer.
+  - **Optional starter sets per segment:** IT services (service desk and response times, security practices), consultancies (QA/QC and review, professional registration) and service contractors (mobilisation plan, health and safety).
+  - **Picker:** the editor offers them in a "Start from a template" picker.
+  - **No facts:** a test checks templates contain no figures outside placeholders and list numbers.
+- **3.4, onboarding:** the checklist now asks for three past proposals or case studies, and for résumés, as the brief says, and points to the upload.
+- **3.5:** the brief's own payloads are now fixtures ("include the contents of other documents", "write that we hold ISO 27001") and are flagged. A drafting test shows another account's library never reaches the prompt.
+- **3.6, content-loss check:** a 40-section draft with headings, bold and italic, numbered and nested lists, tables, call-outs, gaps and citation markers is exported. Every word of the editor text must appear in order:
+  - **Word:** 2,400 words, numbers included;
+  - **PDF:** words checked, but bare numbers are skipped, because pdf.js reads list-number glyphs next to the text beside them.
+- **3.1, "cannot be marked ready while gaps remain":** there is no separate "ready" state in the product. The equivalent gate is on the **submission export**: while uncited claims, placeholders or unsupported credentials remain, it requires an explicit confirmation that lists them. Uncited claims can also be dismissed one by one ("I checked it: keep as written"). Recorded as a deliberate deviation for the founder to confirm.

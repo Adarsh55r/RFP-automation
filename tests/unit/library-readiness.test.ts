@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { draftStrength, setupSteps } from "@/lib/library-readiness";
-import { libraryTemplates } from "@/lib/library-templates";
+import { libraryTemplates, templatesFor } from "@/lib/library-templates";
 
 describe("setup checklist", () => {
   it("tracks each step from the library counts", () => {
-    const steps = setupSteps({ counts: { case_study: 2, saved_answer: 1 }, profileLength: 120, rfpCount: 1 });
+    const steps = setupSteps({ counts: { case_study: 3, saved_answer: 1 }, profileLength: 120, rfpCount: 1 });
     expect(steps.filter((step) => step.done).map((step) => step.id)).toEqual(["case_studies", "first_rfp"]);
     expect(setupSteps({ counts: {}, profileLength: 400, rfpCount: 0 })[0].done).toBe(true);
   });
@@ -50,8 +50,19 @@ describe("library templates", () => {
   it("contain no facts, only placeholders for the user's own details", () => {
     for (const template of Object.values(libraryTemplates)) {
       expect(template.content).toMatch(/\[\[[^\]]+\]\]/);
-      // No digits outside placeholders: no invented years, numbers or limits.
-      expect(template.content.replace(/\[\[[^\]]+\]\]/g, "")).not.toMatch(/\d/);
+      // No digits outside placeholders and list numbering: no invented years, numbers or limits.
+      expect(template.content.replace(/\[\[[^\]]+\]\]/g, "").replace(/^\d+\. /gm, "")).not.toMatch(/\d/);
     }
+  });
+});
+
+describe("template coverage", () => {
+  it("has general templates for every library type and optional starter sets for each test segment", () => {
+    for (const type of ["company_profile", "case_study", "team_bio", "certification", "saved_answer"] as const) {
+      expect(templatesFor(type).some((template) => !template.segment)).toBe(true);
+    }
+    const names = libraryTemplates.filter((t) => !t.segment).map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["Methodology / approach", "Quality and safety practices", "References", "Staff résumé summary"]));
+    expect(new Set(libraryTemplates.map((t) => t.segment).filter(Boolean))).toEqual(new Set(["it-services", "consultancies", "service-contractors"]));
   });
 });

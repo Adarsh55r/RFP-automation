@@ -57,12 +57,12 @@ export async function POST(request: Request) {
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Choose a PDF, Word, Excel or CSV file." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a PDF, Word, Excel, CSV or image file." }, { status: 400 });
   }
 
   if (!isAllowedRfpFile(file)) {
     return NextResponse.json(
-      { error: "Only PDF, Word (.docx), Excel (.xlsx) and CSV files are supported." },
+      { error: "Only PDF, Word (.docx), Excel (.xlsx), CSV and image (PNG, JPEG) files are supported." },
       { status: 400 },
     );
   }
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!looksLikeRfpFile(bytes, file.name)) {
     return NextResponse.json(
-      { error: "This file is not a valid PDF, Word (.docx), Excel (.xlsx) or CSV file." },
+      { error: "This file is not a valid PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file." },
       { status: 400 },
     );
   }

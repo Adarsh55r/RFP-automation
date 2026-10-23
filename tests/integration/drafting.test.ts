@@ -203,4 +203,20 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     const denied = await setClaimReviewed({ rfpId: rfp.id, sectionName: "exec_summary", claim: "We have 3 offices.", reviewed: true });
     expect(denied.ok).toBe(false);
   });
+
+  it("drafting only ever sees the current account's library", async () => {
+    const other = await createUser("someone-else", "starter");
+    await testDb().libraryItem.create({
+      data: { userId: other.id, type: "case_study", title: "Secret client", content: "Confidential project for Acme Defense worth $9M." },
+    });
+    const { run, llm } = await setup(FIXTURES[0].text);
+    llm.script.json = () => JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* () {
+      yield "Text.";
+    };
+    await readEvents(await run());
+    const everything = llm.calls.map((call) => call.system + (call.context ?? "") + call.user).join("\n");
+    expect(everything).toContain("Bluegrass Dental Group");
+    expect(everything).not.toMatch(/Acme Defense|Secret client/);
+  });
 });

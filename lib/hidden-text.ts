@@ -97,7 +97,7 @@ export function removeHidden(text: string, hidden: string[]) {
 }
 
 const AI_DIRECTED =
-  /ignore (all |any )?(previous|prior|above) (instructions|prompts)|disregard (the|all|your) (instructions|rules)|you are (an? )?(ai|language model|chatgpt|assistant)|note to (ai|llm|chatgpt|the model)|system prompt|<\/?(system|assistant|instructions?)>|as an ai (model|assistant)/i;
+  /ignore (all |any )?(previous|prior|above) (instructions|prompts)|disregard (the|all|your) (instructions|rules)|you are (an? )?(ai|language model|chatgpt|assistant)|note to (ai|llm|chatgpt|the model)|system prompt|<\/?(system|assistant|instructions?)>|as an ai (model|assistant)|include the (full |entire )?contents? of (the )?(other|all|any|previous) (documents?|files?|customers?)|(write|state|say|claim) that (we|you|the (bidder|vendor|supplier|contractor)) (hold|holds|have|has|are|is) /i;
 
 /** Visible text addressed to AI tools. It stays in the document (it is the buyer's text) but the user is told. */
 export function aiDirectedText(text: string) {

@@ -5,9 +5,11 @@ export const RFP_ACCEPTED_MIME_TYPES = {
   ],
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
   "text/csv": [".csv"],
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
 } as const;
 
-const ACCEPTED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv"];
+const ACCEPTED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv", ".png", ".jpg", ".jpeg"];
 
 export const RFP_MAX_BYTES = 25 * 1024 * 1024;
 
@@ -29,6 +31,8 @@ export function looksLikeRfpFile(bytes: Uint8Array, name: string) {
   const head = String.fromCharCode(...bytes.subarray(0, 1024));
   const lower = name.toLowerCase();
   if (lower.endsWith(".docx") || lower.endsWith(".xlsx")) return head.startsWith("PK\u0003\u0004");
+  if (lower.endsWith(".png")) return head.startsWith("\x89PNG\r\n\x1a\n");
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return head.startsWith("\xff\xd8\xff");
   // CSV is plain text: no NUL bytes, and not some other format renamed.
   if (lower.endsWith(".csv")) return !head.includes("\u0000") && !/^(PK|%PDF|MZ|\x7fELF)/.test(head);
   // The PDF header may follow a few junk bytes, but must be in the first 1 KB.

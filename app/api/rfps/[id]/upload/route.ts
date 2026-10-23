@@ -48,7 +48,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const bytes = blob ? new Uint8Array(await blob.arrayBuffer()) : new Uint8Array();
     const invalid =
       size > RFP_MAX_BYTES || bytes.length > RFP_MAX_BYTES || !looksLikeRfpFile(bytes, object.name)
-        ? "This file is not a valid PDF, Word (.docx), Excel (.xlsx) or CSV file under 25 MB."
+        ? "This file is not a valid PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file under 25 MB."
         : officeFileProblem(bytes, object.name);
     if (invalid) {
       await bucket.remove([path]);
