@@ -78,6 +78,8 @@ export type CoverDetails = {
   buyerName: string;
   buyerAddress: string;
   dueDate: string;
+  /** Printed on the cover page. Empty means "work it out at export" (see proposalDateLabel). */
+  submissionDate: string;
   bidderName: string;
   contactName: string;
   contactTitle: string;
@@ -91,6 +93,7 @@ export const COVER_FIELDS: (keyof CoverDetails)[] = [
   "buyerName",
   "buyerAddress",
   "dueDate",
+  "submissionDate",
   "bidderName",
   "contactName",
   "contactTitle",
@@ -248,6 +251,7 @@ export function resolveCover(
     buyerName: pick("buyerName", plan.buyerName),
     buyerAddress: pick("buyerAddress", plan.buyerAddress),
     dueDate: pick("dueDate", plan.dueDate),
+    submissionDate: pick("submissionDate"),
     bidderName: pick("bidderName", plan.bidderName, fallback.companyName),
     contactName: pick("contactName"),
     contactTitle: pick("contactTitle"),

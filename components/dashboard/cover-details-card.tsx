@@ -14,6 +14,7 @@ const fields: { key: keyof CoverDetails; label: string; placeholder: string; wid
   { key: "projectTitle", label: "Proposal title", placeholder: "e.g. Managed IT Services for the City of Maple Grove", wide: true },
   { key: "solicitationNumber", label: "Solicitation / tender number", placeholder: "e.g. RFP 2026-IT-041" },
   { key: "dueDate", label: "Response due", placeholder: "e.g. October 30, 2026, 2:00 PM CST" },
+  { key: "submissionDate", label: "Submission date (on the cover)", placeholder: "Blank: today's date, or none after the deadline" },
   { key: "buyerName", label: "Prepared for (buyer)", placeholder: "e.g. City of Maple Grove" },
   { key: "buyerAddress", label: "Buyer address", placeholder: "e.g. 12800 Arbor Lakes Pkwy, Maple Grove, MN 55369" },
   { key: "bidderName", label: "Your company's legal name", placeholder: "e.g. Northbeam Digital LLC" },

@@ -20,7 +20,7 @@ import {
   convertInchesToTwip,
 } from "docx";
 import {
-  columnWeights,
+  columnWidths,
   relativeHeadingLevel,
   runsToPlainText,
   type InlineRun,
@@ -124,12 +124,11 @@ function dataTable(
   width: number,
   indent = 0,
 ): Table {
-  const weights = columnWeights(header, rows);
-  const widths = weights.map((weight) => Math.max(Math.round(weight * width), 800));
-  const overflow = widths.reduce((sum, value) => sum + value, 0) - width;
-  if (overflow !== 0) {
-    widths[widths.indexOf(Math.max(...widths))] -= overflow;
-  }
+  // 9.5pt text (an average character is about 110 twips) plus 100 twips of padding each side.
+  const columnCount = Math.max(header.length, ...rows.map((row) => row.length), 1);
+  const text = columnWidths(header, rows, width - columnCount * 200, 110);
+  const widths = text.map((value) => Math.round(value) + 200);
+  widths[widths.length - 1] += width - widths.reduce((sum, value) => sum + value, 0);
 
   const rule = { style: BorderStyle.SINGLE, size: 4, color: RULE };
   const cell = (runs: InlineRun[], column: number, kind: "header" | "body", stripe: boolean) =>
@@ -411,19 +410,23 @@ function coverPage(doc: ProposalDocument, contentWidth: number): Block[] {
       children: [],
     }),
     twoColumns(
-      [label("Submission date"), line(doc.dateLabel)],
+      doc.dateLabel ? [label("Submission date"), line(doc.dateLabel)] : [],
       cover.dueDate ? [label("Response due"), line(cover.dueDate)] : [],
       contentWidth,
     ),
-    new Paragraph({
-      spacing: { before: 1600 },
-      children: [
-        plain(
-          `Confidential and proprietary to ${cover.bidderName.replace(/\.$/, "")}. Provided solely for the evaluation of this solicitation.`,
-          { size: 16, italics: true, color: SLATE },
-        ),
-      ],
-    }),
+    ...(doc.confidential
+      ? [
+          new Paragraph({
+            spacing: { before: 1600 },
+            children: [
+              plain(
+                `Confidential and proprietary to ${cover.bidderName.replace(/\.$/, "")}. Provided solely for the evaluation of this solicitation.`,
+                { size: 16, italics: true, color: SLATE },
+              ),
+            ],
+          }),
+        ]
+      : []),
   ];
 }
 
@@ -649,7 +652,7 @@ export function buildProposalDocx(doc: ProposalDocument) {
                 tabStops: rightTab,
                 border: { top: { style: BorderStyle.SINGLE, size: 4, color: RULE, space: 4 } },
                 children: [
-                  plain(doc.review ? "INTERNAL REVIEW COPY: do not submit" : "Confidential", {
+                  plain(doc.review ? "INTERNAL REVIEW COPY: do not submit" : doc.confidential ? "Confidential" : doc.footerLabel, {
                     size: 16,
                     color: doc.review ? "B42318" : SLATE,
                     bold: Boolean(doc.review),

@@ -1,4 +1,5 @@
 import { credentialsIn } from "@/lib/claim-checks";
+import { CITATION_BODY, citationIds } from "@/lib/markdown";
 import type { LibraryItem, LibraryItemType } from "@/lib/generated/prisma";
 
 /**
@@ -88,12 +89,12 @@ export function sourceFromPassage(passage: SourcePassage): CitationSource {
   };
 }
 
-/** A citation marker: [S12] or [S12, S14]. */
-export const CITATION_PATTERN = /\[(S\d+(?:\s*,\s*S\d+)*)\]/g;
+/** A citation marker: [S12], [S12, S14], or a range such as [S4, S7–S10]. Use `citationIds` on group 1. */
+export const CITATION_PATTERN = new RegExp(String.raw`\[(${CITATION_BODY})\]`, "g");
 
 /** Removes every citation marker, for the clean copy that is submitted to the buyer. */
 export function stripCitations(markdown: string) {
-  return markdown.replace(/[ \t]*\[S\d+(?:\s*,\s*S\d+)*\]/g, "");
+  return markdown.replace(new RegExp(String.raw`[ \t]*\[${CITATION_BODY}\]`, "g"), "");
 }
 
 const FIRST_PERSON = /\b(we|our|us|we've|we're|we have)\b/i;
@@ -170,10 +171,9 @@ export function analyzeDraft(
   dismissed: string[] = [],
 ): { content: string; citations: DraftCitations } {
   const sources: Record<string, CitationSource> = {};
-  const content = markdown.replace(/([ \t]*)\[(S\d+(?:\s*,\s*S\d+)*)\]/g, (_match, space: string, ids: string) => {
-    const valid = ids
-      .split(",")
-      .map((id) => id.trim())
+  // Markers are rewritten in one canonical form ([S4, S7, S8]) so every later reader agrees.
+  const content = markdown.replace(new RegExp(String.raw`([ \t]*)\[(${CITATION_BODY})\]`, "g"), (_match, space: string, ids: string) => {
+    const valid = citationIds(ids)
       .filter((id) => {
         const source = lookup(id);
         if (source) sources[id] = source;

@@ -7,7 +7,7 @@ import type {
   TDocumentDefinitions,
 } from "pdfmake/interfaces";
 import {
-  columnWeights,
+  columnWidths,
   relativeHeadingLevel,
   runsToPlainText,
   type InlineRun,
@@ -93,11 +93,10 @@ function tableContent(
   align: ("left" | "center" | "right" | null)[],
   width: number,
 ): Content {
-  const weights = columnWeights(header, rows);
-  const columns = weights.length;
-  // Cell padding (5pt each side) is added outside the declared widths.
-  const usable = width - columns * 10;
-  const widths = weights.map((weight) => Math.max(weight * usable, 34));
+  const columns = Math.max(header.length, ...rows.map((row) => row.length), 1);
+  // Cell padding (5pt each side) is added outside the declared widths; 9.5pt
+  // Roboto averages about 5.5pt a character.
+  const widths = columnWidths(header, rows, width - columns * 10, 5.5);
   const pad = (row: InlineRun[][]) =>
     Array.from({ length: columns }, (_, index) => row[index] ?? []);
   const alignment = (column: number) => align[column] ?? "left";
@@ -294,7 +293,7 @@ function coverPage(doc: ProposalDocument, contentWidth: number): Content[] {
     cover.contactPhone,
   ].filter(Boolean);
 
-  return [
+  const blocks: Content[] = [
     // Sits on the dark band drawn by the page-1 background.
     {
       text: cover.bidderName,
@@ -345,7 +344,7 @@ function coverPage(doc: ProposalDocument, contentWidth: number): Content[] {
     },
     {
       columns: [
-        { width: "*", stack: [label("Submission date"), ...line(doc.dateLabel)] },
+        { width: "*", stack: doc.dateLabel ? [label("Submission date"), ...line(doc.dateLabel)] : [] },
         { width: "*", stack: cover.dueDate ? [label("Response due"), ...line(cover.dueDate)] : [] },
       ],
       columnGap: 28,
@@ -364,6 +363,7 @@ function coverPage(doc: ProposalDocument, contentWidth: number): Content[] {
       absolutePosition: { x: SIDE_MARGIN, y: PAGE[doc.pageSize].height - 130 },
     } as Content,
   ];
+  return doc.confidential ? blocks : blocks.slice(0, -1);
 }
 
 function reviewAppendix(review: ReviewAppendix, contentWidth: number): Content[] {
@@ -510,7 +510,7 @@ function definition(doc: ProposalDocument): TDocumentDefinitions {
                 columns: [
                   doc.review
                     ? { text: "INTERNAL REVIEW COPY: do not submit", fontSize: 8, bold: true, color: "#B42318" }
-                    : { text: "Confidential", fontSize: 8, color: SLATE },
+                    : { text: doc.confidential ? "Confidential" : doc.footerLabel, fontSize: 8, color: SLATE },
                   { text: `Page ${currentPage} of ${pageCount}`, alignment: "right", fontSize: 8, color: SLATE },
                 ],
               },
