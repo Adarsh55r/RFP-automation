@@ -448,7 +448,7 @@ function outline(doc: ProposalDocument) {
 
 function contentsPage(doc: ProposalDocument): Paragraph[] {
   const entries = outline(doc);
-  if (doc.complianceMatrix) entries.push({ title: "Appendix A.  Compliance Matrix", subheadings: [] });
+  if (doc.complianceMatrix) entries.push({ title: "Appendix A. Compliance Matrix", subheadings: [] });
   if (doc.review) entries.push({ title: REVIEW_APPENDIX_TITLE, subheadings: [] });
   return [
     ...sectionHeading("Contents"),
@@ -541,7 +541,7 @@ export function buildProposalDocx(doc: ProposalDocument) {
 
   if (doc.complianceMatrix) {
     body.push(
-      ...sectionHeading("Appendix A.  Compliance Matrix"),
+      ...sectionHeading("Appendix A. Compliance Matrix"),
       new Paragraph({
         spacing: { after: 160 },
         children: [plain("Each requirement of the solicitation and where this proposal responds to it.", { color: SLATE })],

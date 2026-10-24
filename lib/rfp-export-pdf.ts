@@ -437,7 +437,7 @@ function definition(doc: ProposalDocument): TDocumentDefinitions {
 
   const appendix: Content[] = doc.complianceMatrix
     ? [
-        ...sectionTitle("Appendix A.  Compliance Matrix"),
+        ...sectionTitle("Appendix A. Compliance Matrix"),
         {
           text: "Each requirement of the solicitation and where this proposal responds to it.",
           color: SLATE,
