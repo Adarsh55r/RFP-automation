@@ -12,7 +12,7 @@ import {
   stripCitations,
   type DraftCitations,
 } from "@/lib/citations";
-import { upsertGeneratedDraftSection } from "@/lib/draft-store";
+import { draftKey, upsertGeneratedDraftSection } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
   generateLlmText,
@@ -20,22 +20,23 @@ import {
   streamLlmText,
   type LlmEffort,
 } from "@/lib/llm";
-import { normalizeMarkdown } from "@/lib/markdown";
 import {
   buildDraftingContext,
+  cleanSection,
   buildPlanTask,
   buildResponsesTask,
   buildReviewTask,
   buildSectionTask,
-  draftSectionLabel,
   DRAFTING_SYSTEM,
   hasModelPlan,
-  isDraftSection,
   parseDraftPlan,
+  parsePlanResponse,
+  proposalOutline,
+  requirementRefs,
   RESPONSE_BATCH_SIZE,
-  sectionsForRfp,
   type DraftPlan,
   type MetaBlock,
+  type PlannedSection,
 } from "@/lib/rfp-draft";
 import { getRfpSourceText } from "@/lib/rfp-extract";
 import { recordFirst } from "@/lib/funnel";
@@ -50,6 +51,9 @@ import {
   type Prisma,
 } from "@/lib/generated/prisma";
 
+/** What the browser needs to lay out the sections while they stream in. */
+type OutlineEntry = { key: string; kind: DraftSection; title: string };
+
 export const runtime = "nodejs";
 // Plan, parallel sections, and the compliance review run in one request.
 export const maxDuration = 300;
@@ -62,10 +66,11 @@ type DraftPhase = "planning" | "writing" | "reviewing";
 
 type StreamEvent =
   | { type: "phase"; phase: DraftPhase }
-  | { type: "section_start"; section: DraftSection; label: string }
-  | { type: "delta"; section: DraftSection; text: string }
-  | { type: "section_done"; section: DraftSection; content: string; citations: DraftCitations }
-  | { type: "section_error"; section: DraftSection; message: string }
+  | { type: "outline"; sections: OutlineEntry[] }
+  | { type: "section_start"; section: string; label: string }
+  | { type: "delta"; section: string; text: string }
+  | { type: "section_done"; section: string; content: string; citations: DraftCitations }
+  | { type: "section_error"; section: string; message: string }
   | { type: "meta_start"; block: MetaBlock }
   | { type: "meta_delta"; block: MetaBlock; text: string }
   | { type: "meta_done"; block: MetaBlock }
@@ -77,22 +82,18 @@ const sectionMaxTokens: Record<DraftSection, number> = {
   exec_summary: 10000,
   technical_approach: 32000,
   team: 16000,
-  pricing: 12000,
+  pricing: 14000,
   responses: 20000,
+  general: 14000,
+  form: 8000,
 };
 
 const RESPONSE_BATCH_CONCURRENCY = 3;
+/** RFP outlines can have a dozen parts; this many are written at once. */
+const SECTION_CONCURRENCY = 6;
 
 function encodeEvent(event: StreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
-}
-
-/** Strip wrappers models sometimes add: code fences and a repeated "# Section title". */
-function cleanSection(text: string) {
-  return normalizeMarkdown(text)
-    .trim()
-    .replace(/^#\s+[^\n]*\n+/, "")
-    .trim();
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -108,7 +109,7 @@ async function readBody(request: Request) {
     };
     return {
       section:
-        typeof body.section === "string" && isDraftSection(body.section)
+        typeof body.section === "string" && /^[a-z0-9_-]{1,64}$/.test(body.section)
           ? body.section
           : null,
       instruction:
@@ -195,14 +196,15 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { section: onlySection, instruction, currentContent: editorContent } =
     await readBody(request);
-  const plannedSections = sectionsForRfp(rfp);
-  if (onlySection && !plannedSections.includes(onlySection)) {
+  const revisedSection = onlySection
+    ? proposalOutline(rfp).find((section) => section.key === onlySection)
+    : undefined;
+  if (onlySection && !revisedSection) {
     return Response.json(
       { error: "That section is not part of this proposal." },
       { status: 400 },
     );
   }
-  const targets = onlySection ? [onlySection] : plannedSections;
   const operation = onlySection ? "revision" : "full_draft";
 
   const guard = await beginAiOperation({
@@ -242,9 +244,12 @@ export async function POST(request: Request, context: RouteContext) {
       libraryItems,
       sourceText: source.text,
     });
-    const currentContent = new Map(
-      existingDrafts.map((draft) => [draft.sectionName, draft.content]),
-    );
+    // Newest first, so an older duplicate row never wins.
+    const byNewest = [...existingDrafts].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const currentContent = new Map<string, string>();
+    for (const draft of byNewest) {
+      if (!currentContent.has(draftKey(draft))) currentContent.set(draftKey(draft), draft.content);
+    }
     if (onlySection && editorContent?.trim()) {
       currentContent.set(onlySection, editorContent);
     }
@@ -255,10 +260,13 @@ export async function POST(request: Request, context: RouteContext) {
       const passage = library.byId.get(id);
       return passage ? sourceFromPassage(passage) : undefined;
     };
-    const dismissedClaims = new Map(
-      existingDrafts.map((draft) => [draft.sectionName, parseCitations(draft.citations)?.dismissed ?? []]),
-    );
-    return { sharedContext, currentContent, questions, citeLookup, dismissedClaims };
+    const dismissedClaims = new Map<string, string[]>();
+    for (const draft of byNewest) {
+      if (!dismissedClaims.has(draftKey(draft))) {
+        dismissedClaims.set(draftKey(draft), parseCitations(draft.citations)?.dismissed ?? []);
+      }
+    }
+    return { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText: source.text };
   };
 
   let prepared: Awaited<ReturnType<typeof prepare>>;
@@ -271,7 +279,8 @@ export async function POST(request: Request, context: RouteContext) {
     reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
-  const { sharedContext, currentContent, questions, citeLookup, dismissedClaims } = prepared;
+  const { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText } = prepared;
+  const requirements = requirementRefs(rfp);
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -305,28 +314,42 @@ export async function POST(request: Request, context: RouteContext) {
         if (onlySection && hasModelPlan(storedPlan)) {
           plan = storedPlan;
         } else {
-          const raw = await generateLlmText(call(buildPlanTask(), 8000, undefined, true));
+          const raw = await generateLlmText(call(buildPlanTask(rfp), 12000, undefined, true));
           // Keep the bidder's own cover-page edits across regenerations.
-          plan = { ...parseDraftPlan(raw), cover: storedPlan.cover };
+          plan = { ...parsePlanResponse(raw, rfp, sourceText), cover: storedPlan.cover };
+          if (onlySection) {
+            // Revising one section of an older draft: keep the outline it was written in.
+            plan = { ...plan, outline: proposalOutline(rfp), outlineFromRfp: storedPlan.outlineFromRfp };
+          }
           await prisma.rfp.update({
             where: { id: rfp.id },
             data: { draftPlan: plan as unknown as Prisma.InputJsonValue },
           });
         }
+        const outline = plan.outline.length > 0 ? plan.outline : proposalOutline(rfp);
+        const targets: PlannedSection[] = onlySection
+          ? outline.filter((section) => section.key === onlySection).slice(0, 1)
+          : outline;
+        if (targets.length === 0 && revisedSection) targets.push(revisedSection);
+        send({
+          type: "outline",
+          sections: outline.map(({ key, kind, title }) => ({ key, kind, title })),
+        });
 
         // 2. Sections in parallel, each with its own focused brief.
         send({ type: "phase", phase: "writing" });
         // Passage IDs can change when the library changes, so the model
         // re-cites from the current library instead of keeping old markers.
-        const revision = (section: DraftSection) =>
+        const revision = (key: string) =>
           onlySection
-            ? { currentContent: stripCitations(currentContent.get(section) ?? ""), instruction }
+            ? { currentContent: stripCitations(currentContent.get(key) ?? ""), instruction }
             : undefined;
 
-        const writeSection = async (section: DraftSection) => {
-          send({ type: "section_start", section, label: draftSectionLabel[section] });
+        const writeSection = async (planned: PlannedSection) => {
+          const section = planned.key;
+          send({ type: "section_start", section, label: planned.title });
 
-          if (section === "responses") {
+          if (planned.kind === "responses") {
             const batches: string[][] = [];
             for (let i = 0; i < questions.length; i += RESPONSE_BATCH_SIZE) {
               batches.push(questions.slice(i, i + RESPONSE_BATCH_SIZE));
@@ -368,12 +391,18 @@ export async function POST(request: Request, context: RouteContext) {
               }
             });
 
-            return texts.map(cleanSection).filter(Boolean).join(separator);
+            return texts
+              .map((text) => cleanSection(text, { keepHeadingNumbers: true }))
+              .filter(Boolean)
+              .join(separator);
           }
 
           let text = "";
           for await (const chunk of streamLlmText(
-            call(buildSectionTask(section, plan, revision(section)), sectionMaxTokens[section]),
+            call(
+              buildSectionTask(planned, plan, outline, requirements, revision(section)),
+              sectionMaxTokens[planned.kind],
+            ),
           )) {
             text += chunk;
             send({ type: "delta", section, text: chunk });
@@ -381,32 +410,31 @@ export async function POST(request: Request, context: RouteContext) {
           return cleanSection(text);
         };
 
-        const outcomes = await Promise.all(
-          targets.map(async (section) => {
-            try {
-              const written = await writeSection(section);
-              if (!written) throw new Error("The model returned an empty section.");
-              const { content, citations } = analyzeDraft(
-                written,
-                citeLookup,
-                dismissedClaims.get(section) ?? [],
-              );
-              await upsertGeneratedDraftSection({ rfpId: rfp.id, sectionName: section, content, citations });
-              currentContent.set(section, content);
-              send({ type: "section_done", section, content, citations });
-              return true;
-            } catch (sectionError) {
-              console.error(`Drafting ${section} failed:`, safeErrorSummary(sectionError));
-              reportError(sectionError, { area: "draft-section", userId: user.id, rfpId: rfp.id, extra: { section } });
-              send({
-                type: "section_error",
-                section,
-                message: errorMessage(sectionError, "This section failed to draft."),
-              });
-              return false;
-            }
-          }),
-        );
+        const outcomes = await mapLimit(targets, SECTION_CONCURRENCY, async (planned) => {
+          const section = planned.key;
+          try {
+            const written = await writeSection(planned);
+            if (!written) throw new Error("The model returned an empty section.");
+            const { content, citations } = analyzeDraft(
+              written,
+              citeLookup,
+              dismissedClaims.get(section) ?? [],
+            );
+            await upsertGeneratedDraftSection({ rfpId: rfp.id, section: planned, content, citations });
+            currentContent.set(section, content);
+            send({ type: "section_done", section, content, citations });
+            return true;
+          } catch (sectionError) {
+            console.error(`Drafting ${planned.kind} failed:`, safeErrorSummary(sectionError));
+            reportError(sectionError, { area: "draft-section", userId: user.id, rfpId: rfp.id, extra: { section: planned.kind } });
+            send({
+              type: "section_error",
+              section,
+              message: errorMessage(sectionError, "This section failed to draft."),
+            });
+            return false;
+          }
+        });
 
         wroteAnything = outcomes.some(Boolean);
         if (!wroteAnything) {
@@ -419,11 +447,11 @@ export async function POST(request: Request, context: RouteContext) {
         send({ type: "meta_start", block: "coverage_map" });
         let coverageMap = "";
         try {
-          const drafted = plannedSections
-            .filter((section) => currentContent.get(section)?.trim())
+          const drafted = outline
+            .filter((section) => currentContent.get(section.key)?.trim())
             .map((section) => ({
-              label: draftSectionLabel[section],
-              content: stripCitations(currentContent.get(section) ?? ""),
+              label: section.title,
+              content: stripCitations(currentContent.get(section.key) ?? ""),
             }));
           for await (const chunk of streamLlmText(
             call(buildReviewTask(plan, drafted), 16000, "low"),

@@ -13,8 +13,8 @@ import { proposalAllowance } from "@/lib/ai-guard";
 import {
   hasModelPlan,
   parseDraftPlan,
+  proposalOutline,
   resolveCover,
-  sectionsForRfp,
 } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 import { credentialsIn } from "@/lib/claim-checks";
@@ -68,7 +68,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
   const [drafts, library] = await Promise.all([
     prisma.draft.findMany({
       where: { rfpId: rfp.id },
-      orderBy: { createdAt: "asc" },
+      orderBy: { updatedAt: "asc" },
     }),
     prisma.libraryItem.findMany({ where: { userId: user.id }, select: { type: true, title: true, content: true } }),
   ]);
@@ -135,7 +135,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
       <RfpDraftView
         rfpId={rfp.id}
         rfpTitle={rfp.title}
-        sections={sectionsForRfp(rfp)}
+        sections={proposalOutline(rfp).map(({ key, kind, title }) => ({ key, kind, title }))}
         initialDrafts={drafts}
         initialCoverageMap={rfp.coverageMap}
         autoStart={autoStart}

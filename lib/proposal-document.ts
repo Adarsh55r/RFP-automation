@@ -1,12 +1,12 @@
 import type { Draft, DraftSection, Rfp } from "@/lib/generated/prisma";
+import { draftKey } from "@/lib/draft-store";
 import { CITATION_PATTERN, parseCitations, stripCitations } from "@/lib/citations";
 import { parseCoverageTable } from "@/lib/coverage-map";
 import { citationIds, findPlaceholders, parseMarkdown, type MdBlock } from "@/lib/markdown";
 import {
-  draftSectionLabel,
   parseDraftPlan,
+  proposalOutline,
   resolveCover,
-  sectionsForRfp,
   type CoverDetails,
 } from "@/lib/rfp-draft";
 
@@ -24,7 +24,8 @@ export type ProposalDocument = {
   footerLabel: string;
   pageSize: "letter" | "a4";
   sections: {
-    key: DraftSection;
+    key: string;
+    kind: DraftSection;
     title: string;
     /** "1", "2", … — the cover letter is unnumbered. */
     number: string | null;
@@ -60,20 +61,24 @@ export function isExportVariant(value: unknown): value is ExportVariant {
 }
 
 function exportableSections(rfp: Rfp, drafts: Draft[]) {
-  const bySection = new Map(drafts.map((draft) => [draft.sectionName, draft]));
-  return sectionsForRfp(rfp)
-    .map((key) => ({
-      key,
-      content: bySection.get(key)?.content.trim() ?? "",
-      citations: parseCitations(bySection.get(key)?.citations),
+  const byKey = new Map<string, Draft>();
+  for (const draft of [...drafts].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())) {
+    if (!byKey.has(draftKey(draft))) byKey.set(draftKey(draft), draft);
+  }
+  return proposalOutline(rfp)
+    .map((section) => ({
+      key: section.key,
+      kind: section.kind,
+      title: section.title,
+      content: byKey.get(section.key)?.content.trim() ?? "",
+      citations: parseCitations(byKey.get(section.key)?.citations),
     }))
     .filter((section) => section.content);
 }
 
 function reviewAppendix(sections: ReturnType<typeof exportableSections>): ReviewAppendix {
   const appendix: ReviewAppendix = { sources: [], openItems: [] };
-  for (const { key, content, citations } of sections) {
-    const section = draftSectionLabel[key];
+  for (const { title: section, content, citations } of sections) {
     const cited = new Set([...content.matchAll(CITATION_PATTERN)].flatMap((m) => citationIds(m[1])));
     for (const id of [...cited].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)))) {
       const source = citations?.sources[id];
@@ -162,11 +167,13 @@ export function buildProposalDocument(input: {
     confidential: rfp.extractedDocumentType !== "public_tender",
     footerLabel: cover.projectTitle || cover.bidderName,
     pageSize: locale === "en-GB" ? "a4" : "letter",
-    sections: sections.map(({ key, content }) => ({
+    sections: sections.map(({ key, kind, title, content }) => ({
       key,
-      title: draftSectionLabel[key],
-      number: key === "cover_letter" ? null : String((counter += 1)),
-      numberSubheadings: key !== "cover_letter" && key !== "responses",
+      kind,
+      title,
+      // An RFP's own labels ("G. Cost Proposal") are the numbering; ours would clash with them.
+      number: plan.outlineFromRfp || kind === "cover_letter" ? null : String((counter += 1)),
+      numberSubheadings: !plan.outlineFromRfp && kind !== "cover_letter" && kind !== "responses" && kind !== "form",
       blocks: parseMarkdown(variant === "review" ? content : stripCitations(content)),
     })),
     complianceMatrix: input.includeComplianceMatrix ? complianceRows(rfp.coverageMap) : null,

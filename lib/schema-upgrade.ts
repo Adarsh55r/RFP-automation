@@ -8,8 +8,9 @@ import { prisma } from "@/lib/db";
  * 20261023100000_proposal_usage, 20261023110000_ai_daily_ceiling,
  * 20261024090000_pricing_v2, 20261025090000_draft_citations,
  * 20261025100000_questionnaire_map, 20261025110000_addenda,
- * 20261025120000_key_details, 20261025130000_bid_outcomes and
- * 20261025140000_free_tool), using the app's own DATABASE_URL so it
+ * 20261025120000_key_details, 20261025130000_bid_outcomes,
+ * 20261025140000_free_tool, 20261025150000_funnel_events and
+ * 20261026090000_proposal_outline), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -200,6 +201,12 @@ BEGIN
     ALTER TABLE "RfpFile" ADD CONSTRAINT "RfpFile_rfpId_fkey" FOREIGN KEY ("rfpId") REFERENCES "Rfp"("id") ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 
+  -- Proposal outline: sections that follow the RFP's own structure.
+  ALTER TYPE "DraftSection" ADD VALUE IF NOT EXISTS 'general';
+  ALTER TYPE "DraftSection" ADD VALUE IF NOT EXISTS 'form';
+  ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "sectionKey" TEXT;
+  ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "title" TEXT;
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -214,6 +221,7 @@ BEGIN
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
       ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
       ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261026090000_proposal_outline', '72058584263c0c8528555a60b41cf34888997a41cd34ed5848266287960841e0'),
       ('20261025150000_funnel_events', 'd3c17b1f73a2da9fc71a8b87904678f2a84f0079ce921b61bebf1b97920256d6'),
       ('20261025140000_free_tool', 'c9b93e096b9152ec00202fc106a30d88d24bfaeb1188910c51d17d53e479a446'),
       ('20261025130000_bid_outcomes', '3153d823c3393f20d0ac68c3d35b067f2d57610167289b98876afbfb8e78d024'),
@@ -291,7 +299,11 @@ SELECT
   )
   OR to_regclass('"ToolUsage"') IS NULL
   OR to_regclass('"Lead"') IS NULL
-  OR to_regclass('"FunnelEvent"') IS NULL AS "needsUpgrade"
+  OR to_regclass('"FunnelEvent"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Draft' AND column_name = 'sectionKey'
+  ) AS "needsUpgrade"
 `;
 
 export { NEEDS_UPGRADE_SQL, UPGRADE_SQL };

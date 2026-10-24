@@ -24,7 +24,7 @@ import { downloadRfpExport, type DownloadFormat } from "@/lib/download-rfp-expor
 import { unverifiedCredentials } from "@/lib/claim-checks";
 import { findPlaceholders } from "@/lib/markdown";
 import type { ExportVariant } from "@/lib/proposal-document";
-import { DRAFT_SECTIONS, draftSectionLabel, type CoverDetails } from "@/lib/rfp-draft";
+import type { CoverDetails } from "@/lib/rfp-draft";
 import type { Draft, DraftSection } from "@/lib/generated/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,16 @@ type SectionState = {
 
 type DraftPhase = "planning" | "writing" | "reviewing";
 
+/** One section of the proposal outline, as the editor needs it. */
+export type OutlineSection = { key: string; kind: DraftSection; title: string };
+
 type StreamEvent =
   | { type: "phase"; phase: DraftPhase }
-  | { type: "section_start"; section: DraftSection; label: string }
-  | { type: "delta"; section: DraftSection; text: string }
-  | { type: "section_done"; section: DraftSection; content: string; citations: DraftCitations }
-  | { type: "section_error"; section: DraftSection; message: string }
+  | { type: "outline"; sections: OutlineSection[] }
+  | { type: "section_start"; section: string; label: string }
+  | { type: "delta"; section: string; text: string }
+  | { type: "section_done"; section: string; content: string; citations: DraftCitations }
+  | { type: "section_error"; section: string; message: string }
   | { type: "meta_start"; block: string }
   | { type: "meta_delta"; block: string; text: string }
   | { type: "meta_done"; block: string }
@@ -73,16 +77,13 @@ const revisionPresets = [
   "Simpler language",
 ];
 
-function emptySections(): Record<DraftSection, SectionState> {
-  return Object.fromEntries(
-    DRAFT_SECTIONS.map((section) => [section, { content: "", status: "idle" }]),
-  ) as Record<DraftSection, SectionState>;
-}
+const EMPTY: SectionState = { content: "", status: "idle" };
 
-function sectionsFromDrafts(drafts: Draft[]): Record<DraftSection, SectionState> {
-  const next = emptySections();
+/** Section state by outline key. Drafts arrive oldest first, so the newest row for a key wins. */
+function sectionsFromDrafts(drafts: Draft[]): Record<string, SectionState> {
+  const next: Record<string, SectionState> = {};
   for (const draft of drafts) {
-    next[draft.sectionName] = {
+    next[draft.sectionKey ?? draft.sectionName] = {
       content: draft.content,
       status: "ready",
       citations: parseCitations(draft.citations),
@@ -98,6 +99,8 @@ function wait(ms: number) {
 function DraftSectionCard({
   rfpId,
   section,
+  title,
+  kind,
   state,
   busy,
   revisionsLeft,
@@ -108,15 +111,18 @@ function DraftSectionCard({
   onRevise,
 }: {
   rfpId: string;
-  section: DraftSection;
+  /** The section's key in the outline. */
+  section: string;
+  title: string;
+  kind: DraftSection;
   state: SectionState;
   busy: boolean;
   revisionsLeft: number;
   mode: "preview" | "edit";
   onModeChange: (mode: "preview" | "edit") => void;
-  onContentChange: (section: DraftSection, content: string) => void;
-  onCitations: (section: DraftSection, content: string, citations: DraftCitations) => void;
-  onRevise: (section: DraftSection, instruction: string) => void;
+  onContentChange: (section: string, content: string) => void;
+  onCitations: (section: string, content: string, citations: DraftCitations) => void;
+  onRevise: (section: string, instruction: string) => void;
 }) {
   const [saveFlash, setSaveFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -141,7 +147,7 @@ function DraftSectionCard({
 
     setSaveError(null);
     startTransition(async () => {
-      const result = await saveDraftSection({ rfpId, sectionName: section, content: next });
+      const result = await saveDraftSection({ rfpId, sectionKey: section, content: next });
       if (!result.ok) {
         setSaveError(result.error);
         return;
@@ -170,7 +176,7 @@ function DraftSectionCard({
         <div>
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Section</p>
           <h2 className="mt-2 font-sans text-lg font-semibold text-ink">
-            {draftSectionLabel[section]}
+            {title}
           </h2>
         </div>
 
@@ -275,7 +281,7 @@ function DraftSectionCard({
             ))}
           </div>
           <p className="text-xs text-slate">
-            {section === "responses"
+            {kind === "responses"
               ? "The AI rewrites only these answers. Long questionnaires are re-answered from scratch, so re-check any answers you edited by hand."
               : "Your manual edits are kept. The AI rewrites only this section."}
           </p>
@@ -310,7 +316,7 @@ function DraftSectionCard({
             onBlur={save}
             rows={18}
             className="min-h-64 font-mono text-[13px] leading-relaxed"
-            aria-label={`${draftSectionLabel[section]} draft`}
+            aria-label={`${title} draft`}
           />
           <p className="text-xs text-slate">
             Markdown: <code>## Heading</code>, <code>- bullet</code>, <code>**bold**</code>,
@@ -342,31 +348,32 @@ function InputChecklist({
   onCitations,
 }: {
   rfpId: string;
-  sections: DraftSection[];
-  state: Record<DraftSection, SectionState>;
-  onJump: (section: DraftSection) => void;
-  onCitations: (section: DraftSection, content: string, citations: DraftCitations) => void;
+  sections: OutlineSection[];
+  state: Record<string, SectionState>;
+  onJump: (section: string) => void;
+  onCitations: (section: string, content: string, citations: DraftCitations) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [reviewError, setReviewError] = useState<string | null>(null);
   const groups = sections
-    .map((section) => ({
-      section,
-      items: findPlaceholders(state[section].content),
-      uncited: state[section].citations?.unsupported ?? [],
+    .map(({ key, title }) => ({
+      section: key,
+      title,
+      items: findPlaceholders((state[key] ?? EMPTY).content),
+      uncited: state[key]?.citations?.unsupported ?? [],
     }))
     .filter((group) => group.items.length > 0 || group.uncited.length > 0);
   const total = groups.reduce((sum, group) => sum + group.items.length + group.uncited.length, 0);
 
-  const keepClaim = (section: DraftSection, claim: string) => {
+  const keepClaim = (section: string, claim: string) => {
     setReviewError(null);
     startTransition(async () => {
-      const result = await setClaimReviewed({ rfpId, sectionName: section, claim, reviewed: true });
+      const result = await setClaimReviewed({ rfpId, sectionKey: section, claim, reviewed: true });
       if (!result.ok) {
         setReviewError(result.error);
         return;
       }
-      onCitations(section, state[section].content, result.citations);
+      onCitations(section, (state[section] ?? EMPTY).content, result.citations);
     });
   };
 
@@ -397,7 +404,7 @@ function InputChecklist({
                 onClick={() => onJump(group.section)}
                 className={cn("font-semibold text-brand underline-offset-2 hover:underline", focusRing)}
               >
-                {draftSectionLabel[group.section]}
+                {group.title}
               </button>
               {group.items.length > 0 ? (
                 <ul className="mt-1 flex flex-wrap gap-2">
@@ -449,7 +456,7 @@ function InputChecklist({
 export function RfpDraftView({
   rfpId,
   rfpTitle,
-  sections: plannedSections,
+  sections: initialOutline,
   initialDrafts,
   initialCoverageMap,
   autoStart,
@@ -462,7 +469,8 @@ export function RfpDraftView({
 }: {
   rfpId: string;
   rfpTitle: string;
-  sections: DraftSection[];
+  /** The proposal outline: the RFP's own parts when it prescribes them. */
+  sections: OutlineSection[];
   initialDrafts: Draft[];
   initialCoverageMap?: string | null;
   autoStart: boolean;
@@ -483,8 +491,10 @@ export function RfpDraftView({
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const [sections, setSections] = useState(() => sectionsFromDrafts(initialDrafts));
-  const [modes, setModes] = useState<Partial<Record<DraftSection, "preview" | "edit">>>({});
+  const [plannedSections, setPlannedSections] = useState(initialOutline);
+  const [sectionState, setSections] = useState(() => sectionsFromDrafts(initialDrafts));
+  const sections = (key: string) => sectionState[key] ?? EMPTY;
+  const [modes, setModes] = useState<Record<string, "preview" | "edit">>({});
   const [coverageMap, setCoverageMap] = useState(initialCoverageMap ?? "");
   const [coverageStreaming, setCoverageStreaming] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -501,35 +511,35 @@ export function RfpDraftView({
   const startedRef = useRef(false);
 
   const hasAnyContent = plannedSections.some(
-    (section) => sections[section].content.trim().length > 0,
+    (section) => sections(section.key).content.trim().length > 0,
   );
   const canExport = !generating && hasAnyContent;
   const fullDraftsLeft = allowance.fullDrafts.limit - allowance.fullDrafts.used;
   const placeholderTotal = plannedSections.reduce(
-    (sum, section) => sum + findPlaceholders(sections[section].content).length,
+    (sum, section) => sum + findPlaceholders(sections(section.key).content).length,
     0,
   );
   const uncitedTotal = plannedSections.reduce(
-    (sum, section) => sum + (sections[section].citations?.unsupported.length ?? 0),
+    (sum, section) => sum + (sections(section.key).citations?.unsupported.length ?? 0),
     0,
   );
-  const updateCitations = (section: DraftSection, content: string, citations: DraftCitations) =>
+  const updateCitations = (section: string, content: string, citations: DraftCitations) =>
     setSections((current) => ({
       ...current,
-      [section]: { ...current[section], content, citations },
+      [section]: { ...(current[section] ?? EMPTY), content, citations },
     }));
   // Credentials the draft names that the library never mentions: possibly claimed without proof.
   const unverifiedClaims = useMemo(() => {
     const where = new Map<string, string[]>();
     for (const section of plannedSections) {
-      for (const name of unverifiedCredentials(sections[section].content, supportedCredentials)) {
-        where.set(name, [...(where.get(name) ?? []), draftSectionLabel[section]]);
+      for (const name of unverifiedCredentials((sectionState[section.key] ?? EMPTY).content, supportedCredentials)) {
+        where.set(name, [...(where.get(name) ?? []), section.title]);
       }
     }
     return [...where.entries()];
-  }, [plannedSections, sections, supportedCredentials]);
+  }, [plannedSections, sectionState, supportedCredentials]);
 
-  const runGeneration = async (revision?: { section: DraftSection; instruction: string }) => {
+  const runGeneration = async (revision?: { section: string; instruction: string }) => {
     setGenerating(true);
     setError(null);
     setExportPhase("idle");
@@ -537,11 +547,12 @@ export function RfpDraftView({
     setCoverageStreaming(false);
 
     // Keep the current text so a failed revision can be put back.
-    const previous = sections;
+    const previous = sectionState;
+    const before = (key: string) => previous[key] ?? EMPTY;
     if (revision) {
       setModes((current) => ({ ...current, [revision.section]: "preview" }));
     } else {
-      setSections(emptySections());
+      setSections({});
       setModes({});
     }
 
@@ -551,7 +562,7 @@ export function RfpDraftView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           revision
-            ? { ...revision, currentContent: previous[revision.section].content }
+            ? { ...revision, currentContent: before(revision.section).content }
             : {},
         ),
       });
@@ -587,6 +598,9 @@ export function RfpDraftView({
             case "phase":
               setPhase(payload.phase);
               break;
+            case "outline":
+              if (payload.sections.length > 0) setPlannedSections(payload.sections);
+              break;
             case "section_start":
               setSections((current) => ({
                 ...current,
@@ -597,7 +611,7 @@ export function RfpDraftView({
               setSections((current) => ({
                 ...current,
                 [payload.section]: {
-                  content: `${current[payload.section].content}${payload.text}`,
+                  content: `${(current[payload.section] ?? EMPTY).content}${payload.text}`,
                   status: "streaming",
                 },
               }));
@@ -616,12 +630,14 @@ export function RfpDraftView({
               setSections((current) => ({
                 ...current,
                 [payload.section]: {
-                  content: previous[payload.section].content,
-                  status: previous[payload.section].content ? "ready" : "error",
+                  content: before(payload.section).content,
+                  status: before(payload.section).content ? "ready" : "error",
                   error: payload.message,
                 },
               }));
-              setError(`${draftSectionLabel[payload.section]}: ${payload.message}`);
+              setError(
+                `${plannedSections.find((item) => item.key === payload.section)?.title ?? "A section"}: ${payload.message}`,
+              );
               break;
             case "meta_start":
               setCoverageStreaming(true);
@@ -655,11 +671,11 @@ export function RfpDraftView({
       // Restore anything that was mid-stream when the request died.
       setSections((current) => {
         const next = { ...current };
-        for (const section of DRAFT_SECTIONS) {
-          if (next[section].status === "streaming") {
-            next[section] = previous[section].content
-              ? previous[section]
-              : { content: next[section].content, status: next[section].content ? "ready" : "idle" };
+        for (const [key, value] of Object.entries(next)) {
+          if (value.status === "streaming") {
+            next[key] = before(key).content
+              ? before(key)
+              : { content: value.content, status: value.content ? "ready" : "idle" };
           }
         }
         return next;
@@ -729,7 +745,7 @@ export function RfpDraftView({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- start once on mount when empty
   }, [autoStart, hasAnyContent]);
 
-  const jumpTo = (section: DraftSection) => {
+  const jumpTo = (section: string) => {
     setModes((current) => ({ ...current, [section]: "edit" }));
     document
       .getElementById(`section-${section}`)
@@ -806,7 +822,7 @@ export function RfpDraftView({
             <FileText className="h-4 w-4" aria-hidden />
             Export PDF
           </Button>
-          {spreadsheet && sections.responses.content.trim() ? (
+          {spreadsheet && plannedSections.some((item) => item.kind === "responses" && sections(item.key).content.trim()) ? (
             <Button
               type="button"
               variant="secondary"
@@ -962,8 +978,8 @@ export function RfpDraftView({
       {legacyDraft && hasAnyContent && !generating ? (
         <div className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm leading-relaxed text-ink">
           <strong>This draft was written by an earlier version of DraftBid AI.</strong> Click
-          “Regenerate all” to get the cover letter, bid plan, benefit call-outs, compliance
-          review, and the current proposal structure.
+          “Regenerate all” to get the cover letter, bid plan, compliance review, and a
+          structure that follows the RFP&apos;s own outline.
         </div>
       ) : null}
 
@@ -976,7 +992,7 @@ export function RfpDraftView({
           <InputChecklist
             rfpId={rfpId}
             sections={plannedSections}
-            state={sections}
+            state={sectionState}
             onJump={jumpTo}
             onCitations={updateCitations}
           />
@@ -998,20 +1014,22 @@ export function RfpDraftView({
 
         {plannedSections.map((section) => (
           <DraftSectionCard
-            key={section}
+            key={section.key}
             rfpId={rfpId}
-            section={section}
-            state={sections[section]}
+            section={section.key}
+            title={section.title}
+            kind={section.kind}
+            state={sections(section.key)}
             busy={generating}
             revisionsLeft={allowance.revisions.limit - allowance.revisions.used}
-            mode={modes[section] ?? "preview"}
-            onModeChange={(mode) => setModes((current) => ({ ...current, [section]: mode }))}
+            mode={modes[section.key] ?? "preview"}
+            onModeChange={(mode) => setModes((current) => ({ ...current, [section.key]: mode }))}
             onRevise={(name, instruction) => void runGeneration({ section: name, instruction })}
             onCitations={updateCitations}
             onContentChange={(name, content) =>
               setSections((current) => ({
                 ...current,
-                [name]: { ...current[name], content, status: "ready" },
+                [name]: { ...(current[name] ?? EMPTY), content, status: "ready" },
               }))
             }
           />
