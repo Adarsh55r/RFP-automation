@@ -11,40 +11,48 @@ import {
   type DraftCitations,
 } from "@/lib/citations";
 import { prisma } from "@/lib/db";
-import { DraftSection, DraftStatus, RfpStatus, type Prisma } from "@/lib/generated/prisma";
+import { citedClaims } from "@/lib/fact-check";
+import { DraftStatus, RfpStatus, type Prisma } from "@/lib/generated/prisma";
+import { draftKey, findSectionDraft } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
-import { isDraftSection } from "@/lib/rfp-draft";
+import { proposalOutline } from "@/lib/rfp-draft";
 
 /**
  * Re-checks citations after the user edits a section. Markers keep pointing
  * to the passage they pointed to when drafted; a marker the user adds by hand
  * is checked against the library as it is now.
  */
-async function recheckCitations(userId: string, content: string, previous: DraftCitations | null) {
-  const library = buildSourceIndex(await getLibraryItemsForUser(userId));
+async function recheckCitations(userId: string, content: string, previous: DraftCitations | null, rfpText: string) {
+  const items = await getLibraryItemsForUser(userId);
+  const library = buildSourceIndex(items);
   const lookup = (id: string): CitationSource | undefined => {
     const stored = previous?.sources[id];
     if (stored) return stored;
     const passage = library.byId.get(id);
     return passage ? sourceFromPassage(passage) : undefined;
   };
-  return analyzeDraft(content, lookup, previous?.dismissed ?? []);
+  const checked = analyzeDraft(content, lookup, previous?.dismissed ?? [], {
+    libraryText: items.map((item) => `${item.title}\n${item.content}`).join("\n"),
+    rfpText,
+  });
+  // The fact-check needs the AI, so it is not re-run on save; its findings stay
+  // listed while the sentence they are about is still in the section.
+  const stillThere = new Set(citedClaims(checked.content).map((item) => item.claim));
+  checked.citations.misstated = (previous?.misstated ?? []).filter((item) => stillThere.has(item.claim));
+  return checked;
 }
 
 const asJson = (citations: DraftCitations) => citations as unknown as Prisma.InputJsonValue;
 
 export async function saveDraftSection(input: {
   rfpId: string;
-  sectionName: string;
+  /** The section's key in the proposal outline. */
+  sectionKey: string;
   content: string;
 }) {
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     return { ok: false as const, error: "You must be signed in." };
-  }
-
-  if (!isDraftSection(input.sectionName)) {
-    return { ok: false as const, error: "Invalid draft section." };
   }
 
   if (!input.content.trim()) {
@@ -64,12 +72,13 @@ export async function saveDraftSection(input: {
     return { ok: false as const, error: "RFP not found." };
   }
 
-  const sectionName = input.sectionName as DraftSection;
+  const section = proposalOutline(rfp).find((item) => item.key === input.sectionKey);
+  if (!section) {
+    return { ok: false as const, error: "Invalid draft section." };
+  }
 
-  const existing = await prisma.draft.findFirst({
-    where: { rfpId: rfp.id, sectionName },
-  });
-  const checked = await recheckCitations(user.id, input.content.trim(), parseCitations(existing?.citations));
+  const existing = await findSectionDraft(rfp.id, section);
+  const checked = await recheckCitations(user.id, input.content.trim(), parseCitations(existing?.citations), rfp.sourceText ?? "");
   const content = checked.content.trim();
   const citations = asJson(checked.citations);
 
@@ -77,6 +86,8 @@ export async function saveDraftSection(input: {
     ? await prisma.draft.update({
         where: { id: existing.id },
         data: {
+          sectionKey: section.key,
+          title: section.title,
           content,
           citations,
           status: DraftStatus.edited,
@@ -85,7 +96,9 @@ export async function saveDraftSection(input: {
     : await prisma.draft.create({
         data: {
           rfpId: rfp.id,
-          sectionName,
+          sectionName: section.kind,
+          sectionKey: section.key,
+          title: section.title,
           content,
           citations,
           status: DraftStatus.edited,
@@ -95,12 +108,12 @@ export async function saveDraftSection(input: {
   if (rfp.status === RfpStatus.drafting || rfp.status === RfpStatus.extracted) {
     const sections = await prisma.draft.findMany({
       where: { rfpId: rfp.id },
-      select: { sectionName: true },
+      select: { sectionName: true, sectionKey: true },
     });
-    const names = new Set(sections.map((item) => item.sectionName));
-    const complete = (
-      ["exec_summary", "technical_approach", "team", "pricing"] as const
-    ).every((name) => names.has(name));
+    const keys = new Set(sections.map((item) => draftKey(item)));
+    const complete = proposalOutline(rfp)
+      .filter((item) => item.kind !== "cover_letter" && item.kind !== "responses")
+      .every((item) => keys.has(item.key));
 
     if (complete) {
       await prisma.rfp.update({
@@ -117,7 +130,7 @@ export async function saveDraftSection(input: {
     ok: true as const,
     draft: {
       id: draft.id,
-      sectionName: draft.sectionName,
+      sectionKey: section.key,
       content: draft.content,
       status: draft.status,
       updatedAt: draft.updatedAt.toISOString(),
@@ -132,7 +145,7 @@ export async function saveDraftSection(input: {
  */
 export async function setClaimReviewed(input: {
   rfpId: string;
-  sectionName: string;
+  sectionKey: string;
   claim: string;
   reviewed: boolean;
 }) {
@@ -140,16 +153,16 @@ export async function setClaimReviewed(input: {
   if (!clerkId) {
     return { ok: false as const, error: "You must be signed in." };
   }
-  if (!isDraftSection(input.sectionName) || !input.claim.trim() || input.claim.length > 2_000) {
+  if (!/^[a-z0-9_-]{1,64}$/.test(input.sectionKey) || !input.claim.trim() || input.claim.length > 2_000) {
     return { ok: false as const, error: "Invalid request." };
   }
   const user = await prisma.user.findUnique({ where: { clerkId } });
   if (!user) {
     return { ok: false as const, error: "Complete onboarding first." };
   }
-  const draft = await prisma.draft.findFirst({
-    where: { rfpId: input.rfpId, sectionName: input.sectionName as DraftSection, rfp: { userId: user.id } },
-  });
+  const rfp = await prisma.rfp.findFirst({ where: { id: input.rfpId, userId: user.id } });
+  const section = rfp ? proposalOutline(rfp).find((item) => item.key === input.sectionKey) : undefined;
+  const draft = rfp && section ? await findSectionDraft(rfp.id, section) : null;
   const current = parseCitations(draft?.citations);
   if (!draft || !current) {
     return { ok: false as const, error: "Section not found." };
@@ -160,6 +173,9 @@ export async function setClaimReviewed(input: {
     ? {
         ...current,
         unsupported: current.unsupported.filter((item) => item !== claim),
+        figures: current.figures.filter((item) => item !== claim),
+        overclaims: current.overclaims.filter((item) => item !== claim),
+        misstated: current.misstated.filter((item) => item.claim !== claim),
         dismissed: current.dismissed.includes(claim) ? current.dismissed : [...current.dismissed, claim],
       }
     : {

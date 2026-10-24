@@ -170,7 +170,7 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
 
     const saved = await saveDraftSection({
       rfpId: rfp.id,
-      sectionName: "exec_summary",
+      sectionKey: "exec_summary",
       content: "We supported Bluegrass Dental Group [S2]. Founded in Lexington [S3, S50]. We hold ISO 27001 certification.",
     });
     expect(saved.ok).toBe(true);
@@ -183,7 +183,7 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
 
     const reviewed = await setClaimReviewed({
       rfpId: rfp.id,
-      sectionName: "exec_summary",
+      sectionKey: "exec_summary",
       claim: "We hold ISO 27001 certification.",
       reviewed: true,
     });
@@ -192,7 +192,7 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     // Saving again does not bring the reviewed claim back.
     const again = await saveDraftSection({
       rfpId: rfp.id,
-      sectionName: "exec_summary",
+      sectionKey: "exec_summary",
       content: "We hold ISO 27001 certification. We have 3 offices.",
     });
     expect(again.ok && again.draft.citations.unsupported).toEqual(["We have 3 offices."]);
@@ -200,8 +200,123 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     // Another account cannot review claims on this RFP.
     await createUser("other");
     h.clerkId = "other";
-    const denied = await setClaimReviewed({ rfpId: rfp.id, sectionName: "exec_summary", claim: "We have 3 offices.", reviewed: true });
+    const denied = await setClaimReviewed({ rfpId: rfp.id, sectionKey: "exec_summary", claim: "We have 3 offices.", reviewed: true });
     expect(denied.ok).toBe(false);
+  });
+
+  it("follows the RFP's own outline, assigns requirements to parts, and revises a part by its key", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    const outline = {
+      prescribed: true,
+      parts: [
+        { title: "A. Cover Letter", kind: "cover_letter", asks: ["90-day validity"], covers: [] },
+        { title: "E. Proposed Service Approach", kind: "technical_approach", covers: ["M1"] },
+        { title: "I. References", kind: "general", asks: ["Three references with contact details"], covers: ["M2"] },
+        { title: "Exhibit A: Cost Proposal Summary", kind: "form", covers: [] },
+      ],
+    };
+    llm.script.json = () => JSON.stringify({ ...llm.SAMPLE_PLAN, solicitationNumber: "RFP-2026-00123", outline });
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) {
+        yield "| Requirement | Type | Addressed in | Status | What to do |\n| --- | --- | --- | --- | --- |\n| M1: SOC 2 | Mandatory | I. References | Gap | Provide report |";
+        return;
+      }
+      const title = /one part of the proposal: "([^"]+)"/.exec(req.user)?.[1] ?? "?";
+      yield `## 1. Heading for ${title}\n\nBody of ${title}.`;
+    };
+    const events = await readEvents(await run());
+    expect(events.at(-1)?.type).toBe("done");
+    const outlineEvent = events.find((e) => e.type === "outline") as unknown as { sections: { key: string; title: string }[] };
+    expect(outlineEvent.sections.map((section) => section.title)).toEqual(outline.parts.map((part) => part.title));
+
+    const drafts = await testDb().draft.findMany({ where: { rfpId: rfp.id }, orderBy: { createdAt: "asc" } });
+    expect(drafts.map((d) => [d.sectionKey, d.sectionName, d.title]).sort()).toEqual(
+      [
+        ["cover_letter", "cover_letter", "A. Cover Letter"],
+        ["p-exhibit-a-cost-proposal-summary", "form", "Exhibit A: Cost Proposal Summary"],
+        ["p-i-references", "general", "I. References"],
+        ["technical_approach", "technical_approach", "E. Proposed Service Approach"],
+      ].sort(),
+    );
+    // The model's own heading numbers are removed.
+    expect(drafts.find((d) => d.sectionKey === "p-i-references")?.content).toBe("## Heading for I. References\n\nBody of I. References.");
+
+    // Each part is told which requirements it must answer.
+    const referencesCall = llm.calls.find((call) => call.user.includes('one part of the proposal: "I. References"'));
+    expect(referencesCall?.user).toContain("M2 (Mandatory): Kentucky business license");
+    expect(referencesCall?.user).toContain("- Three references with contact details");
+
+    // An invented solicitation number is not kept.
+    const stored = await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } });
+    expect((stored.draftPlan as { solicitationNumber: string }).solicitationNumber).toBe("");
+
+    // Revising one part by its key rewrites only that part.
+    const revised = await readEvents(await run({ section: "p-i-references", instruction: "Shorter" }));
+    expect(revised.filter((e) => e.type === "section_done").map((e) => e.section)).toEqual(["p-i-references"]);
+
+    // The export uses the RFP's labels as headings, without numbers of its own.
+    const { buildProposalDocument } = await import("@/lib/proposal-document");
+    const doc = buildProposalDocument({
+      companyName: "Ridgeline",
+      rfp: await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } }),
+      drafts: await testDb().draft.findMany({ where: { rfpId: rfp.id } }),
+      includeComplianceMatrix: false,
+    });
+    expect(doc.sections.map((section) => [section.title, section.number])).toEqual(
+      outline.parts.map((part) => [part.title, null]),
+    );
+    expect(doc.confidential).toBe(false);
+  });
+
+  it("lists figures found in neither the library nor the RFP, and lets the bidder keep one after checking", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    llm.script.json = () => JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) return;
+      yield "Project work is billed at $187 per hour. We guarantee zero downtime.";
+    };
+    await readEvents(await run());
+    const pricing = await testDb().draft.findFirstOrThrow({ where: { rfpId: rfp.id, sectionKey: "pricing" } });
+    expect(pricing.citations).toMatchObject({
+      figures: ["Project work is billed at $187 per hour."],
+      overclaims: ["We guarantee zero downtime."],
+    });
+
+    const { setClaimReviewed } = await import("@/lib/actions/rfp-draft");
+    const kept = await setClaimReviewed({ rfpId: rfp.id, sectionKey: "pricing", claim: "Project work is billed at $187 per hour.", reviewed: true });
+    expect(kept.ok && kept.citations.figures).toEqual([]);
+  });
+
+  it("fact-checks cited sentences against their sources and lists the ones that do not match", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    const { FACT_CHECK_SYSTEM } = await import("@/lib/fact-check");
+    llm.script.json = (req) =>
+      req.system === FACT_CHECK_SYSTEM
+        ? JSON.stringify({ results: [{ n: 1, verdict: "distorted", issue: "The source says 6 dental offices, not 12." }] })
+        : JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) return;
+      if (req.user.includes("EXECUTIVE SUMMARY")) yield "We support 12 dental offices for Bluegrass Dental Group [S2].";
+      else yield "We will review every alert.";
+    };
+    const events = await readEvents(await run());
+    const checked = events.find((e) => e.type === "section_checked") as unknown as { section: string };
+    expect(checked.section).toBe("exec_summary");
+    const exec = await testDb().draft.findFirstOrThrow({ where: { rfpId: rfp.id, sectionKey: "exec_summary" } });
+    expect(exec.citations).toMatchObject({
+      misstated: [{ claim: "We support 12 dental offices for Bluegrass Dental Group.", issue: "The source says 6 dental offices, not 12." }],
+    });
+    // The fact-check runs on the cheaper extraction model, metered like every call.
+    const factCheckCall = llm.calls.find((call) => call.system === FACT_CHECK_SYSTEM);
+    expect(factCheckCall?.purpose).toBe("extraction");
+    expect(factCheckCall?.user).toContain("Managed IT for 6 dental offices");
+
+    // Editing the section keeps the finding while the sentence is still there, and drops it once fixed.
+    const { saveDraftSection } = await import("@/lib/actions/rfp-draft");
+    const kept = await saveDraftSection({ rfpId: rfp.id, sectionKey: "exec_summary", content: `${exec.content} We will review every alert.` });
+    expect(kept.ok && kept.draft.citations.misstated).toHaveLength(1);
+    const fixed = await saveDraftSection({ rfpId: rfp.id, sectionKey: "exec_summary", content: "We support 6 dental offices for Bluegrass Dental Group [S2]." });
+    expect(fixed.ok && fixed.draft.citations.misstated).toEqual([]);
   });
 
   it("drafting only ever sees the current account's library", async () => {

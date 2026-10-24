@@ -36,6 +36,10 @@ DraftBid AI is run by you as an independent founder, with no registered company.
 - [ ] **Lawyer review** of the Terms, Privacy Policy, DPA and subprocessor list (see `docs/legal/README.md`)
 - [ ] **AI provider data terms:** from each provider's account settings or contract, confirm that API data is not used for training and note its retention period. Then set `AI_NO_TRAINING_CONFIRMED = true` in `lib/company.ts`. Until then the site does not claim the provider does not train on your data.
 
+## Draft quality
+- [ ] **Re-run the Harrison test on a preview deployment** with a real AI key: same library, same RFP and Q&A update. Check that the outline follows the RFP's A–J parts plus Exhibit A, that no price appears that is not in the library or shown as arithmetic, and that the checklist lists anything the fact-check or figure check flagged. The new prompts have only been tested with a scripted model here.
+- [ ] Cost note: each full draft now makes one extra small call (the fact-check, on the extraction model), and RFPs with long outlines make more section calls. Watch AI cost per proposal on the admin Costs page for the first week.
+
 ## Decisions
 - [ ] Brand spelling: "DraftBid AI" (current default) or "DraftBidAI"
 - [ ] **Payment provider** (blocks billing work): Stripe, Paddle, Lemon Squeezy or Dodo Payments. Then share **test-mode** keys. Without a registered company, a merchant-of-record provider is usually easier.

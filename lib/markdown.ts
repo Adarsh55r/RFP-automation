@@ -94,8 +94,30 @@ export function normalizeMarkdown(markdown: string) {
   return out.join("\n");
 }
 
+/** One citation ID or range inside a marker: S4, or S7–S10 (any dash, the second "S" optional). */
+const CITATION_ID = String.raw`S\d+(?:\s*[-–—]\s*S?\d+)?`;
+/** The inside of a citation marker as models write it: "S4", "S3, S9", "S4; S7–S10". */
+export const CITATION_BODY = String.raw`${CITATION_ID}(?:\s*[,;]\s*${CITATION_ID})*`;
+
+/** Every passage ID a marker body refers to, with ranges expanded ("S7–S10" → S7, S8, S9, S10). */
+export function citationIds(body: string): string[] {
+  const ids: string[] = [];
+  for (const part of body.split(/\s*[,;]\s*/)) {
+    const range = /^S(\d+)\s*[-–—]\s*S?(\d+)$/.exec(part.trim());
+    if (range) {
+      const [from, to] = [Number(range[1]), Number(range[2])];
+      // A reversed or implausibly long range is kept as its two ends only.
+      const span = to >= from && to - from <= 30 ? Array.from({ length: to - from + 1 }, (_, i) => from + i) : [from, to];
+      for (const n of span) if (!ids.includes(`S${n}`)) ids.push(`S${n}`);
+    } else if (/^S\d+$/.test(part.trim()) && !ids.includes(part.trim())) {
+      ids.push(part.trim());
+    }
+  }
+  return ids;
+}
+
 /** Citation markers from lib/citations.ts, matched here too so every renderer agrees. */
-const CITATION_MARKER = /\[(S\d+(?:\s*,\s*S\d+)*)\]/g;
+const CITATION_MARKER = new RegExp(String.raw`\[(${CITATION_BODY})\]`, "g");
 const INLINE_MARKERS = new RegExp(`${PLACEHOLDER_PATTERN.source}|${CITATION_MARKER.source}`, "g");
 
 function splitPlaceholders(run: InlineRun): InlineRun[] {
@@ -110,7 +132,7 @@ function splitPlaceholders(run: InlineRun): InlineRun[] {
       parts.push({ ...run, text: run.text.slice(last, at) });
     }
     if (match[1]) {
-      const ids = match[1].split(",").map((id) => id.trim());
+      const ids = citationIds(match[1]);
       parts.push({ ...run, text: `[${ids.join(", ")}]`, citation: ids });
     } else {
       const inner = match[0].replace(/^\[\[?|\]\]?$/g, "").trim();
@@ -333,27 +355,36 @@ export function relativeHeadingLevel(blocks: MdBlock[]) {
 }
 
 /** Proportional column weights from cell text length, for fixed-width tables. */
-export function columnWeights(header: InlineRun[][], rows: InlineRun[][][]) {
+/**
+ * Column widths for a table, in the caller's unit. Every column is at least as
+ * wide as its longest word (so words and amounts like "$10,800.00" never break
+ * mid-way); the space left over goes to the columns with the most text.
+ * `charWidth` is the width of an average character at the table's font size.
+ */
+export function columnWidths(header: InlineRun[][], rows: InlineRun[][][], usable: number, charWidth: number) {
   const columns = Math.max(header.length, ...rows.map((row) => row.length), 1);
-  const weights: number[] = [];
+  const minimums: number[] = [];
+  const wants: number[] = [];
   for (let column = 0; column < columns; column += 1) {
-    const lengths = [header[column], ...rows.map((row) => row[column])]
+    const texts = [header[column], ...rows.map((row) => row[column])]
       .filter(Boolean)
-      .map((cell) => runsToPlainText(cell as InlineRun[]).length);
+      .map((cell) => runsToPlainText(cell as InlineRun[]));
+    const lengths = texts.map((text) => text.length);
     const longest = Math.max(...lengths, 1);
     const average = lengths.reduce((sum, value) => sum + value, 0) / Math.max(lengths.length, 1);
-    // Never narrower than the longest single word, so words don't break mid-way.
-    const longestWord = Math.max(
-      ...[header[column], ...rows.map((row) => row[column])]
-        .filter(Boolean)
-        .flatMap((cell) => runsToPlainText(cell as InlineRun[]).split(/\s+/))
-        .map((word) => word.length),
-      1,
-    );
-    weights.push(Math.max(Math.min(Math.max((longest + average) / 2, 6), 60), longestWord + 2));
+    const longestWord = Math.max(...texts.flatMap((text) => text.split(/\s+/)).map((word) => word.length), 1);
+    minimums.push((longestWord + 1) * charWidth);
+    wants.push(Math.min(Math.max((longest + average) / 2, 6), 60) * charWidth);
   }
-  const total = weights.reduce((sum, value) => sum + value, 0);
-  return weights.map((value) => value / total);
+  const floor = minimums.reduce((sum, value) => sum + value, 0);
+  // Not even the longest words fit: shrink in proportion (some words must wrap).
+  if (floor >= usable) return minimums.map((value) => (value / floor) * usable);
+  const extra = wants.map((want, index) => Math.max(want - minimums[index], 0));
+  const extraTotal = extra.reduce((sum, value) => sum + value, 0);
+  const spare = usable - floor;
+  return minimums.map((value, index) =>
+    value + (extraTotal > 0 ? (extra[index] / extraTotal) * spare : spare / columns),
+  );
 }
 
 function blocksToPlainText(blocks: MdBlock[]): string[] {

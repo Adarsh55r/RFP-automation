@@ -8,7 +8,7 @@ import { generateLlmText } from "@/lib/llm";
 import { extractRequirementsWithLlm, type ExtractionResult } from "@/lib/rfp-extract";
 import { verifyExtraction } from "@/lib/extraction-checks";
 import { findUnverifiedCredentials } from "@/lib/claim-checks";
-import { buildDraftingContext, buildPlanTask, buildSectionTask, DRAFTING_SYSTEM, parseDraftPlan } from "@/lib/rfp-draft";
+import { buildDraftingContext, buildPlanTask, buildSectionTask, DRAFTING_SYSTEM, parsePlanResponse, requirementRefs } from "@/lib/rfp-draft";
 import { FIXTURES, LIMITED_LIBRARY } from "../fixtures/rfps";
 import type { LibraryItem, Rfp } from "@/lib/generated/prisma";
 
@@ -69,8 +69,9 @@ describe.skipIf(!enabled)("real-model drafting honesty (GPT-4.1)", () => {
     } as unknown as Rfp;
     const library = LIMITED_LIBRARY.map((item, i) => ({ ...item, id: String(i), userId: "u", createdAt: new Date() })) as LibraryItem[];
     const context = buildDraftingContext({ companyName: "Ridgeline IT Services LLC", rfp, libraryItems: library, sourceText: fx.text });
-    const plan = parseDraftPlan(JSON.parse(await generateLlmText({ purpose: "drafting", system: DRAFTING_SYSTEM, context, user: buildPlanTask(), json: true, maxTokens: 8000 })));
-    const draft = await generateLlmText({ purpose: "drafting", system: DRAFTING_SYSTEM, context, user: buildSectionTask("team", plan), maxTokens: 16000 });
+    const plan = parsePlanResponse(await generateLlmText({ purpose: "drafting", system: DRAFTING_SYSTEM, context, user: buildPlanTask(rfp), json: true, maxTokens: 12000 }), rfp, fx.text);
+    const team = plan.outline.find((section) => section.kind === "team") ?? { key: "team", kind: "team" as const, title: "Team", asks: [], covers: [] };
+    const draft = await generateLlmText({ purpose: "drafting", system: DRAFTING_SYSTEM, context, user: buildSectionTask(team, plan, plan.outline, requirementRefs(rfp)), maxTokens: 16000 });
     const libraryText = LIMITED_LIBRARY.map((i) => i.content).join("\n");
     console.log(draft);
     expect(findUnverifiedCredentials(draft.replace(/RFP requires[^.]*\./gi, ""), libraryText)).toEqual([]);

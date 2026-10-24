@@ -1,4 +1,6 @@
 import { credentialsIn } from "@/lib/claim-checks";
+import { CITATION_BODY, citationIds } from "@/lib/markdown";
+import { overclaims, unsupportedFigures } from "@/lib/grounding";
 import type { LibraryItem, LibraryItemType } from "@/lib/generated/prisma";
 
 /**
@@ -28,6 +30,12 @@ export type DraftCitations = {
   sources: Record<string, CitationSource>;
   /** Factual-looking sentences with no supporting citation: the user must check or fill these. */
   unsupported: string[];
+  /** Sentences stating a price, percentage or duration found in neither the library nor the RFP. */
+  figures: string[];
+  /** Sentences making absolute claims (guarantees, "full compliance") the library never makes. */
+  overclaims: string[];
+  /** Cited sentences the fact-check found do not match their source (lib/fact-check.ts). */
+  misstated: { claim: string; issue: string }[];
   /** Sentences the user reviewed and chose to keep anyway. */
   dismissed: string[];
 };
@@ -88,12 +96,12 @@ export function sourceFromPassage(passage: SourcePassage): CitationSource {
   };
 }
 
-/** A citation marker: [S12] or [S12, S14]. */
-export const CITATION_PATTERN = /\[(S\d+(?:\s*,\s*S\d+)*)\]/g;
+/** A citation marker: [S12], [S12, S14], or a range such as [S4, S7–S10]. Use `citationIds` on group 1. */
+export const CITATION_PATTERN = new RegExp(String.raw`\[(${CITATION_BODY})\]`, "g");
 
 /** Removes every citation marker, for the clean copy that is submitted to the buyer. */
 export function stripCitations(markdown: string) {
-  return markdown.replace(/[ \t]*\[S\d+(?:\s*,\s*S\d+)*\]/g, "");
+  return markdown.replace(new RegExp(String.raw`[ \t]*\[${CITATION_BODY}\]`, "g"), "");
 }
 
 const FIRST_PERSON = /\b(we|our|us|we've|we're|we have)\b/i;
@@ -168,12 +176,13 @@ export function analyzeDraft(
   markdown: string,
   lookup: (id: string) => CitationSource | undefined,
   dismissed: string[] = [],
+  /** The library and RFP text, to check figures and claims against. Omitted, those checks are skipped. */
+  checkAgainst?: { libraryText: string; rfpText: string },
 ): { content: string; citations: DraftCitations } {
   const sources: Record<string, CitationSource> = {};
-  const content = markdown.replace(/([ \t]*)\[(S\d+(?:\s*,\s*S\d+)*)\]/g, (_match, space: string, ids: string) => {
-    const valid = ids
-      .split(",")
-      .map((id) => id.trim())
+  // Markers are rewritten in one canonical form ([S4, S7, S8]) so every later reader agrees.
+  const content = markdown.replace(new RegExp(String.raw`([ \t]*)\[(${CITATION_BODY})\]`, "g"), (_match, space: string, ids: string) => {
+    const valid = citationIds(ids)
       .filter((id) => {
         const source = lookup(id);
         if (source) sources[id] = source;
@@ -196,7 +205,16 @@ export function analyzeDraft(
     if (unsupported.length >= 40) break;
   }
 
-  return { content, citations: { version: 1, sources, unsupported, dismissed: dismissed.filter(Boolean) } };
+  const open = (items: string[]) => items.filter((item) => !dismissed.includes(item));
+  const figures = checkAgainst
+    ? open(unsupportedFigures(content, `${checkAgainst.libraryText}\n${checkAgainst.rfpText}`))
+    : [];
+  const claims = checkAgainst ? open(overclaims(content, checkAgainst.libraryText)) : [];
+
+  return {
+    content,
+    citations: { version: 1, sources, unsupported, figures, overclaims: claims, misstated: [], dismissed: dismissed.filter(Boolean) },
+  };
 }
 
 /** Reads stored citations defensively (older drafts have none). */
@@ -207,6 +225,14 @@ export function parseCitations(value: unknown): DraftCitations | null {
     version: 1,
     sources: raw.sources && typeof raw.sources === "object" ? (raw.sources as Record<string, CitationSource>) : {},
     unsupported: Array.isArray(raw.unsupported) ? raw.unsupported.filter((item) => typeof item === "string") : [],
+    figures: Array.isArray(raw.figures) ? raw.figures.filter((item) => typeof item === "string") : [],
+    overclaims: Array.isArray(raw.overclaims) ? raw.overclaims.filter((item) => typeof item === "string") : [],
+    misstated: Array.isArray(raw.misstated)
+      ? raw.misstated.filter(
+          (item): item is { claim: string; issue: string } =>
+            Boolean(item) && typeof item.claim === "string" && typeof item.issue === "string",
+        )
+      : [],
     dismissed: Array.isArray(raw.dismissed) ? raw.dismissed.filter((item) => typeof item === "string") : [],
   };
 }

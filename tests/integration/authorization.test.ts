@@ -88,7 +88,7 @@ describe.skipIf(!hasTestDb)("cross-user isolation (IDOR)", () => {
       desirableCriteria: "", evaluationCriteria: "", questionnaireItems: "", flaggedForReview: "", submissionRequirements: "",
     });
     expect(confirm.ok).toBe(false);
-    expect((await saveDraftSection({ rfpId: victimRfpId, sectionName: "exec_summary", content: "overwritten" })).ok).toBe(false);
+    expect((await saveDraftSection({ rfpId: victimRfpId, sectionKey: "exec_summary", content: "overwritten" })).ok).toBe(false);
     expect((await saveCoverDetails({ rfpId: victimRfpId, cover: { buyerName: "x" } })).ok).toBe(false);
     expect((await updateLibraryItem(victimItemId, { type: "case_study", title: "pwned", content: "pwned content here" })).ok).toBe(false);
     expect((await deleteLibraryItem(victimItemId)).ok).toBe(false);

@@ -50,6 +50,10 @@ enum DraftSection {
   pricing
   cover_letter
   responses
+  /// A part the RFP's own outline asks for (disclosures, references, service standards, …).
+  general
+  /// A form or exhibit from the RFP, reproduced as a table to fill in.
+  form
 }
 
 enum DraftStatus {
@@ -197,7 +201,12 @@ model RfpFile {
 model Draft {
   id          String       @id @default(cuid())
   rfpId       String
+  /// Which drafting brief and export rules apply.
   sectionName DraftSection
+  /// The section's id in the proposal outline: the kind for the standard sections, a slug of the RFP's label otherwise. Null on drafts written before outlines.
+  sectionKey  String?
+  /// Heading in the proposal (the RFP's own label when it prescribes one).
+  title       String?
   content     String
   status      DraftStatus  @default(generated)
   /// Citation check for this section: which library passages each [S#] marker points to, and uncited factual claims (lib/citations.ts).

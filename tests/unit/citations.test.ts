@@ -46,7 +46,7 @@ describe("source index", () => {
     expect(context).toContain("[S1] Ridgeline IT Services LLC is a 14-person");
     expect(context).toContain("[S3] Microsoft Solutions Partner");
     expect(DRAFTING_SYSTEM).toContain("<citations>");
-    expect(DRAFTING_SYSTEM).toMatch(/Never invent a certification/);
+    expect(DRAFTING_SYSTEM).toMatch(/Never invent a [^.]*certification/);
   });
 
   it("library text cannot forge prompt sections inside a passage", () => {
@@ -138,6 +138,9 @@ describe("citation markers in documents", () => {
       version: 1,
       sources: {},
       unsupported: ["a"],
+      figures: [],
+      overclaims: [],
+      misstated: [],
       dismissed: [],
     });
   });
