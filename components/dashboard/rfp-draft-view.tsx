@@ -23,6 +23,7 @@ import { parseCitations, type DraftCitations } from "@/lib/citations";
 import { downloadRfpExport, type DownloadFormat } from "@/lib/download-rfp-export";
 import { unverifiedCredentials } from "@/lib/claim-checks";
 import { rateConflicts } from "@/lib/grounding";
+import { datesAfterDeadline } from "@/lib/proposal-dates";
 import { findPlaceholders } from "@/lib/markdown";
 import type { ExportVariant } from "@/lib/proposal-document";
 import type { CoverDetails } from "@/lib/rfp-draft";
@@ -478,6 +479,7 @@ export function RfpDraftView({
   initialCoverageMap,
   autoStart,
   cover,
+  referenceNotInRfp = false,
   legacyDraft,
   supportedCredentials,
   allowance,
@@ -492,6 +494,8 @@ export function RfpDraftView({
   initialCoverageMap?: string | null;
   autoStart: boolean;
   cover: CoverDetails;
+  /** The cover's solicitation number is printed nowhere in the RFP: probably invented or mistyped. */
+  referenceNotInRfp?: boolean;
   /** Drafted before bid plans existed: no cover letter, plan, or new structure. */
   legacyDraft: boolean;
   /** Credentials the bidder's library mentions (SOC 2, ISO 27001, ...). */
@@ -564,6 +568,26 @@ export function RfpDraftView({
       ),
     [plannedSections, sectionState],
   );
+
+  // Things on the cover and in the dated parts that would make the bid look wrong or late.
+  const coverIssues = useMemo(() => {
+    const issues: string[] = [];
+    if (referenceNotInRfp) {
+      issues.push(
+        `The solicitation number on the cover, "${cover.solicitationNumber}", does not appear anywhere in the RFP. Correct it, or clear it in Cover page details if the RFP has none.`,
+      );
+    }
+    const dated = [
+      { title: "Cover page", text: cover.submissionDate },
+      ...plannedSections
+        .filter((section) => section.kind === "cover_letter" || section.kind === "form")
+        .map((section) => ({ title: section.title, text: (sectionState[section.key] ?? EMPTY).content })),
+    ];
+    for (const late of datesAfterDeadline(cover.dueDate, dated)) {
+      issues.push(`${late.title} is dated ${late.date}, after the deadline (${cover.dueDate}). A bid dated after its deadline reads as late.`);
+    }
+    return issues;
+  }, [referenceNotInRfp, cover, plannedSections, sectionState]);
 
   const runGeneration = async (revision?: { section: string; instruction: string }) => {
     setGenerating(true);
@@ -733,6 +757,7 @@ export function RfpDraftView({
       unverifiedClaims.length > 0
         ? `The draft mentions ${unverifiedClaims.map(([name]) => name).join(", ")}, which your library does not support. Check you are not claiming something you do not hold.`
         : "",
+      ...coverIssues,
       conflicts.length > 0
         ? `The draft quotes different prices for the same thing: ${conflicts
             .map((conflict) => `per ${conflict.unit}: ${conflict.amounts.map((item) => `${item.amount} (${item.where.join(", ")})`).join(" vs ")}`)
@@ -961,6 +986,17 @@ export function RfpDraftView({
                 <span className="font-semibold">{name}</span>
                 <span className="text-slate"> (in {[...new Set(where)].join(", ")})</span>
               </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {!generating && hasAnyContent && coverIssues.length > 0 ? (
+        <div role="status" className="rounded-control border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-ink">
+          <p className="font-semibold">Check the cover and dates</p>
+          <ul className="mt-2 list-disc pl-5">
+            {coverIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
             ))}
           </ul>
         </div>

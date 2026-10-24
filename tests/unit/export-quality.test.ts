@@ -68,3 +68,39 @@ describe("cover submission date", () => {
     expect(proposalDateLabel(cover({}), "en-GB", new Date(2026, 9, 24))).toBe("24 October 2026");
   });
 });
+
+describe("wide tables and links", () => {
+  it("lays out tables wider than five columns as one block per row", async () => {
+    const { parseMarkdown } = await import("@/lib/markdown");
+    const blocks = parseMarkdown(
+      "| Entity | Contact | Title | Phone | Email | Services | Length |\n| --- | --- | --- | --- | --- | --- | --- |\n| Leland Township | Susan Kowalczyk | Clerk | (231) 555-0110 | clerk@lelandtwp.example | Backup | Since 2021 |",
+    );
+    expect(blocks.map((block) => block.type)).toEqual(["paragraph", "list"]);
+    const list = blocks[1] as Extract<(typeof blocks)[number], { type: "list" }>;
+    expect(list.items).toHaveLength(6);
+    expect(list.items[0][0]).toMatchObject({ type: "paragraph", runs: [{ text: "Contact: ", bold: true }, { text: "Susan Kowalczyk" }] });
+    // Five columns or fewer stay a table.
+    expect(parseMarkdown("| A | B |\n| --- | --- |\n| 1 | 2 |")[0].type).toBe("table");
+  });
+
+  it("prints an email address once, not again as a mailto link", async () => {
+    const { parseMarkdown, runsToPlainText } = await import("@/lib/markdown");
+    const [paragraph] = parseMarkdown("Email dana@pinecrestridge.example or see <https://example.org/docs>.");
+    expect(runsToPlainText((paragraph as { runs: InlineRun[] }).runs)).toBe(
+      "Email dana@pinecrestridge.example or see https://example.org/docs.",
+    );
+  });
+});
+
+describe("dates after the deadline", () => {
+  it("are found in the parts that date the bid", async () => {
+    const { datesAfterDeadline } = await import("@/lib/proposal-dates");
+    expect(
+      datesAfterDeadline("September 4, 2026, by 4:59 p.m.", [
+        { title: "A. Cover Letter", text: "September 16, 2026\n\nJustin Cavanaugh" },
+        { title: "Exhibit A", text: "Date: [[Date]]. Go-live between March and May 2027." },
+        { title: "Cover page", text: "2 September 2026" },
+      ]),
+    ).toEqual([{ title: "A. Cover Letter", date: "September 16, 2026" }]);
+  });
+});

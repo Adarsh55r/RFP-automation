@@ -3,6 +3,9 @@ import { draftKey } from "@/lib/draft-store";
 import { CITATION_PATTERN, parseCitations, stripCitations } from "@/lib/citations";
 import { parseCoverageTable } from "@/lib/coverage-map";
 import { rateConflicts } from "@/lib/grounding";
+import { parseDueDate } from "@/lib/proposal-dates";
+
+export { parseDueDate } from "@/lib/proposal-dates";
 import { citationIds, findPlaceholders, parseMarkdown, type MdBlock } from "@/lib/markdown";
 import {
   parseDraftPlan,
@@ -153,22 +156,6 @@ export function complianceRows(coverageMap: string | null) {
     .filter((row) => !(row.missing && /submission/i.test(row.type)))
     .map(({ requirement, type, reference }) => ({ requirement, type, reference }));
   return out.length > 0 ? out : null;
-}
-
-const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-
-/** The calendar date in a due-date string such as "September 4, 2026, by 4:59 p.m." or "4 September 2026", if unambiguous. */
-export function parseDueDate(text: string): Date | null {
-  const month = String.raw`(${MONTHS.join("|")}|${MONTHS.map((m) => m.slice(0, 3)).join("|")})\.?`;
-  const us = new RegExp(String.raw`${month}\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})`, "i").exec(text);
-  const uk = new RegExp(String.raw`(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${month},?\s+(\d{4})`, "i").exec(text);
-  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(text);
-  const monthIndex = (name: string) => MONTHS.findIndex((m) => m.startsWith(name.toLowerCase().slice(0, 3)));
-  let date: Date | null = null;
-  if (us) date = new Date(Number(us[3]), monthIndex(us[1]), Number(us[2]));
-  else if (uk) date = new Date(Number(uk[3]), monthIndex(uk[2]), Number(uk[1]));
-  else if (iso) date = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-  return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 /**

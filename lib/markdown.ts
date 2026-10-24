@@ -116,6 +116,30 @@ export function citationIds(body: string): string[] {
   return ids;
 }
 
+/** Wider tables cannot fit a page without breaking words; they are laid out row by row instead. */
+export const MAX_TABLE_COLUMNS = 5;
+
+/**
+ * A wide table as one block per row: the first cell in bold, then each other
+ * column as "Header: value". Reads well on paper and never splits words.
+ */
+function stackedTable(header: InlineRun[][], rows: InlineRun[][][]): MdBlock[] {
+  const text = (runs: InlineRun[]) => runs.map((run) => run.text).join("").trim();
+  return rows.flatMap((row): MdBlock[] => {
+    const [first = [], ...rest] = row;
+    const items = rest
+      .map((cell, index) => ({ cell, label: text(header[index + 1] ?? []) }))
+      .filter(({ cell }) => text(cell))
+      .map(({ cell, label }): MdBlock[] => [
+        { type: "paragraph", runs: [...(label ? [{ text: `${label}: `, bold: true }] : []), ...cell] },
+      ]);
+    return [
+      { type: "paragraph", runs: first.map((run) => ({ ...run, bold: true })) },
+      ...(items.length > 0 ? [{ type: "list" as const, ordered: false, start: 1, items }] : []),
+    ];
+  });
+}
+
 /** Citation markers from lib/citations.ts, matched here too so every renderer agrees. */
 const CITATION_MARKER = new RegExp(String.raw`\[(${CITATION_BODY})\]`, "g");
 const INLINE_MARKERS = new RegExp(`${PLACEHOLDER_PATTERN.source}|${CITATION_MARKER.source}`, "g");
@@ -185,7 +209,10 @@ function inlineRuns(tokens: Token[] | undefined, style: InlineStyle = {}): Inlin
         const label = inlineRuns(link.tokens, style);
         runs.push(...label);
         const labelText = label.map((run) => run.text).join("");
-        if (link.href && link.href !== labelText && !link.href.startsWith("#")) {
+        // "a@b.com" linked to "mailto:a@b.com" is the same thing: print it once.
+        const bare = (value: string) =>
+          value.trim().replace(/^(mailto:|tel:)/i, "").replace(/^https?:\/\//i, "").replace(/\/$/, "").toLowerCase();
+        if (link.href && bare(link.href) !== bare(labelText) && !link.href.startsWith("#")) {
           runs.push({ ...style, text: ` (${link.href})` });
         }
         break;
@@ -286,12 +313,13 @@ function blocksFromTokens(tokens: Token[]): MdBlock[] {
       }
       case "table": {
         const table = token as Tokens.Table;
-        blocks.push({
-          type: "table",
-          header: table.header.map((cell) => inlineRuns(cell.tokens)),
-          rows: table.rows.map((row) => row.map((cell) => inlineRuns(cell.tokens))),
-          align: table.align,
-        });
+        const header = table.header.map((cell) => inlineRuns(cell.tokens));
+        const rows = table.rows.map((row) => row.map((cell) => inlineRuns(cell.tokens)));
+        if (header.length > MAX_TABLE_COLUMNS) {
+          blocks.push(...stackedTable(header, rows));
+        } else {
+          blocks.push({ type: "table", header, rows, align: table.align });
+        }
         break;
       }
       case "blockquote":
