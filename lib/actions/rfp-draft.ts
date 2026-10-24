@@ -175,6 +175,7 @@ export async function setClaimReviewed(input: {
         unsupported: current.unsupported.filter((item) => item !== claim),
         figures: current.figures.filter((item) => item !== claim),
         overclaims: current.overclaims.filter((item) => item !== claim),
+        notes: current.notes.filter((item) => item !== claim),
         misstated: current.misstated.filter((item) => item.claim !== claim),
         dismissed: current.dismissed.includes(claim) ? current.dismissed : [...current.dismissed, claim],
       }

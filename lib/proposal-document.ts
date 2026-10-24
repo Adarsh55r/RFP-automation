@@ -2,6 +2,7 @@ import type { Draft, DraftSection, Rfp } from "@/lib/generated/prisma";
 import { draftKey } from "@/lib/draft-store";
 import { CITATION_PATTERN, parseCitations, stripCitations } from "@/lib/citations";
 import { parseCoverageTable } from "@/lib/coverage-map";
+import { rateConflicts } from "@/lib/grounding";
 import { citationIds, findPlaceholders, parseMarkdown, type MdBlock } from "@/lib/markdown";
 import {
   parseDraftPlan,
@@ -46,7 +47,7 @@ export type ProposalDocument = {
 
 export type ReviewAppendix = {
   sources: { section: string; id: string; title: string; excerpt: string }[];
-  openItems: { section: string; kind: "Does not match its source" | "Uncited claim" | "Figure to check" | "Absolute claim" | "Needs your input"; text: string }[];
+  openItems: { section: string; kind: "Does not match its source" | "Uncited claim" | "Figure to check" | "Absolute claim" | "Note left in the text" | "Conflicting prices" | "Needs your input"; text: string }[];
 };
 
 export type ExportFormat = "docx" | "pdf";
@@ -78,6 +79,13 @@ function exportableSections(rfp: Rfp, drafts: Draft[]) {
 
 function reviewAppendix(sections: ReturnType<typeof exportableSections>): ReviewAppendix {
   const appendix: ReviewAppendix = { sources: [], openItems: [] };
+  for (const conflict of rateConflicts(sections)) {
+    appendix.openItems.push({
+      section: "Whole proposal",
+      kind: "Conflicting prices",
+      text: `Per ${conflict.unit}: ${conflict.amounts.map((item) => `${item.amount} (${item.where.join(", ")})`).join(" vs ")}`,
+    });
+  }
   for (const { title: section, content, citations } of sections) {
     const cited = new Set([...content.matchAll(CITATION_PATTERN)].flatMap((m) => citationIds(m[1])));
     for (const id of [...cited].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)))) {
@@ -99,6 +107,9 @@ function reviewAppendix(sections: ReturnType<typeof exportableSections>): Review
     }
     for (const claim of citations?.overclaims ?? []) {
       appendix.openItems.push({ section, kind: "Absolute claim", text: claim });
+    }
+    for (const note of citations?.notes ?? []) {
+      appendix.openItems.push({ section, kind: "Note left in the text", text: note });
     }
     for (const placeholder of findPlaceholders(content)) {
       appendix.openItems.push({ section, kind: "Needs your input", text: placeholder });

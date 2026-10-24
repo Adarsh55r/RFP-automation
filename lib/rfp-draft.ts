@@ -500,10 +500,14 @@ Accuracy comes first. An evaluator who finds one invented or distorted fact stop
 - Never invent a solicitation number, date, addendum, person, contact, client, reference, certification, partnership, policy, tool or contract value.
 - Do not claim guarantees, "full compliance", "zero-trust", "zero downtime" or outcomes the library does not evidence.
 - You may describe what the bidder will do for this buyer when it is a reasonable way to deliver the requested service and consistent with the library. Specific commitments (response times, staffing levels, prices, frequencies) must come from the library; otherwise use a placeholder.
+- Commercial terms are the bidder's business decisions, never yours. Unless the library states them, each of these is a placeholder: contract term and term options, price increases, renewal, notice periods, termination and early-termination fees, data-export or transition charges, whether unused hours carry over, after-hours, holiday or trip charges, minimum charges, payment terms, markups, storage or usage allowances, warranty and liability terms, and which services are included or extra-cost where the library does not say. Write "[[Confirm: annual price increase, if any]]", not "0%".
+- Never claim compliance in general terms ("maintains all required licenses", "insurance that meets or exceeds the RFP's requirements", "takes no exceptions") unless the library supports it; otherwise state what is known and add a placeholder for the rest.
+- State every figure the same way everywhere it appears: a rate given as "$95 per user per month" in one part must not appear as "$99" in another.
 </accuracy>
 
 <gaps_and_placeholders>
 When the RFP requires something the sources cannot supply, still include the required element, and put a placeholder in double square brackets saying exactly what to supply, e.g. [[Confirm: cyber liability limit and any exclusions]], [[Add reference contact: name, title, phone, email]], [[Amount]]. A visible gap is better than a silent omission or a guess. Use placeholders only for facts you cannot source, never as a substitute for writing. Never say a mandatory requirement is met unless the library supports it.
+The buyer reads every sentence you write, so a gap is only ever a placeholder, never a note in the text. Do not write sentences such as "to be confirmed", "subject to verification", "must be verified before submission" or "the authorized representative must confirm…". Write the sentence as it should read once complete, with the unknown part as a placeholder: "Our cyber liability cover is [[Confirm: limit and any exclusions]]."
 </gaps_and_placeholders>
 
 <citations>
@@ -520,6 +524,8 @@ Evaluators score each requirement, so make every answer easy to find and easy to
 - Where the RFP asks to separate included services from optional or extra-cost items, label every item clearly.
 - Point evaluators to the RFP reference in parentheses where it helps, e.g. "(RFP Section 3.B)", using the RFP's numbering exactly. Never invent section numbers.
 - Reuse a matching saved answer closely, adapting only names and specifics.
+- The requirement IDs in the extracted requirements (M1, D2, S3, …) are for your reference only. Never write them in the proposal, in headings or in brackets; refer to the RFP's own section numbers instead.
+- Say each thing once. Do not repeat in one part what another part of the outline covers; refer to that part by title.
 </answering_the_rfp>
 
 <voice>
@@ -543,7 +549,7 @@ Write like a senior bid manager: plain, specific and calm.
 </conventions>
 
 <formatting>
-Output GitHub-flavored Markdown only: no preamble, no closing remarks, no code fences, and never a top-level "#" heading (the part's title is added for you). Use "##" for subheadings and "###" below that. Do not number headings yourself; numbering and the RFP's labels are added when the document is assembled. Use tables for genuinely tabular content (pricing, schedules, staffing, references, disclosures, risks); at most 5 columns, short cells, one line per cell, no lists or line breaks inside cells, always with the header separator row. Put explanations in the text after a table, not inside it. Never draw diagrams with brackets, arrows, pipes or ASCII art; show phases or flows as a table or a numbered list.
+Output GitHub-flavored Markdown only: no preamble, no closing remarks, no code fences, and never a top-level "#" heading (the part's title is added for you). Use "##" for subheadings and "###" below that. Do not number headings yourself; numbering and the RFP's labels are added when the document is assembled. Use tables for genuinely tabular content (pricing, schedules, staffing, disclosures, risks); at most 5 columns, short cells, one line per cell, no lists or line breaks inside cells, always with the header separator row. Put explanations in the text after a table, not inside it. Items with many details each (references, key staff contacts) are written as one "###" block per item with short bullets, not as a wide table. Never draw diagrams with brackets, arrows, pipes or ASCII art; show phases or flows as a table or a numbered list.
 </formatting>`;
 
 /**
@@ -551,10 +557,28 @@ Output GitHub-flavored Markdown only: no preamble, no closing remarks, no code f
  * title", and their own heading numbers ("## 2.1 Monitoring"), which would
  * clash with the numbering added at export.
  */
+/**
+ * Removes the requirement IDs DraftBid AI gives the model (M1, D2, S12) when
+ * they leak into the text: "M1 (Mandatory): …", "(M2, S12)", "M4: …". They
+ * mean nothing to the buyer.
+ */
+export function stripRequirementIds(text: string) {
+  const id = String.raw`[MDESQ]\d{1,3}`;
+  const label = String.raw`${id}\s*\((?:Mandatory|Desirable|Evaluation|Submission|Question)\)`;
+  return text
+    // A bold label on its own: "**D3 (Desirable):**" or "**D3 (Desirable)**:".
+    .replace(new RegExp(String.raw`\*\*${label}\s*[:–—-]?\s*\*\*\s*[:–—-]?\s*`, "g"), "")
+    .replace(new RegExp(String.raw`\b${label}\s*[:–—-]\s*`, "g"), "")
+    .replace(new RegExp(String.raw`[ \t]*\((?:${id})(?:\s*(?:,|/|&|and)\s*${id})*\)`, "g"), "")
+    .replace(new RegExp(String.raw`^(\s*(?:[-*+]|\d+[.)])?\s*(?:\*\*)?)${id}\s*[:–—]\s*`, "gm"), "$1");
+}
+
 export function cleanSection(text: string, { keepHeadingNumbers = false } = {}) {
-  const cleaned = normalizeMarkdown(text)
-    .trim()
-    .replace(/^#\s+[^\n]*\n+/, "");
+  const cleaned = stripRequirementIds(
+    normalizeMarkdown(text)
+      .trim()
+      .replace(/^#\s+[^\n]*\n+/, ""),
+  );
   // Questionnaire answers keep each question's own number ("### 4.2 Do you…").
   return (
     keepHeadingNumbers
@@ -751,6 +775,7 @@ const kindSpecs: Record<Exclude<DraftSection, "responses">, string> = {
 No subheadings. No phrases of enthusiasm.`,
   exec_summary: `Write the EXECUTIVE SUMMARY, 250-450 words.
 - If the RFP says what the executive summary must cover, cover exactly those items, in that order, each as a short "##" subheading or a bold lead-in.
+- At most 400 words in total: an evaluator reads it in two minutes. Do not repeat the firm background, team or approach in detail; summarise and refer to those parts.
 - Otherwise: one opening sentence stating the buyer's objective in its own words; the proposed service or solution in 3-5 sentences (what, how, by when); 3-4 reasons to select the bidder, each a bold lead phrase followed by a cited fact; the pricing structure in one or two sentences if the RFP asks for pricing; then the main assumptions or limitations.
 - Optionally an "At a glance" two-column table | Item | Detail | with 4-6 facts the library supports; leave out any row it cannot support.
 - No closing sentence about fit or enthusiasm.`,
@@ -766,7 +791,7 @@ No subheadings. No phrases of enthusiasm.`,
 - Then 2-4 sentences per person: the role on this contract, then experience and qualifications exactly as the library states them, cited.
 - "## Governance": reporting lines, meeting cadence, escalation path and the buyer's single point of contact.
 - "## Relevant experience", only when no other part of the outline covers references or past performance: for the 2-3 most comparable case studies, a "###" heading with the client, then bullets for Contract period, Value (only if the library states it, else [[Value]]), Scope, Results, Relevance to this RFP, and Reference contact (from the library, else [[Reference contact: name, title, phone, email]]). Add nothing the case study does not say.`,
-  pricing: `Write the PRICING / COST PROPOSAL part.
+  pricing: `Write the PRICING / COST PROPOSAL part. Every figure and term here binds the bidder, so nothing may come from anywhere but the library and the RFP.
 - If the RFP requires a price form, exhibit or separately sealed cost proposal, say so in the first sentence. If the form is its own part of this outline, refer to it by title instead of repeating it.
 - Use the bidder's prices and rates from the library exactly. Show how each line is calculated from the RFP's quantities, e.g. "15 users × $95 per user per month = $1,425". State the quantity assumptions and how the price changes if quantities change. Never invent a price, rate, discount, fee or increase; use [[Amount]] where the library has none.
 - Answer every pricing question the RFP asks, each one explicitly: for example included hours, whether unused hours carry over, what counts against them, after-hours and on-site rates, trip charges, minimum charges, onboarding, licensing, storage, termination or data-export fees, price increases, contract term options, markups and taxes. Where the library has no answer, write a placeholder naming the item.
@@ -781,7 +806,7 @@ No subheadings. No phrases of enthusiasm.`,
   general: `Write this part exactly as the RFP asks for it.
 - Use the items the RFP lists for this part as "##" subheadings, in the RFP's order and words.
 - Answer each item directly. For disclosures, declarations and yes/no items answer every one explicitly, even when the answer is "none"; use [[Confirm: …]] when the library does not say.
-- Use a table for lists of like items (references, disclosures, insurance cover, standards by severity); prose for explanations.`,
+- Use a table for short lists of like items (disclosures, insurance cover, standards by severity); prose for explanations. For references, one "###" block per reference with bullets for each detail the RFP asks for (contact, title, phone, email, services, length of relationship).`,
 };
 
 function outlineList(outline: PlannedSection[]) {
