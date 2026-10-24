@@ -1,3 +1,5 @@
+import { safeErrorSummary } from "@/lib/safe-log";
+import { officeFileProblem } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -5,13 +7,15 @@ import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import {
   isAllowedRfpFile,
+  contentTypeFor,
   looksLikeRfpFile,
   RFP_MAX_BYTES,
   SERVER_UPLOAD_MAX_BYTES,
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
-import { getRfpUploadQuota } from "@/lib/rfps";
+import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
+import { completeRfpUpload, uploadRateLimited } from "@/lib/rfps";
 import {
   getRfpPublicUrl,
   getRfpStorageBucket,
@@ -19,6 +23,7 @@ import {
 } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
 
 export async function POST(request: Request) {
   const { userId: clerkId } = await auth();
@@ -38,17 +43,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const tier = user.subscription?.tier ?? "free";
-  const quota = await getRfpUploadQuota(user.id, tier);
-
-  if (quota.remaining === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "You have reached your monthly RFP limit. Upgrade your plan to upload more.",
-      },
-      { status: 403 },
-    );
+  const rateLimited = await uploadRateLimited(user.id);
+  if (rateLimited) {
+    return NextResponse.json({ error: rateLimited }, { status: 429 });
   }
 
   let formData: FormData;
@@ -60,12 +57,12 @@ export async function POST(request: Request) {
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Choose a PDF or DOCX file." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a PDF, Word, Excel, CSV or image file." }, { status: 400 });
   }
 
   if (!isAllowedRfpFile(file)) {
     return NextResponse.json(
-      { error: "Only PDF and DOCX files are supported." },
+      { error: "Only PDF, Word (.docx), Excel (.xlsx), CSV and image (PNG, JPEG) files are supported." },
       { status: 400 },
     );
   }
@@ -89,12 +86,28 @@ export async function POST(request: Request) {
     );
   }
 
+  const confirmed = Number(formData.get("confirmOverageUsd"));
+  const decision = decideUpload(
+    await getProposalAllowance(user.id, user.subscription),
+    Number.isFinite(confirmed) && confirmed > 0 ? confirmed : null,
+  );
+  if (!decision.ok) {
+    return NextResponse.json(
+      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
+      { status: decision.status },
+    );
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!looksLikeRfpFile(bytes, file.name)) {
     return NextResponse.json(
-      { error: "This file is not a valid PDF or Word (.docx) document." },
+      { error: "This file is not a valid PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file." },
       { status: 400 },
     );
+  }
+  const unsafe = officeFileProblem(bytes, file.name);
+  if (unsafe) {
+    return NextResponse.json({ error: unsafe }, { status: 400 });
   }
 
   const title = titleFromFilename(file.name);
@@ -105,6 +118,7 @@ export async function POST(request: Request) {
       userId: user.id,
       title,
       status: RfpStatus.uploaded,
+      overageCents: decision.overageCents,
     },
   });
 
@@ -113,11 +127,7 @@ export async function POST(request: Request) {
   try {
     const supabase = getSupabaseAdmin();
     const buffer = Buffer.from(bytes);
-    const contentType =
-      file.type ||
-      (safeName.toLowerCase().endsWith(".pdf")
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    const contentType = file.type || contentTypeFor(safeName);
 
     const { error: uploadError } = await supabase.storage
       .from(getRfpStorageBucket())
@@ -132,10 +142,7 @@ export async function POST(request: Request) {
 
     const originalFileUrl = getRfpPublicUrl(storagePath);
 
-    await prisma.rfp.update({
-      where: { id: rfp.id },
-      data: { originalFileUrl },
-    });
+    await completeRfpUpload(rfp.id, user.id, originalFileUrl, decision.overageCents);
 
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
@@ -146,7 +153,7 @@ export async function POST(request: Request) {
         ? "File storage is not configured yet."
         : "Upload failed. Try again in a moment.";
 
-    console.error("RFP upload failed:", error);
+    console.error("RFP upload failed:", safeErrorSummary(error));
     reportError(error, { area: "upload", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: message }, { status: 500 });
   }

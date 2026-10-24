@@ -13,6 +13,8 @@ const ACTION_LABELS: Record<string, string> = {
   extract: "Requirement extraction",
   full_draft: "Full drafts",
   revision: "Section revisions",
+  ocr: "Reading scanned pages (OCR)",
+  website_import: "Website import",
 };
 
 export default async function AdminCostsPage() {
@@ -29,7 +31,7 @@ export default async function AdminCostsPage() {
 
       <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Spend this month" value={costs.totalUsd} format="usd" icon={Bot} accent="#f5b547" hint="all accounts" />
-        <KpiCard label="Avg cost per proposal" value={costs.avgPerProposalUsd} format="usd" icon={FileText} accent="#d95926" hint={`${costs.proposals} proposals touched`} />
+        <KpiCard label="Avg cost per proposal" value={costs.avgPerProposalUsd} format="usd" icon={FileText} accent="#d95926" hint={`p95 ${usd(costs.p95PerProposalUsd, 2)} · ${costs.proposals} proposals touched`} />
         <KpiCard label="Model calls" value={costs.calls} icon={Zap} accent="#3987e5" hint={costs.calls ? `${usd(costs.totalUsd / costs.calls, 4)} per call` : undefined} />
         <KpiCard label="Saved by prompt caching" value={costs.cacheSavingsUsd} format="usd" icon={PiggyBank} accent="#34d399" hint={`${costs.cacheHitPct.toFixed(0)}% of input tokens cached`} />
       </Stagger>

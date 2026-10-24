@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Section } from "@/components/marketing/section";
 import { cn } from "@/lib/cn";
-import { formatPrice, plans, signupHref } from "@/lib/plans";
+import { displayPrice, formatPrice, publicPlans, signupHref } from "@/lib/plans";
 
 export function PricingTeaser() {
   return (
@@ -15,11 +15,11 @@ export function PricingTeaser() {
             Pricing
           </p>
           <h2 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
-            Priced for small teams, not enterprise budgets.
+            Priced for small teams.
           </h2>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate">
-            Start free with a full proposal. Upgrade when RFPs become a weekly
-            habit. Month-to-month — cancel anytime.
+            Start free with a full proposal. Upgrade when you bid more often.
+            Paid plans are month-to-month.
           </p>
         </div>
         <Button asChild variant="secondary" className="w-full md:w-auto">
@@ -28,7 +28,7 @@ export function PricingTeaser() {
       </div>
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {plans.map((plan) => (
+        {publicPlans.map((plan) => (
           <Card
             key={plan.id}
             className={cn(
@@ -48,11 +48,9 @@ export function PricingTeaser() {
               ) : null}
             </div>
             <p className="mt-6 font-display text-4xl font-medium text-ink">
-              {formatPrice(plan.monthly.usd, "usd")}
+              {formatPrice(displayPrice(plan, "usd", "monthly").amount, "usd")}
               <span className="ml-1 font-sans text-sm font-medium text-slate">
-                {plan.monthly.usd === 0
-                  ? "forever"
-                  : `/mo · ${formatPrice(plan.monthly.gbp, "gbp")} UK`}
+                {plan.billing.kind === "free" ? "no card needed" : displayPrice(plan, "usd", "monthly").suffix}
               </span>
             </p>
             <ul className="mt-6 flex flex-1 flex-col gap-2 text-sm leading-relaxed text-slate">

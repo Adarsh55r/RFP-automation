@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { extractText } from "unpdf";
 import { createUser, hasTestDb, resetDb, testDb } from "../helpers/db";
@@ -10,6 +14,7 @@ vi.mock("@/lib/supabase/admin", async () => await import("../helpers/fake-supaba
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const MB = 1024 * 1024;
+const SOFFICE = ["/usr/bin/soffice", "/usr/bin/libreoffice"].find((path) => existsSync(path));
 
 function uploadRequest(name: string, body: Buffer, type: string) {
   const form = new FormData();
@@ -79,10 +84,10 @@ describe.skipIf(!hasTestDb)("uploading an RFP", () => {
 
   it("an abandoned direct upload does not use up the monthly quota", async () => {
     const start = await import("@/app/api/rfps/upload/start/route");
-    const { getRfpUploadQuota } = await import("@/lib/rfps");
+    const { getProposalAllowance } = await import("@/lib/entitlements");
     const user = await testDb().user.findUniqueOrThrow({ where: { clerkId: "up" } });
     await start.POST(json({ fileName: "a.pdf", size: 6 * MB, contentType: "application/pdf" }));
-    expect((await getRfpUploadQuota(user.id, "starter")).usedThisMonth).toBe(0);
+    expect((await getProposalAllowance(user.id, { tier: "starter", planVersion: "legacy" })).used).toBe(0);
   });
 });
 
@@ -133,6 +138,151 @@ describe.skipIf(!hasTestDb)("exporting a proposal", () => {
     const { text } = await extractText(buf, { mergePages: true });
     expect(String(text).replace(/\s+/g, " ")).toContain("needs 24/7 support");
   });
+
+  it("submission copy has no citation markers; review copy keeps them and lists sources and open items", async () => {
+    await testDb().draft.updateMany({
+      where: { rfpId, sectionName: "exec_summary" },
+      data: {
+        content: "We support 70 endpoints for Bluegrass Dental Group [S2]. We hold ISO 27001 certification.",
+        citations: {
+          version: 1,
+          sources: { S2: { itemId: "i1", title: "Bluegrass Dental Group", type: "case_study", excerpt: "Managed IT for 6 dental offices, 70 endpoints." } },
+          unsupported: ["We hold ISO 27001 certification."],
+          dismissed: [],
+        },
+      },
+    });
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const mammoth = await import("mammoth");
+    const exportText = async (query: string) => {
+      const res = await POST(new Request(`http://t/x?${query}`, { method: "POST" }), ctx(rfpId));
+      expect(res.status).toBe(200);
+      return {
+        name: res.headers.get("Content-Disposition") ?? "",
+        text: (await mammoth.extractRawText({ buffer: Buffer.from(await res.arrayBuffer()) })).value,
+      };
+    };
+
+    await testDb().rfp.update({ where: { id: rfpId }, data: { status: "drafted" } });
+    const review = await exportText("format=docx&variant=review");
+    expect(review.name).toContain("review-copy.docx");
+    expect(review.text).toContain("[S2]");
+    expect(review.text).toContain("INTERNAL REVIEW COPY");
+    expect(review.text).toContain("Managed IT for 6 dental offices, 70 endpoints.");
+    expect(review.text).toContain("We hold ISO 27001 certification.");
+    expect(review.text).toContain("Confirm: start date");
+    // A review copy is not the final export.
+    expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfpId } })).status).toBe("drafted");
+
+    const submission = await exportText("format=docx");
+    expect(submission.name).toContain("-proposal.docx");
+    expect(submission.text).toContain("We support 70 endpoints for Bluegrass Dental Group.");
+    expect(submission.text).not.toMatch(/\[S\d/);
+    expect(submission.text).not.toContain("Review notes");
+    expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfpId } })).status).toBe("exported");
+
+    const pdf = await POST(new Request("http://t/x?format=pdf&variant=review", { method: "POST" }), ctx(rfpId));
+    const { text } = await extractText(new Uint8Array(await pdf.arrayBuffer()), { mergePages: true });
+    expect(String(text)).toContain("Sources cited");
+
+    expect((await POST(new Request("http://t/x?format=docx&variant=final", { method: "POST" }), ctx(rfpId))).status).toBe(400);
+  });
+
+  it("reports the page count against the RFP's page limit", async () => {
+    await testDb().rfp.update({ where: { id: rfpId }, data: { extractedSubmission: ["Responses shall not exceed 2 pages"] } });
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    for (const format of ["pdf", "docx"]) {
+      const res = await POST(new Request(`http://t/x?format=${format}`, { method: "POST" }), ctx(rfpId));
+      expect(res.headers.get("X-Page-Limit")).toBe("2");
+      expect(Number(res.headers.get("X-Page-Count"))).toBeGreaterThan(2);
+      expect(decodeURIComponent(res.headers.get("X-Page-Warning") ?? "")).toMatch(
+        format === "docx" ? /^This export is about \d+ pages/ : /^This export is \d+ pages/,
+      );
+    }
+    // No limit stated: no page headers.
+    await testDb().rfp.update({ where: { id: rfpId }, data: { extractedSubmission: [] } });
+    const plain = await POST(new Request("http://t/x?format=pdf", { method: "POST" }), ctx(rfpId));
+    expect(plain.headers.get("X-Page-Limit")).toBeNull();
+  });
+
+  it.skipIf(!SOFFICE)("LibreOffice opens both the Word and PDF exports and shows the text", async () => {
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const dir = mkdtempSync(join(tmpdir(), "export-"));
+    try {
+      for (const format of ["docx", "pdf"] as const) {
+        const res = await POST(new Request(`http://t/x?format=${format}`, { method: "POST" }), ctx(rfpId));
+        writeFileSync(join(dir, `proposal.${format}`), Buffer.from(await res.arrayBuffer()));
+      }
+      // Word → PDF through LibreOffice's own layout engine, then read the text back.
+      execFileSync(SOFFICE!, ["--headless", "--convert-to", "pdf", "--outdir", join(dir, "out"), join(dir, "proposal.docx")], {
+        timeout: 120_000,
+        stdio: "ignore",
+        env: { ...process.env, HOME: dir },
+      });
+      const converted = new Uint8Array(readFileSync(join(dir, "out", "proposal.pdf")));
+      const { text } = await extractText(converted, { mergePages: true });
+      expect(String(text).replace(/\s+/g, " ")).toContain("needs 24/7 support");
+      // LibreOffice Draw can import our PDF (it fails on malformed files).
+      execFileSync(SOFFICE!, ["--headless", "--convert-to", "png", "--outdir", join(dir, "png"), join(dir, "proposal.pdf")], {
+        timeout: 120_000,
+        stdio: "ignore",
+        env: { ...process.env, HOME: dir },
+      });
+      expect(existsSync(join(dir, "png", "proposal.png"))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 240_000);
+
+  it("no content is lost between the editor and the Word or PDF export of a long draft", async () => {
+    const { markdownToPlainText } = await import("@/lib/markdown");
+    const { stripCitations } = await import("@/lib/citations");
+    const section = (n: number) =>
+      [
+        `## ${n}. Service area ${n}`,
+        `Paragraph ${n} describes the work at site ${n}, with **bold terms**, *emphasis* and a citation [S${n}].`,
+        "",
+        `1. First numbered step for area ${n}`,
+        `2. Second numbered step for area ${n}`,
+        `   - Nested detail ${n}a`,
+        `   - Nested detail ${n}b`,
+        "",
+        "| Role | Hours | Note |",
+        "| --- | --- | --- |",
+        `| Engineer ${n} | ${n * 3} | On site weekly |`,
+        "",
+        `> **Benefit to the City:** outcome statement ${n}.`,
+        "",
+        `We will confirm [[Confirm: contact for area ${n}]].`,
+      ].join("\n");
+    const markdown = Array.from({ length: 40 }, (_, i) => section(i + 1)).join("\n\n");
+    await testDb().draft.updateMany({ where: { rfpId, sectionName: "exec_summary" }, data: { content: markdown } });
+
+    const words = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+    // List numbers and bullets are drawn by Word's own list formatting, not stored as text.
+    const expected = words(markdownToPlainText(stripCitations(markdown)).replace(/^(\d+\.|•) /gm, ""));
+    const inOrder = (haystack: string[]) => {
+      let at = 0;
+      for (const word of haystack) if (word === expected[at]) at += 1;
+      return at;
+    };
+
+    const { POST } = await import("@/app/api/rfps/[id]/export/route");
+    const docx = await POST(new Request("http://t/x?format=docx", { method: "POST" }), ctx(rfpId));
+    const mammoth = await import("mammoth");
+    const docxText = (await mammoth.extractRawText({ buffer: Buffer.from(await docx.arrayBuffer()) })).value;
+    expect(inOrder(words(docxText))).toBe(expected.length);
+
+    const pdf = await POST(new Request("http://t/x?format=pdf", { method: "POST" }), ctx(rfpId));
+    const { text } = await extractText(new Uint8Array(await pdf.arrayBuffer()), { mergePages: true });
+    // pdf.js reads a list number's glyph next to the text beside it ("area 1" + "1." becomes "area 11"),
+    // so the PDF check compares words and skips bare numbers; the Word check above includes them.
+    const notNumber = (word: string) => !/^\d+$/.test(word);
+    let at = 0;
+    const expectedWords = expected.filter(notNumber);
+    for (const word of words(String(text)).filter(notNumber)) if (word === expectedWords[at]) at += 1;
+    expect(at).toBe(expectedWords.length);
+  }, 60_000);
 
   it("refuses to export when nothing has been drafted", async () => {
     await testDb().draft.deleteMany({ where: { rfpId } });

@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -6,18 +7,49 @@ import { Prisma, RfpStatus } from "@/lib/generated/prisma";
 import { beginAiOperation, refundAllowance } from "@/lib/ai-guard";
 import { usageRecorder } from "@/lib/ai-usage";
 import { friendlyLlmError } from "@/lib/llm";
+import { DocumentReadError } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
+import { parseKeyDetails } from "@/lib/key-details";
+import { readRfpDocument } from "@/lib/ocr";
+import { changesFlag, diffRequirements, type RequirementLists } from "@/lib/requirement-diff";
+import {
+  detectQuestionnaire,
+  readSpreadsheet,
+  sheetQuestions,
+  spreadsheetFormat,
+  summarizeSheets,
+} from "@/lib/spreadsheet";
 import {
   deadlineToDate,
   downloadRfpFile,
   extractRequirementsWithLlm,
-  extractTextFromDocument,
-  NO_TEXT_MESSAGE,
   prepareExtractionText,
 } from "@/lib/rfp-extract";
 import { resetPlanKeepingCover } from "@/lib/rfp-draft";
 
 export const runtime = "nodejs";
+
+class AddendumError extends Error {}
+
+const asList = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+
+function requirementLists(rfp: {
+  extractedDeadline: Date | null;
+  extractedEligibility: unknown;
+  extractedDesirable: unknown;
+  extractedEvaluationCriteria: unknown;
+  extractedSubmission: unknown;
+  extractedQuestionnaire: unknown;
+}): RequirementLists {
+  return {
+    deadline: rfp.extractedDeadline ? rfp.extractedDeadline.toISOString().slice(0, 10) : null,
+    eligibility: asList(rfp.extractedEligibility),
+    desirable: asList(rfp.extractedDesirable),
+    evaluation: asList(rfp.extractedEvaluationCriteria),
+    submission: asList(rfp.extractedSubmission),
+    questionnaire: asList(rfp.extractedQuestionnaire),
+  };
+}
 // Long RFPs take more than a minute to read; a killed request would leave the RFP stuck.
 export const maxDuration = 300;
 
@@ -47,6 +79,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const rfp = await prisma.rfp.findFirst({
     where: { id, userId: user.id },
+    include: { files: { orderBy: { createdAt: "asc" } } },
   });
 
   if (!rfp) {
@@ -95,12 +128,43 @@ export async function POST(_request: Request, context: RouteContext) {
 
   try {
     const { buffer, fileName } = await downloadRfpFile(rfp.originalFileUrl);
-    const documentText = await extractTextFromDocument(buffer, fileName);
-    if (!documentText.trim()) {
+    // Scanned PDFs are read with OCR through the same AI provider (metered as "ocr").
+    const read = await readRfpDocument(
+      buffer,
+      fileName,
+      usageRecorder({ userId: user.id, rfpId: rfp.id, action: "ocr" }),
+    );
+    if (!read.ok) {
       await refundAllowance(rfp.id, "extract");
       await prisma.rfp.update({ where: { id: rfp.id }, data: { status: previousStatus } });
-      return NextResponse.json({ error: NO_TEXT_MESSAGE }, { status: 422 });
+      return NextResponse.json({ error: read.error }, { status: 422 });
     }
+    // Addenda are read after the original; later ones override earlier text (extraction rule 2).
+    const onUsage = usageRecorder({ userId: user.id, rfpId: rfp.id, action: "ocr" });
+    const addendumTexts: string[] = [];
+    for (const [index, file] of rfp.files.entries()) {
+      const download = await downloadRfpFile(file.fileUrl);
+      const addendum = await readRfpDocument(download.buffer, download.fileName, onUsage);
+      if (!addendum.ok) {
+        throw new AddendumError(`Addendum "${file.fileName}" could not be read: ${addendum.error}`);
+      }
+      read.flags.push(...addendum.flags);
+      addendumTexts.push(
+        `=== ADDENDUM ${index + 1}: ${file.fileName} (added ${file.createdAt.toISOString().slice(0, 10)}; overrides the original and earlier addenda) ===\n${addendum.text}`,
+      );
+    }
+    const documentText = [read.text, ...addendumTexts].join("\n\n");
+    const newAddenda = rfp.files.filter((file) => !file.includedAt);
+    // Spreadsheet questionnaires: the questions are the sheet's rows, so each answer can go back in its row.
+    const format = spreadsheetFormat(fileName);
+    const sheets = format ? await readSpreadsheet(new Uint8Array(buffer), format) : [];
+    const sheet = format ? sheetQuestions(detectQuestionnaire(sheets, format)) : null;
+    const questionnaireMap = sheet?.map
+      ? { ...sheet.map, sheets: summarizeSheets(sheets) }
+      : format
+        ? { format, sheet: sheets[0]?.name ?? "", headerRow: null, questionColumn: "A", answerColumn: "B", idColumn: null, rows: [], sheets: summarizeSheets(sheets) }
+        : null;
+
     const extracted = await extractRequirementsWithLlm(
       documentText,
       usageRecorder({ userId: user.id, rfpId: rfp.id, action: "extract" }),
@@ -108,14 +172,46 @@ export async function POST(_request: Request, context: RouteContext) {
 
     // Deterministic checks against the document, plus a notice if it was too long to read in full.
     const { truncated, readPercent } = prepareExtractionText(documentText);
+    // Each detail's page comes from finding its quote in the document, not from the model.
+    const keyDetails = parseKeyDetails(extracted.keyDetails, documentText);
+    const unverified = keyDetails.filter((detail) => !detail.verified).length;
+
+    if (sheet?.questions) {
+      extracted.questionnaireItems = sheet.questions;
+    }
     const flags = [
+      ...(sheet?.flags ?? []),
+      ...read.flags,
       ...extracted.flaggedForReview,
       ...verifyExtraction(extracted, documentText).flags,
+      ...(unverified > 0
+        ? [`Key details: ${unverified} could not be matched to the document's wording and are marked "check". Confirm them against the original.`]
+        : []),
       ...(truncated
         ? [`Document length: only the first ${readPercent}% of this document was read. Check the later sections (appendices, forms, questionnaires) and add any requirements they contain.`]
         : []),
     ];
     extracted.flaggedForReview = [...new Set(flags)];
+
+    // When new addenda were read into an earlier extraction, record what they changed.
+    const changes =
+      newAddenda.length > 0 && rfp.extractedDocumentType
+        ? diffRequirements(
+            requirementLists(rfp),
+            requirementLists({
+              extractedDeadline: deadlineToDate(extracted.deadline),
+              extractedEligibility: extracted.eligibilityCriteria,
+              extractedDesirable: extracted.desirableCriteria,
+              extractedEvaluationCriteria: extracted.evaluationCriteria,
+              extractedSubmission: extracted.submissionRequirements,
+              extractedQuestionnaire: extracted.questionnaireItems,
+            }),
+            newAddenda.map((file) => file.fileName),
+          )
+        : null;
+    if (changes) {
+      extracted.flaggedForReview = [changesFlag(changes), ...extracted.flaggedForReview];
+    }
 
     const updated = await prisma.rfp.update({
       where: { id: rfp.id },
@@ -132,9 +228,19 @@ export async function POST(_request: Request, context: RouteContext) {
         extractedSubmission: extracted.submissionRequirements,
         // Postgres text columns reject NUL bytes, which some PDFs contain.
         sourceText: documentText.replace(/\u0000/g, ""),
+        questionnaireMap: questionnaireMap ?? Prisma.DbNull,
+        extractedDetails: keyDetails as unknown as Prisma.InputJsonValue,
+        ...(changes ? { extractionChanges: changes as unknown as Prisma.InputJsonValue } : {}),
         draftPlan: resetPlanKeepingCover(rfp.draftPlan) ?? Prisma.DbNull,
       },
     });
+
+    if (newAddenda.length > 0) {
+      await prisma.rfpFile.updateMany({
+        where: { id: { in: newAddenda.map((file) => file.id) } },
+        data: { includedAt: new Date() },
+      });
+    }
 
     return NextResponse.json({
       id: updated.id,
@@ -161,9 +267,13 @@ export async function POST(_request: Request, context: RouteContext) {
     // A failed attempt should not use up one of the proposal's extractions.
     await refundAllowance(rfp.id, "extract");
 
+    if (error instanceof DocumentReadError || error instanceof AddendumError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+
     const message = friendlyLlmError(error, "extraction", "Extraction failed. Try again in a moment.");
 
-    console.error("RFP extraction failed:", error);
+    console.error("RFP extraction failed:", safeErrorSummary(error));
     reportError(error, { area: "extract", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {

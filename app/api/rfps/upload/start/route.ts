@@ -1,10 +1,12 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { RfpStatus } from "@/lib/generated/prisma";
 import { reportError } from "@/lib/monitoring";
 import { isAllowedRfpName, RFP_MAX_BYTES, sanitizeStorageFilename, titleFromFilename } from "@/lib/rfp-upload";
-import { getRfpUploadQuota } from "@/lib/rfps";
+import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
+import { uploadRateLimited } from "@/lib/rfps";
 import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -25,12 +27,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Complete onboarding before uploading RFPs." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { fileName?: unknown; size?: unknown; contentType?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    fileName?: unknown;
+    size?: unknown;
+    contentType?: unknown;
+    confirmOverageUsd?: unknown;
+  } | null;
   const fileName = typeof body?.fileName === "string" ? body.fileName : "";
   const size = typeof body?.size === "number" ? body.size : 0;
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   if (!fileName || !isAllowedRfpName(fileName, contentType)) {
-    return NextResponse.json({ error: "Only PDF and DOCX files are supported." }, { status: 400 });
+    return NextResponse.json({ error: "Only PDF, Word (.docx), Excel (.xlsx), CSV and image (PNG, JPEG) files are supported." }, { status: 400 });
   }
   if (size <= 0) {
     return NextResponse.json({ error: "The file is empty." }, { status: 400 });
@@ -39,16 +46,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File is too large. Maximum size is 25 MB." }, { status: 400 });
   }
 
-  const quota = await getRfpUploadQuota(user.id, user.subscription?.tier ?? "free");
-  if (quota.remaining === 0) {
+  const decision = decideUpload(
+    await getProposalAllowance(user.id, user.subscription),
+    typeof body?.confirmOverageUsd === "number" ? body.confirmOverageUsd : null,
+  );
+  if (!decision.ok) {
     return NextResponse.json(
-      { error: "You have reached your monthly RFP limit. Upgrade your plan to upload more." },
-      { status: 403 },
+      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
+      { status: decision.status },
     );
   }
 
+  const rateLimited = await uploadRateLimited(user.id);
+  if (rateLimited) {
+    return NextResponse.json({ error: rateLimited }, { status: 429 });
+  }
+
   const rfp = await prisma.rfp.create({
-    data: { userId: user.id, title: titleFromFilename(fileName), status: RfpStatus.uploaded },
+    data: {
+      userId: user.id,
+      title: titleFromFilename(fileName),
+      status: RfpStatus.uploaded,
+      overageCents: decision.overageCents,
+    },
   });
   const path = `${user.id}/${rfp.id}/${sanitizeStorageFilename(fileName)}`;
 
@@ -58,7 +78,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: rfp.id, uploadUrl: data.signedUrl, path });
   } catch (error) {
     await prisma.rfp.delete({ where: { id: rfp.id } }).catch(() => undefined);
-    console.error("Could not start a direct upload:", error);
+    console.error("Could not start a direct upload:", safeErrorSummary(error));
     reportError(error, { area: "upload-start", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: "Upload failed. Try again in a moment." }, { status: 500 });
   }

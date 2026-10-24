@@ -1,5 +1,5 @@
 import { faqs } from "@/lib/faqs";
-import { plans } from "@/lib/plans";
+import { displayPrice, publicPlans } from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const organizationId = `${SITE_URL}/#organization`;
@@ -35,16 +35,17 @@ export function homeStructuredData() {
         operatingSystem: "Web browser",
         publisher: { "@id": organizationId },
         featureList: [
-          "Extracts requirements, deadlines and evaluation criteria from RFPs, tenders and security questionnaires",
-          "Flags deadlines, addenda and requirements to double-check against the document",
-          "Drafts proposals from your own case studies, bios and saved answers",
-          "Marks gaps as placeholders instead of inventing facts",
-          "Exports to Word and PDF",
+          "Extracts requirements, deadlines, page limits and evaluation criteria from RFPs, tenders and questionnaires, with the page each came from",
+          "Reads PDF, Word, Excel and CSV files, and scanned documents with OCR",
+          "Re-reads requirements when addenda arrive and shows what changed",
+          "Drafts proposals from your own past proposals, case studies, résumés and saved answers, citing the source of each claim",
+          "Marks unsupported statements and missing facts for review instead of inventing them",
+          "Exports to Word and PDF, and writes questionnaire answers back into the buyer's spreadsheet",
         ],
-        offers: plans.map((plan) => ({
+        offers: publicPlans.map((plan) => ({
           "@type": "Offer",
-          name: `${plan.name} plan`,
-          price: plan.monthly.usd,
+          name: plan.name,
+          price: displayPrice(plan, "usd", "monthly").amount,
           priceCurrency: "USD",
           url: `${SITE_URL}/pricing`,
           description: plan.summary,

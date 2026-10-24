@@ -13,7 +13,7 @@ import {
   type InlineRun,
   type MdBlock,
 } from "@/lib/markdown";
-import type { ProposalDocument } from "@/lib/proposal-document";
+import type { ProposalDocument, ReviewAppendix } from "@/lib/proposal-document";
 
 const NAVY = "#0B1F33";
 const INK = "#1C2836";
@@ -66,8 +66,8 @@ function inline(runs: InlineRun[]): ContentText["text"] {
     italics: run.italic,
     decoration: run.strike ? ("lineThrough" as const) : undefined,
     background: run.placeholder ? PLACEHOLDER_FILL : run.code ? STRIPE : undefined,
-    color: run.placeholder ? "#7A4B00" : undefined,
-    fontSize: run.code ? 9 : undefined,
+    color: run.placeholder ? "#7A4B00" : run.citation ? SLATE : undefined,
+    fontSize: run.code ? 9 : run.citation ? 8 : undefined,
   }));
 }
 
@@ -366,6 +366,39 @@ function coverPage(doc: ProposalDocument, contentWidth: number): Content[] {
   ];
 }
 
+function reviewAppendix(review: ReviewAppendix, contentWidth: number): Content[] {
+  const note = (text: string): Content => ({ text, color: SLATE, margin: [0, 0, 0, 10] });
+  return [
+    ...sectionTitle("Review notes (internal, remove before submitting)"),
+    note(
+      "This internal copy shows where each claim came from. Check every open item, then export the submission copy, which has no markers or notes.",
+    ),
+    { text: "Open items", style: "h2" },
+    review.openItems.length > 0
+      ? tableContent(
+          [[{ text: "Section" }], [{ text: "Type" }], [{ text: "Item" }]],
+          review.openItems.map((item) => [[{ text: item.section }], [{ text: item.kind }], [{ text: item.text }]]),
+          ["left", "left", "left"],
+          contentWidth,
+        )
+      : note("No open items were found. Still read the whole draft before submitting."),
+    { text: "Sources cited", style: "h2" },
+    review.sources.length > 0
+      ? tableContent(
+          [[{ text: "Section" }], [{ text: "Marker" }], [{ text: "Library item" }], [{ text: "Passage" }]],
+          review.sources.map((source) => [
+            [{ text: source.section }],
+            [{ text: source.id }],
+            [{ text: source.title }],
+            [{ text: source.excerpt }],
+          ]),
+          ["left", "left", "left", "left"],
+          contentWidth,
+        )
+      : note("This draft cites no library passages."),
+  ];
+}
+
 function definition(doc: ProposalDocument): TDocumentDefinitions {
   const page = PAGE[doc.pageSize];
   const contentWidth = page.width - SIDE_MARGIN * 2;
@@ -378,6 +411,16 @@ function definition(doc: ProposalDocument): TDocumentDefinitions {
     { text: "Contents", style: "h1", pageBreak: "before" },
     { canvas: [{ type: "rect", x: 0, y: 0, w: 44, h: 3, color: BRAND }], margin: [0, 0, 0, 14] },
     { toc: { numberStyle: { color: SLATE } } } as Content,
+    ...(doc.review
+      ? [
+          {
+            text: "INTERNAL REVIEW COPY: do not submit. Markers like [S2] show which library passage a claim came from; they are listed with the open items in the review notes at the end.",
+            bold: true,
+            color: "#B42318",
+            margin: [0, 16, 0, 0],
+          } as Content,
+        ]
+      : []),
   ];
 
   const sections: Content[] = doc.sections.flatMap((section) => {
@@ -465,7 +508,9 @@ function definition(doc: ProposalDocument): TDocumentDefinitions {
               {
                 margin: [0, 6, 0, 0],
                 columns: [
-                  { text: "Confidential", fontSize: 8, color: SLATE },
+                  doc.review
+                    ? { text: "INTERNAL REVIEW COPY: do not submit", fontSize: 8, bold: true, color: "#B42318" }
+                    : { text: "Confidential", fontSize: 8, color: SLATE },
                   { text: `Page ${currentPage} of ${pageCount}`, alignment: "right", fontSize: 8, color: SLATE },
                 ],
               },
@@ -474,7 +519,13 @@ function definition(doc: ProposalDocument): TDocumentDefinitions {
     // Never leave a heading stranded at the bottom of a page.
     pageBreakBefore: (current, following) =>
       current.headlineLevel === 1 && following.length === 0,
-    content: [...coverPage(doc, contentWidth), ...contents, ...sections, ...appendix],
+    content: [
+      ...coverPage(doc, contentWidth),
+      ...contents,
+      ...sections,
+      ...appendix,
+      ...(doc.review ? reviewAppendix(doc.review, contentWidth) : []),
+    ],
   };
 }
 

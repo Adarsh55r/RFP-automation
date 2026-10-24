@@ -12,6 +12,10 @@ enum SubscriptionTier {
   starter
   growth
   agency
+  single_bid
+  pro
+  consultant
+  pilot
 }
 
 enum SubscriptionStatus {
@@ -63,6 +67,10 @@ enum RfpDocumentType {
 }
 
 model User {
+  /// First-touch marketing segment from ?seg= on sign-up links (lib/segments.ts), for the funnel report.
+  signupSegment     String?
+  /// Optional answer to "What industry are you in?" at onboarding.
+  industry          String?
   id                String    @id @default(cuid())
   clerkId           String    @unique
   email             String
@@ -73,17 +81,23 @@ model User {
   aiBusyUntil       DateTime?
   /// Month ("2026-10") the spend-cap alert was last sent, so it fires once per month.
   aiAlertMonth      String?
+  /// Day ("2026-10-23") the daily spend-ceiling alert was last sent.
+  aiDailyAlertDay   String?
   /// Review request shown after an export: how many times, when, and the answer
   /// ("reviewed" | "feedback" | "later" | "declined").
   reviewPromptCount Int       @default(0)
   reviewPromptedAt  DateTime?
   reviewResponse    String?
   reviewRespondedAt DateTime?
+  /// Version of the Terms of Service the user last accepted (lib/legal.ts), and when.
+  termsVersion      String?
+  termsAcceptedAt   DateTime?
 
-  subscription Subscription?
-  rfps         Rfp[]
-  libraryItems LibraryItem[]
-  aiUsage      AiUsage[]
+  subscription  Subscription?
+  rfps          Rfp[]
+  libraryItems  LibraryItem[]
+  aiUsage       AiUsage[]
+  proposalUsage ProposalUsage[]
 }
 
 model Subscription {
@@ -93,6 +107,13 @@ model Subscription {
   status               SubscriptionStatus @default(active)
   stripeSubscriptionId String?
   currentPeriodEnd     DateTime?
+  /// "legacy" for subscriptions created before the October 2026 pricing (they keep
+  /// their original limits and price); "2026-10" for everything after.
+  planVersion          String             @default("legacy")
+  /// "monthly" or "annual" for subscriptions; null for free and one-time plans.
+  billingCycle         String?
+  /// End of access for one-time plans (single-bid pass, pilot).
+  accessEndsAt         DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -113,16 +134,33 @@ model Rfp {
   extractedFlags              Json?
   extractedSubmission         Json?
   sourceText                  String?
+  /// Spreadsheet questionnaires: which sheet, question and answer columns, and which rows hold questions (lib/spreadsheet.ts).
+  questionnaireMap            Json?
+  /// Key details (limits, forms, insurance, SLAs…) with category, kind, quote and verified page (lib/key-details.ts).
+  extractedDetails            Json?
+  /// Bid outcome tracking, entered by the user (lib/outcomes.ts). Hours saved is the user's own estimate.
+  submittedAt                 DateTime?
+  outcome                     String?
+  outcomeAt                   DateTime?
+  contractValueCents          Int?
+  contractCurrency            String?
+  outcomeNotes                String?
+  hoursSaved                  Float?
+  /// What the last re-extraction with new addenda changed (lib/requirement-diff.ts).
+  extractionChanges           Json?
   draftPlan                   Json?
   extractCount                Int              @default(0)
   fullDraftCount              Int              @default(0)
   revisionCount               Int              @default(0)
   lastFullDraftAt             DateTime?
   coverageMap                 String?
+  /// Extra charge (in cents) the user confirmed before uploading beyond the plan's limit.
+  overageCents                Int?
   createdAt                   DateTime         @default(now())
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   drafts Draft[]
+  files  RfpFile[]
 
   @@index([userId])
 }
@@ -140,12 +178,30 @@ model LibraryItem {
   @@index([userId])
 }
 
+/// Extra files for a bid: addenda, amendments and clarifications issued after the RFP.
+model RfpFile {
+  id         String    @id @default(cuid())
+  rfpId      String
+  kind       String    @default("addendum")
+  fileName   String
+  fileUrl    String
+  /// When an extraction first read this file; null until requirements are re-read with it.
+  includedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  rfp Rfp @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+
+  @@index([rfpId])
+}
+
 model Draft {
   id          String       @id @default(cuid())
   rfpId       String
   sectionName DraftSection
   content     String
   status      DraftStatus  @default(generated)
+  /// Citation check for this section: which library passages each [S#] marker points to, and uncited factual claims (lib/citations.ts).
+  citations   Json?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -174,4 +230,63 @@ model AiUsage {
 
   @@index([userId, createdAt])
   @@index([rfpId])
+}
+
+/// One row per RFP upload that counts against the plan. Kept when the RFP is
+/// deleted, so deleting and re-uploading cannot get around the monthly limit.
+model ProposalUsage {
+  id              String    @id @default(cuid())
+  userId          String
+  /// The RFP that used the credit; no foreign key, because the RFP may be deleted.
+  rfpId           String?
+  /// Set when this proposal was beyond the plan's limit: the confirmed extra charge, in cents.
+  overageCents    Int?
+  /// When the extra charge was billed; null while it is still owed.
+  overageBilledAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// One run of the free no-signup checklist tool. Only a salted hash of the IP
+/// is kept (for rate limits), never the file or its contents; rows older than
+/// 30 days are deleted.
+model ToolUsage {
+  id         String   @id @default(cuid())
+  tool       String
+  ipHash     String
+  costMicros Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([tool, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+/// Someone who asked to hear from us after using a free tool (explicit consent).
+model Lead {
+  id        String   @id @default(cuid())
+  email     String
+  source    String
+  segment   String?
+  consentAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+/// Product funnel events, stored in our own database (no third party). Never
+/// holds document content: only the event name, the account (if signed in),
+/// and for anonymous page events the path and marketing segment.
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  event     String
+  userId    String?
+  segment   String?
+  path      String?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, event])
 }

@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { prisma } from "@/lib/db";
 import type { SubscriptionTier } from "@/lib/generated/prisma";
 
@@ -21,9 +22,29 @@ export function proposalAllowance(tier: SubscriptionTier): ProposalAllowance {
 /** Monthly AI spend ceiling per account, in US dollars. */
 export const monthlySpendCapUsd: Record<SubscriptionTier, number> = {
   free: 3,
+  single_bid: 6,
   starter: 15,
+  pro: 50,
+  pilot: 50,
   growth: 60,
+  consultant: 120,
   agency: 200,
+};
+
+/**
+ * Daily AI spend ceiling per account, in US dollars. High enough for one
+ * worst-case proposal (about $3.50), low enough that a runaway or abused
+ * account cannot burn a month's budget in a day.
+ */
+export const dailySpendCapUsd: Record<SubscriptionTier, number> = {
+  free: 3,
+  single_bid: 5,
+  starter: 8,
+  pro: 20,
+  pilot: 20,
+  growth: 20,
+  consultant: 40,
+  agency: 40,
 };
 
 export const FULL_DRAFT_COOLDOWN_SECONDS = 60;
@@ -44,24 +65,44 @@ function startOfMonthUtc(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-export async function monthlySpendUsd(userId: string, now = new Date()) {
+function startOfDayUtc(now: Date) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+async function spendSinceUsd(userId: string, since: Date) {
   const total = await prisma.aiUsage.aggregate({
-    where: { userId, createdAt: { gte: startOfMonthUtc(now) } },
+    where: { userId, createdAt: { gte: since } },
     _sum: { costMicros: true },
   });
   return (total._sum.costMicros ?? 0) / 1_000_000;
 }
 
-async function alertSpendCap(user: { id: string; email: string }, spentUsd: number, capUsd: number) {
-  const month = new Date().toISOString().slice(0, 7);
-  // Only the first request to flip the flag this month sends the alert.
+export async function monthlySpendUsd(userId: string, now = new Date()) {
+  return spendSinceUsd(userId, startOfMonthUtc(now));
+}
+
+export async function dailySpendUsd(userId: string, now = new Date()) {
+  return spendSinceUsd(userId, startOfDayUtc(now));
+}
+
+async function alertSpendCap(
+  user: { id: string; email: string },
+  period: "month" | "day",
+  spentUsd: number,
+  capUsd: number,
+) {
+  const now = new Date().toISOString();
+  const key = period === "month" ? now.slice(0, 7) : now.slice(0, 10);
+  const field = period === "month" ? "aiAlertMonth" : "aiDailyAlertDay";
+  // Only the first request to flip the flag in this period sends the alert.
   const claimed = await prisma.user.updateMany({
-    where: { id: user.id, OR: [{ aiAlertMonth: null }, { aiAlertMonth: { not: month } }] },
-    data: { aiAlertMonth: month },
+    where: { id: user.id, OR: [{ [field]: null }, { [field]: { not: key } }] },
+    data: { [field]: key },
   });
   if (claimed.count === 0) return;
 
-  const text = `[DraftBid AI] AI spend cap reached: ${user.email} (user ${user.id}) spent $${spentUsd.toFixed(2)} of $${capUsd} in ${month}. AI features are paused for this account until next month.`;
+  const until = period === "month" ? "until next month" : "until tomorrow (UTC)";
+  const text = `[DraftBid AI] AI ${period === "month" ? "monthly" : "daily"} spend cap reached: user ${user.id} spent $${spentUsd.toFixed(2)} of $${capUsd} in ${key}. AI features are paused for this account ${until}.`;
   console.error(`[ai-budget] ALERT ${text}`);
   const webhook = process.env.ALERT_WEBHOOK_URL?.trim();
   if (webhook) {
@@ -69,7 +110,7 @@ async function alertSpendCap(user: { id: string; email: string }, spentUsd: numb
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
-    }).catch((error) => console.error("[ai-budget] Alert webhook failed:", error));
+    }).catch((error) => console.error("[ai-budget] Alert webhook failed:", safeErrorSummary(error)));
   }
 }
 
@@ -77,19 +118,32 @@ async function alertSpendCap(user: { id: string; email: string }, spentUsd: numb
  * Checks every limit and, if allowed, takes the account's AI lock and uses one
  * unit of the proposal's allowance. Call `release()` when the task finishes.
  */
-export async function beginAiOperation(input: {
-  user: { id: string; email: string };
-  tier: SubscriptionTier;
-  rfpId: string;
-  operation: AiOperation;
-}): Promise<AiGranted | AiDenied> {
-  const { user, tier, rfpId, operation } = input;
-  const now = new Date();
+/**
+ * Account-wide checks for any AI task (daily and monthly spend caps, hourly
+ * call limit) and the one-task-at-a-time lock. Call `release()` when done.
+ */
+export async function beginAccountAiTask(
+  user: { id: string; email: string },
+  tier: SubscriptionTier,
+  now = new Date(),
+): Promise<AiGranted | AiDenied> {
+
+  const dayCapUsd = dailySpendCapUsd[tier];
+  const spentTodayUsd = await dailySpendUsd(user.id, now);
+  if (spentTodayUsd >= dayCapUsd) {
+    await alertSpendCap(user, "day", spentTodayUsd, dayCapUsd);
+    return {
+      ok: false,
+      status: 429,
+      error:
+        "This account has reached its AI usage limit for today. It resets at midnight UTC; contact support if you need more capacity sooner.",
+    };
+  }
 
   const capUsd = monthlySpendCapUsd[tier];
   const spentUsd = await monthlySpendUsd(user.id, now);
   if (spentUsd >= capUsd) {
-    await alertSpendCap(user, spentUsd, capUsd);
+    await alertSpendCap(user, "month", spentUsd, capUsd);
     return {
       ok: false,
       status: 429,
@@ -124,8 +178,23 @@ export async function beginAiOperation(input: {
   const release = async () => {
     await prisma.user
       .update({ where: { id: user.id }, data: { aiBusyUntil: null } })
-      .catch((error) => console.error("[ai-guard] Could not release AI lock:", error));
+      .catch((error) => console.error("[ai-guard] Could not release AI lock:", safeErrorSummary(error)));
   };
+
+  return { ok: true, release };
+}
+
+export async function beginAiOperation(input: {
+  user: { id: string; email: string };
+  tier: SubscriptionTier;
+  rfpId: string;
+  operation: AiOperation;
+}): Promise<AiGranted | AiDenied> {
+  const { user, tier, rfpId, operation } = input;
+  const now = new Date();
+  const account = await beginAccountAiTask(user, tier, now);
+  if (!account.ok) return account;
+  const { release } = account;
 
   const allowance = proposalAllowance(tier);
   const field = counterField[operation];
@@ -179,5 +248,5 @@ export async function refundAllowance(rfpId: string, operation: AiOperation) {
   const field = counterField[operation];
   await prisma.rfp
     .updateMany({ where: { id: rfpId, [field]: { gt: 0 } }, data: { [field]: { decrement: 1 } } })
-    .catch((error) => console.error("[ai-guard] Could not refund allowance:", error));
+    .catch((error) => console.error("[ai-guard] Could not refund allowance:", safeErrorSummary(error)));
 }

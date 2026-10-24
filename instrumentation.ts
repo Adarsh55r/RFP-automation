@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -20,7 +21,7 @@ export async function register() {
     const { upgradeSchemaIfNeeded } = await import("@/lib/schema-upgrade");
     await upgradeSchemaIfNeeded();
   } catch (error) {
-    console.error("[schema-upgrade] Could not upgrade the database schema:", error);
+    console.error("[schema-upgrade] Could not upgrade the database schema:", safeErrorSummary(error));
     Sentry.captureException(error);
   }
 }

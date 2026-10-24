@@ -26,6 +26,10 @@ describe.skipIf(!hasTestDb)("dashboard data loading", () => {
     // A large upload that never finished: no file, so it must not show or count.
     await testDb().rfp.create({ data: { userId: alice.id, title: "Alice abandoned" } });
     await testDb().rfp.create({ data: { userId: bob.id, title: "Bob drafting", status: "drafting", originalFileUrl: FILE } });
+    // A finished upload records one use of the plan (as completeRfpUpload does); abandoned ones do not.
+    for (const finished of await testDb().rfp.findMany({ where: { originalFileUrl: { not: null } } })) {
+      await testDb().proposalUsage.create({ data: { userId: finished.userId, rfpId: finished.id } });
+    }
     await testDb().libraryItem.create({ data: { userId: alice.id, type: "case_study", title: "Alice case", content: "Alice results here" } });
     await testDb().libraryItem.create({ data: { userId: bob.id, type: "case_study", title: "Bob case", content: "Bob results here" } });
     h.clerkId = "alice";
@@ -35,8 +39,9 @@ describe.skipIf(!hasTestDb)("dashboard data loading", () => {
     const { getDashboardHomeData } = await import("@/lib/dashboard");
     const data = await getDashboardHomeData();
     expect(data?.agencyName).toBe("alice Co");
-    expect(data?.stats.rfpsThisMonth).toBe(2);
-    expect(data?.stats.draftsInProgress).toBe(1);
+    expect(data?.allowance.used).toBe(2);
+    expect(data?.allowance.periodLabel).toBe("this month");
+    expect(data?.draftsInProgress).toBe(1);
     expect(data?.recentRfps.map((rfp) => rfp.title).sort()).toEqual(["Alice drafting", "Alice uploaded"]);
   });
 

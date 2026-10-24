@@ -6,9 +6,12 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TermsCheckbox } from "@/components/legal/terms-checkbox";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
+import { Select } from "@/components/ui/select";
+import { INDUSTRIES } from "@/lib/funnel-sources";
 import {
   INTENDED_PLAN_COOKIE,
   parsePlanId,
@@ -38,6 +41,8 @@ export function OnboardingFlow() {
   const [step, setStep] = useState<1 | 2>(1);
   const [agencyName, setAgencyName] = useState("");
   const [teamSize, setTeamSize] = useState<TeamSize | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [industry, setIndustry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -61,7 +66,11 @@ export function OnboardingFlow() {
 
   const finish = () => {
     if (!teamSize) {
-      setError("Pick a team size so we can size your workspace.");
+      setError("Pick a team size to continue.");
+      return;
+    }
+    if (!acceptTerms) {
+      setError("Please accept the Terms of Service and Privacy Policy to continue.");
       return;
     }
 
@@ -76,6 +85,9 @@ export function OnboardingFlow() {
         agencyName: agencyName.trim(),
         teamSize,
         intendedPlan,
+        industry: industry || undefined,
+        segment: typeof user.unsafeMetadata?.seg === "string" ? user.unsafeMetadata.seg : undefined,
+        acceptTerms,
       });
 
       if (!result.ok) {
@@ -108,7 +120,7 @@ export function OnboardingFlow() {
       <p className="mt-2 text-sm leading-relaxed text-slate">
         {step === 1
           ? "It appears on your proposal cover pages and invoices. You can change it later."
-          : "Helps us pick defaults for seats and library folders. Not a hard limit."}
+          : "Helps us understand who uses DraftBid AI. It does not limit anything."}
       </p>
 
       <Card className="mt-8">
@@ -166,6 +178,18 @@ export function OnboardingFlow() {
                 );
               })}
             </div>
+            <label htmlFor="industry" className="mt-2 flex flex-col gap-2 text-sm font-medium text-ink">
+              What industry are you in? (optional)
+              <Select id="industry" value={industry} onChange={(event) => setIndustry(event.target.value)}>
+                <option value="">Prefer not to say</option>
+                {INDUSTRIES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <TermsCheckbox checked={acceptTerms} onChange={setAcceptTerms} />
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button

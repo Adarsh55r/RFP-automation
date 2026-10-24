@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment, createContext, useContext, useId, useMemo, useState } from "react";
+import type { CitationSource } from "@/lib/citations";
 import {
   parseMarkdown,
   relativeHeadingLevel,
@@ -8,6 +9,60 @@ import {
   type MdBlock,
 } from "@/lib/markdown";
 import { cn } from "@/lib/cn";
+import { focusRing } from "@/lib/focus";
+
+const SourcesContext = createContext<Record<string, CitationSource> | null>(null);
+
+/** A [S3] marker: opens the library passage the claim came from. */
+function CitationChip({ ids }: { ids: string[] }) {
+  const sources = useContext(SourcesContext);
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const found = ids.map((id) => ({ id, source: sources?.[id] }));
+  // While a section is still streaming nothing has been checked yet.
+  const checked = sources !== null;
+  const missing = checked && found.some((item) => !item.source);
+  return (
+    <span className="relative inline-block align-baseline">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        title="Show the library passage this claim came from"
+        className={cn(
+          "mx-0.5 rounded px-1 font-mono text-[10px] leading-4 font-medium",
+          missing ? "bg-danger/10 text-danger" : "bg-brand/10 text-brand hover:bg-brand/20",
+          focusRing,
+        )}
+      >
+        {ids.join(", ")}
+      </button>
+      {open ? (
+        <span
+          id={panelId}
+          role="note"
+          className="absolute left-0 z-20 mt-1 block w-72 max-w-[80vw] rounded-control border border-border bg-surface-raised p-3 text-left text-xs leading-relaxed text-ink shadow-lg"
+        >
+          {found.map(({ id, source }) => (
+            <span key={id} className="mb-2 block last:mb-0">
+              <span className="block font-mono text-[10px] text-slate uppercase">
+                {id} · {source ? source.title : checked ? "Not found in your library" : "Checking…"}
+              </span>
+              <span className="mt-1 block">
+                {source
+                  ? source.excerpt
+                  : checked
+                    ? "This marker does not point to a library passage. Check the claim or remove it."
+                    : "Sources are checked when this section finishes writing."}
+              </span>
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * Renders draft markdown the way the export will look. Built from the
@@ -19,6 +74,9 @@ function Runs({ runs }: { runs: InlineRun[] }) {
   return (
     <>
       {runs.map((run, index) => {
+        if (run.citation) {
+          return <CitationChip key={index} ids={run.citation} />;
+        }
         let node: React.ReactNode = run.text.split("\n").map((part, partIndex) => (
           <Fragment key={partIndex}>
             {partIndex > 0 ? <br /> : null}
@@ -152,16 +210,21 @@ function Blocks({
 export function MarkdownPreview({
   markdown,
   className,
+  sources,
 }: {
   markdown: string;
   className?: string;
+  /** What each [S#] citation marker points to; markers render as clickable chips. */
+  sources?: Record<string, CitationSource>;
 }) {
   const blocks = useMemo(() => parseMarkdown(markdown), [markdown]);
   const level = useMemo(() => relativeHeadingLevel(blocks), [blocks]);
 
   return (
-    <div className={cn("text-sm text-ink", className)}>
-      <Blocks blocks={blocks} level={level} />
-    </div>
+    <SourcesContext.Provider value={sources ?? null}>
+      <div className={cn("text-sm text-ink", className)}>
+        <Blocks blocks={blocks} level={level} />
+      </div>
+    </SourcesContext.Provider>
   );
 }

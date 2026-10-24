@@ -1,3 +1,4 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { requireAdminPage } from "@/lib/admin";
@@ -16,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const adminEmail = await requireAdminPage();
   const [alertCount, setupCount] = await Promise.all([
     getAlertCount().catch((error) => {
-      console.error("[admin] alert count failed", error);
+      console.error("[admin] alert count failed", safeErrorSummary(error));
       return 0;
     }),
     getSetupAttentionCount().catch(() => 0),

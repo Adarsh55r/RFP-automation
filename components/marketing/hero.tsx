@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DocumentTransform } from "@/components/marketing/document-transform";
 import { HeroAtmosphere } from "@/components/marketing/hero-atmosphere";
-import { SmoothLink } from "@/components/marketing/smooth-link";
+import { setupHelpHref } from "@/lib/company";
 
 export function Hero() {
   const reduceMotion = useReducedMotion();
@@ -20,33 +20,34 @@ export function Hero() {
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <p className="font-mono text-xs tracking-wide text-slate uppercase">
-            AI proposal software for small businesses
+            RFP response software for small businesses
           </p>
           <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl md:text-6xl md:leading-[1.15]">
-            Win more RFPs — without a bid team.
+            Turn any RFP and your company portfolio into a compliant first draft.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-slate sm:text-lg">
-            Upload any RFP and get a compliant first draft in minutes — written
-            from your own past work, checked against every requirement, with
-            every gap flagged for you. Review it, fill in the blanks, and export
-            a polished Word or PDF proposal.
+            DraftBid AI reads the full RFP and addenda, builds your compliance
+            checklist, and drafts your response from your past proposals, case
+            studies and résumés, flagging anything it can&apos;t support. You
+            review, then export a formatted Word file.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button asChild size="lg" variant="accent">
-              <Link href="/sign-up?plan=free">Draft my first proposal free</Link>
+              <Link href="/sign-up?plan=free">Draft your first proposal free</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <SmoothLink href="/#how-it-works">See how it works</SmoothLink>
+              <Link href={setupHelpHref()}>Get help with your first bid</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-slate">
-            Free plan · No credit card · Works with PDF and Word RFPs
+            Free trial · No credit card · PDF, Word, Excel and scanned RFPs
           </p>
         </motion.div>
 
         <div className="relative">
           <p className="sr-only">
-            A stack of messy RFP pages settles into one clean, branded proposal.
+            Illustrative example: a stack of messy RFP pages settles into one
+            clean, formatted proposal.
           </p>
           <DocumentTransform />
         </div>

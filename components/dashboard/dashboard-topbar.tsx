@@ -24,9 +24,11 @@ const userButtonAppearance = {
 type DashboardTopbarProps = {
   agencyName: string;
   onOpenNav: () => void;
+  /** Proposals-left badge, streamed from the server. */
+  allowance?: React.ReactNode;
 };
 
-export function DashboardTopbar({ agencyName, onOpenNav }: DashboardTopbarProps) {
+export function DashboardTopbar({ agencyName, onOpenNav, allowance }: DashboardTopbarProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface-raised px-4 md:px-8">
       <div className="flex min-w-0 items-center gap-4">
@@ -47,6 +49,7 @@ export function DashboardTopbar({ agencyName, onOpenNav }: DashboardTopbarProps)
       </div>
 
       <div className="flex shrink-0 items-center gap-4">
+        {allowance}
         <Button asChild size="sm" className="hidden sm:inline-flex">
           <Link href="/dashboard/rfps/new">
             <Plus className="size-4" strokeWidth={1.75} aria-hidden />

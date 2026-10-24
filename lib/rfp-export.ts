@@ -27,7 +27,7 @@ import {
   type MdBlock,
   type TableAlign,
 } from "@/lib/markdown";
-import type { ProposalDocument } from "@/lib/proposal-document";
+import type { ProposalDocument, ReviewAppendix } from "@/lib/proposal-document";
 
 const FONT = "Calibri";
 const NAVY = "0B1F33";
@@ -69,8 +69,8 @@ function textRuns(
           italics: run.italic,
           strike: run.strike,
           font: run.code ? "Consolas" : FONT,
-          size: base.size ?? BODY_SIZE,
-          color: run.placeholder ? "7A4B00" : (base.color ?? INK),
+          size: run.citation ? 16 : (base.size ?? BODY_SIZE),
+          color: run.placeholder ? "7A4B00" : run.citation ? SLATE : (base.color ?? INK),
           highlight: run.placeholder ? "yellow" : undefined,
         }),
     ),
@@ -446,6 +446,7 @@ function outline(doc: ProposalDocument) {
 function contentsPage(doc: ProposalDocument): Paragraph[] {
   const entries = outline(doc);
   if (doc.complianceMatrix) entries.push({ title: "Appendix A.  Compliance Matrix", subheadings: [] });
+  if (doc.review) entries.push({ title: REVIEW_APPENDIX_TITLE, subheadings: [] });
   return [
     ...sectionHeading("Contents"),
     ...entries.flatMap((entry) => [
@@ -466,6 +467,44 @@ function contentsPage(doc: ProposalDocument): Paragraph[] {
   ];
 }
 
+const REVIEW_APPENDIX_TITLE = "Review notes (internal, remove before submitting)";
+const REVIEW_BANNER =
+  "INTERNAL REVIEW COPY: do not submit. Markers like [S2] show which library passage a claim came from; they are listed with the open items in the review notes at the end.";
+
+function reviewAppendix(review: ReviewAppendix, contentWidth: number): Block[] {
+  const note = (text: string) =>
+    new Paragraph({ spacing: { after: 160 }, children: [plain(text, { color: SLATE })] });
+  return [
+    ...sectionHeading(REVIEW_APPENDIX_TITLE),
+    note(
+      "This internal copy shows where each claim came from. Check every open item, then export the submission copy, which has no markers or notes.",
+    ),
+    new Paragraph({ spacing: { before: 120, after: 80 }, children: [plain("Open items", { bold: true, size: 24 })] }),
+    review.openItems.length > 0
+      ? dataTable(
+          [[{ text: "Section" }], [{ text: "Type" }], [{ text: "Item" }]],
+          review.openItems.map((item) => [[{ text: item.section }], [{ text: item.kind }], [{ text: item.text }]]),
+          ["left", "left", "left"],
+          contentWidth,
+        )
+      : note("No open items were found. Still read the whole draft before submitting."),
+    new Paragraph({ spacing: { before: 240, after: 80 }, children: [plain("Sources cited", { bold: true, size: 24 })] }),
+    review.sources.length > 0
+      ? dataTable(
+          [[{ text: "Section" }], [{ text: "Marker" }], [{ text: "Library item" }], [{ text: "Passage" }]],
+          review.sources.map((source) => [
+            [{ text: source.section }],
+            [{ text: source.id }],
+            [{ text: source.title }],
+            [{ text: source.excerpt }],
+          ]),
+          ["left", "left", "left", "left"],
+          contentWidth,
+        )
+      : note("This draft cites no library passages."),
+  ];
+}
+
 export function buildProposalDocx(doc: ProposalDocument) {
   const page = PAGE[doc.pageSize];
   const contentWidth = page.width - MARGIN * 2;
@@ -474,6 +513,15 @@ export function buildProposalDocx(doc: ProposalDocument) {
   const reference = cover.solicitationNumber ? `Response to ${cover.solicitationNumber}` : cover.projectTitle;
 
   const body: Block[] = [...coverPage(doc, contentWidth), ...contentsPage(doc)];
+  if (doc.review) {
+    body.push(
+      new Paragraph({
+        spacing: { before: 240, after: 120 },
+        border: { left: { style: BorderStyle.SINGLE, size: 18, color: "B42318", space: 8 } },
+        children: [plain(REVIEW_BANNER, { bold: true, color: "B42318" })],
+      }),
+    );
+  }
 
   for (const section of doc.sections) {
     body.push(
@@ -507,6 +555,10 @@ export function buildProposalDocx(doc: ProposalDocument) {
         contentWidth,
       ),
     );
+  }
+
+  if (doc.review) {
+    body.push(...reviewAppendix(doc.review, contentWidth));
   }
 
   const rightTab = [{ type: TabStopType.RIGHT, position: contentWidth }];
@@ -597,7 +649,11 @@ export function buildProposalDocx(doc: ProposalDocument) {
                 tabStops: rightTab,
                 border: { top: { style: BorderStyle.SINGLE, size: 4, color: RULE, space: 4 } },
                 children: [
-                  plain("Confidential", { size: 16, color: SLATE }),
+                  plain(doc.review ? "INTERNAL REVIEW COPY: do not submit" : "Confidential", {
+                    size: 16,
+                    color: doc.review ? "B42318" : SLATE,
+                    bold: Boolean(doc.review),
+                  }),
                   new TextRun({
                     font: FONT,
                     size: 16,

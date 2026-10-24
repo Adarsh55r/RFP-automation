@@ -8,10 +8,11 @@ import { cn } from "@/lib/cn";
 
 type DashboardShellProps = {
   agencyName: string;
+  allowance?: React.ReactNode;
   children: React.ReactNode;
 };
 
-export function DashboardShell({ agencyName, children }: DashboardShellProps) {
+export function DashboardShell({ agencyName, allowance, children }: DashboardShellProps) {
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function DashboardShell({ agencyName, children }: DashboardShellProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <DashboardTopbar
           agencyName={agencyName}
+          allowance={allowance}
           onOpenNav={() => setNavOpen(true)}
         />
         <main

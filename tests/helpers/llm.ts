@@ -1,11 +1,20 @@
-import type { LlmTextRequest } from "@/lib/llm";
+import type { LlmDocumentRequest, LlmTextRequest } from "@/lib/llm";
 
 export type Script = {
   json?: (request: LlmTextRequest) => string | Promise<string>;
   stream?: (request: LlmTextRequest) => AsyncGenerator<string>;
+  /** Reading a PDF as a document (OCR). */
+  pdf?: (request: LlmDocumentRequest) => string | Promise<string>;
 };
 
 export const calls: LlmTextRequest[] = [];
+export const pdfCalls: LlmDocumentRequest[] = [];
+
+export async function fakePdf(request: LlmDocumentRequest) {
+  pdfCalls.push(request);
+  if (!script.pdf) throw new Error("no pdf script");
+  return script.pdf(request);
+}
 export const script: Script = {};
 
 export async function fakeGenerate(request: LlmTextRequest) {
@@ -22,6 +31,8 @@ export async function* fakeStream(request: LlmTextRequest) {
 
 export function resetLlm() {
   calls.length = 0;
+  pdfCalls.length = 0;
+  delete script.pdf;
   delete script.json;
   delete script.stream;
 }

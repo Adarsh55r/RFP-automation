@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 import { monthlySpendCapUsd, proposalAllowance } from "@/lib/ai-guard";
 import { modelRates } from "@/lib/ai-usage";
-import { monthlyRfpLimit } from "@/lib/plan-limits";
-import { plans } from "@/lib/plans";
+import { monthlyRevenueUsd, PLANS, resolvePlan } from "@/lib/plans";
 import type { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prisma";
 
 /**
@@ -13,14 +12,17 @@ import type { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prism
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PAYING_STATUSES: SubscriptionStatus[] = ["active", "trialing", "past_due"];
 
-export const TIER_ORDER: SubscriptionTier[] = ["free", "starter", "growth", "agency"];
+export const TIER_ORDER: SubscriptionTier[] = ["free", "single_bid", "starter", "pro", "consultant", "pilot", "growth", "agency"];
 
 export function tierLabel(tier: SubscriptionTier) {
-  return plans.find((plan) => plan.id === tier)?.name ?? tier;
+  return PLANS[tier]?.name ?? tier;
 }
 
-export function tierPriceUsd(tier: SubscriptionTier) {
-  return plans.find((plan) => plan.id === tier)?.monthly.usd ?? 0;
+type SubscriptionPlanFields = { tier: SubscriptionTier; planVersion?: string | null; billingCycle?: string | null };
+
+/** Monthly revenue a subscription brings in at its own (possibly grandfathered) list price. */
+export function subscriptionRevenueUsd(subscription: SubscriptionPlanFields) {
+  return monthlyRevenueUsd(resolvePlan(subscription), subscription.billingCycle);
 }
 
 function startOfMonthUtc(now = new Date()) {
@@ -98,7 +100,7 @@ export async function getAdminOverview() {
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: since7 } } }),
     prisma.user.count({ where: { createdAt: { gte: prev7, lt: since7 } } }),
-    prisma.subscription.findMany({ select: { tier: true, status: true } }),
+    prisma.subscription.findMany({ select: { tier: true, status: true, planVersion: true, billingCycle: true } }),
     prisma.rfp.count(),
     prisma.rfp.count({ where: { createdAt: { gte: monthStart } } }),
     prisma.aiUsage.aggregate({
@@ -127,7 +129,7 @@ export async function getAdminOverview() {
   planMix[0].value += Math.max(totalUsers - subscriptions.length, 0);
 
   const paying = subscriptions.filter(isPaying);
-  const mrrUsd = paying.reduce((sum, sub) => sum + tierPriceUsd(sub.tier), 0);
+  const mrrUsd = paying.reduce((sum, sub) => sum + subscriptionRevenueUsd(sub), 0);
   const aiCostMonthUsd = (aiMonth._sum.costMicros ?? 0) / 1e6;
   const funnel = funnelRows[0] ?? { uploaded: 0, drafted: 0, exported: 0 };
 
@@ -202,7 +204,7 @@ export async function getCustomers(): Promise<CustomerRow[]> {
         teamSize: true,
         createdAt: true,
         reviewResponse: true,
-        subscription: { select: { tier: true, status: true } },
+        subscription: { select: { tier: true, status: true, planVersion: true, billingCycle: true } },
         _count: { select: { rfps: true, libraryItems: true } },
       },
     }),
@@ -229,11 +231,11 @@ export async function getCustomers(): Promise<CustomerRow[]> {
     const aiCostMonthUsd = (ai?._sum.costMicros ?? 0) / 1e6;
     const capUsd = monthlySpendCapUsd[tier];
     const capPct = Math.min((aiCostMonthUsd / capUsd) * 100, 999);
-    const revenueUsd = isPaying(user.subscription) ? tierPriceUsd(tier) : 0;
+    const revenueUsd = isPaying(user.subscription) && user.subscription ? subscriptionRevenueUsd(user.subscription) : 0;
     const activity = [lastRfpBy.get(user.id), lastAiBy.get(user.id)].filter(Boolean) as Date[];
     const lastActive = activity.length ? new Date(Math.max(...activity.map((date) => date.getTime()))) : null;
     const rfpsThisMonth = rfpsMonthBy.get(user.id) ?? 0;
-    const rfpLimit = monthlyRfpLimit[tier];
+    const rfpLimit = resolvePlan(user.subscription).proposals.limit;
 
     const flags: CustomerRow["flags"] = [];
     if (capPct >= 100) flags.push("at-cap");
@@ -290,7 +292,7 @@ export async function getCustomerDetail(userId: string) {
       reviewPromptedAt: true,
       reviewResponse: true,
       reviewRespondedAt: true,
-      subscription: { select: { tier: true, status: true, currentPeriodEnd: true } },
+      subscription: { select: { tier: true, status: true, currentPeriodEnd: true, planVersion: true, billingCycle: true } },
     },
   });
   if (!user) return null;
@@ -355,10 +357,10 @@ export async function getCustomerDetail(userId: string) {
       outputTokens: monthly._sum.outputTokens ?? 0,
       capUsd: monthlySpendCapUsd[tier],
       rfpsThisMonth,
-      rfpLimit: monthlyRfpLimit[tier],
+      rfpLimit: resolvePlan(user.subscription).proposals.limit,
     },
     lifetime: { aiCostUsd: (lifetime._sum.costMicros ?? 0) / 1e6, aiCalls: lifetime._count._all },
-    revenueUsd: isPaying(user.subscription) ? tierPriceUsd(tier) : 0,
+    revenueUsd: isPaying(user.subscription) && user.subscription ? subscriptionRevenueUsd(user.subscription) : 0,
     rfps,
     library: Object.fromEntries(library.map((row) => [row.type, row._count._all])) as Record<string, number>,
     recentCalls: recentCalls.map((call) => ({ ...call, costUsd: call.costMicros / 1e6 })),
@@ -396,9 +398,15 @@ export async function getAiCosts() {
       orderBy: { _sum: { costMicros: "desc" } },
       take: 8,
     }),
-    prisma.$queryRaw<{ proposals: number; cost: number }[]>`
-      SELECT COUNT(DISTINCT "rfpId")::int AS proposals, (COALESCE(SUM("costMicros"), 0) / 1e6)::float8 AS cost
-      FROM "AiUsage" WHERE "createdAt" >= ${monthStart} AND "rfpId" IS NOT NULL`,
+    prisma.$queryRaw<{ proposals: number; cost: number; p95: number | null }[]>`
+      SELECT COUNT(*)::int AS proposals,
+             COALESCE(SUM(cost), 0)::float8 AS cost,
+             percentile_cont(0.95) WITHIN GROUP (ORDER BY cost)::float8 AS p95
+      FROM (
+        SELECT "rfpId", SUM("costMicros") / 1e6 AS cost
+        FROM "AiUsage" WHERE "createdAt" >= ${monthStart} AND "rfpId" IS NOT NULL
+        GROUP BY "rfpId"
+      ) per_proposal`,
     prisma.$queryRaw<{ day: Date; action: string; value: number }[]>`
       SELECT date_trunc('day', "createdAt") AS day, action, (SUM("costMicros") / 1e6)::float8 AS value
       FROM "AiUsage" WHERE "createdAt" >= ${since30} GROUP BY 1, 2 ORDER BY 1`,
@@ -417,7 +425,7 @@ export async function getAiCosts() {
   }, 0);
   const inputTokens = byModel.reduce((sum, row) => sum + (row._sum.inputTokens ?? 0), 0);
   const cachedTokens = byModel.reduce((sum, row) => sum + (row._sum.cachedInputTokens ?? 0), 0);
-  const proposals = proposalRows[0] ?? { proposals: 0, cost: 0 };
+  const proposals = proposalRows[0] ?? { proposals: 0, cost: 0, p95: null };
 
   const actions = ["extract", "full_draft", "revision"] as const;
   const days = fillDays([], 30, now).map((point) => point.day);
@@ -436,6 +444,7 @@ export async function getAiCosts() {
     totalUsd,
     calls: byModel.reduce((sum, row) => sum + row._count._all, 0),
     avgPerProposalUsd: proposals.proposals > 0 ? proposals.cost / proposals.proposals : 0,
+    p95PerProposalUsd: proposals.p95 ?? 0,
     proposals: proposals.proposals,
     cacheSavingsUsd,
     cacheHitPct: inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0,

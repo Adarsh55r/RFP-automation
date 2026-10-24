@@ -1,12 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
-import { monthlyRfpLimit, rfpsRemaining } from "@/lib/plan-limits";
-import type { Prisma, SubscriptionTier } from "@/lib/generated/prisma";
-
-function startOfMonth() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
+import type { Prisma } from "@/lib/generated/prisma";
+import { recordFirst } from "@/lib/funnel";
 
 /**
  * One RFP for its pages. Leaves out the full document text, which can run to
@@ -41,22 +36,35 @@ export async function getRfpsForClerkUser(clerkId: string) {
   });
 }
 
-export async function getRfpUploadQuota(userId: string, tier: SubscriptionTier) {
-  const monthStart = startOfMonth();
-  const usedThisMonth = await prisma.rfp.count({
-    where: {
-      userId,
-      createdAt: { gte: monthStart },
-      // An abandoned upload (no file ever arrived) does not use up the quota.
-      originalFileUrl: { not: null },
-    },
+/**
+ * Marks an upload as finished and records that it used one proposal from the
+ * plan, together. Abandoned uploads never reach this, so they never count.
+ */
+export async function completeRfpUpload(
+  rfpId: string,
+  userId: string,
+  originalFileUrl: string,
+  overageCents: number | null = null,
+) {
+  await prisma.$transaction([
+    prisma.rfp.update({ where: { id: rfpId }, data: { originalFileUrl } }),
+    // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
+    prisma.proposalUsage.create({ data: { userId, rfpId, overageCents } }),
+  ]);
+  const proposals = await prisma.proposalUsage.count({ where: { userId } });
+  if (proposals === 1) await recordFirst("first_upload", userId);
+  if (proposals === 2) await recordFirst("second_proposal", userId);
+}
+
+/** Upload attempts allowed per account per hour, finished or not. */
+export const UPLOADS_PER_HOUR = 10;
+
+/** Message when the hourly upload rate limit is reached, or null when there is room. */
+export async function uploadRateLimited(userId: string) {
+  const recent = await prisma.rfp.count({
+    where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
   });
-
-  const limit = monthlyRfpLimit[tier];
-
-  return {
-    usedThisMonth,
-    limit,
-    remaining: rfpsRemaining(tier, usedThisMonth),
-  };
+  return recent >= UPLOADS_PER_HOUR
+    ? "You have uploaded a lot of files in the last hour. Please wait a few minutes and try again."
+    : null;
 }

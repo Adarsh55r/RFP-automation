@@ -1,6 +1,9 @@
+import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { completeRfpUpload } from "@/lib/rfps";
+import { officeFileProblem } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { looksLikeRfpFile, RFP_MAX_BYTES } from "@/lib/rfp-upload";
 import { getRfpPublicUrl, getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -21,7 +24,7 @@ async function pendingUpload(context: RouteContext) {
   return { status: 200 as const, user, rfp, folder: `${user.id}/${rfp.id}` };
 }
 
-/** Step 2 of a large upload: confirms the file arrived and is a real PDF/DOCX. */
+/** Step 2 of a large upload: confirms the file arrived and is a real PDF, Word, Excel or CSV file. */
 export async function POST(_request: Request, context: RouteContext) {
   const found = await pendingUpload(context);
   if (found.status !== 200) {
@@ -43,15 +46,19 @@ export async function POST(_request: Request, context: RouteContext) {
     const size = Number((object.metadata as { size?: number } | null)?.size ?? 0);
     const { data: blob } = await bucket.download(path);
     const bytes = blob ? new Uint8Array(await blob.arrayBuffer()) : new Uint8Array();
-    if (size > RFP_MAX_BYTES || bytes.length > RFP_MAX_BYTES || !looksLikeRfpFile(bytes, object.name)) {
+    const invalid =
+      size > RFP_MAX_BYTES || bytes.length > RFP_MAX_BYTES || !looksLikeRfpFile(bytes, object.name)
+        ? "This file is not a valid PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file under 25 MB."
+        : officeFileProblem(bytes, object.name);
+    if (invalid) {
       await bucket.remove([path]);
       await prisma.rfp.delete({ where: { id: rfp.id } });
-      return NextResponse.json({ error: "This file is not a valid PDF or Word (.docx) document under 25 MB." }, { status: 400 });
+      return NextResponse.json({ error: invalid }, { status: 400 });
     }
-    await prisma.rfp.update({ where: { id: rfp.id }, data: { originalFileUrl: getRfpPublicUrl(path) } });
+    await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path), rfp.overageCents);
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
-    console.error("Could not complete a direct upload:", error);
+    console.error("Could not complete a direct upload:", safeErrorSummary(error));
     reportError(error, { area: "upload-complete", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: "Upload failed. Try again in a moment." }, { status: 500 });
   }

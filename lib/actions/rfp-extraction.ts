@@ -8,6 +8,7 @@ import { isRfpDocumentType } from "@/lib/rfp-extract";
 import { editableTextToList } from "@/lib/rfp-extract-form";
 import { deadlineToDate } from "@/lib/rfp-extract";
 import { resetPlanKeepingCover } from "@/lib/rfp-draft";
+import { recordFirst } from "@/lib/funnel";
 
 export type ConfirmExtractionPayload = {
   rfpId: string;
@@ -114,6 +115,8 @@ export async function confirmExtraction(payload: ConfirmExtractionPayload) {
       status: nextStatus,
     },
   });
+
+  await recordFirst("checklist_confirmed", rfp.userId);
 
   revalidatePath(`/dashboard/rfps/${rfp.id}`);
   revalidatePath(`/dashboard/rfps/${rfp.id}/draft`);

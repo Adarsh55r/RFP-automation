@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Award,
@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   Pencil,
   Plus,
+  Upload,
   Trash2,
   Users,
 } from "lucide-react";
@@ -26,6 +27,8 @@ import {
   libraryTypes,
 } from "@/lib/library";
 import type { LibraryItem, LibraryItemType } from "@/lib/generated/prisma";
+import { TEMPLATE_SEGMENTS, templatesFor } from "@/lib/library-templates";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -71,13 +74,53 @@ function serializeItem(item: LibraryItem) {
 
 type LibraryItemView = ReturnType<typeof serializeItem>;
 
-export function LibraryView({ items }: { items: LibraryItem[] }) {
+export function LibraryView({
+  items,
+  initialType = "case_study",
+}: {
+  items: LibraryItem[];
+  initialType?: LibraryItemType;
+}) {
   const router = useRouter();
   const { toast } = useToast();
-  const [activeType, setActiveType] = useState<LibraryItemType>("case_study");
+  const [activeType, setActiveType] = useState<LibraryItemType>(initialType);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const uploadInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+
+  // Past proposals, résumés and certificates usually exist as files already.
+  const uploadDocument = async (file: File) => {
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("type", activeType);
+      const response = await fetch("/api/library/upload", { method: "POST", body: form });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; created?: string[]; skippedForLimits?: number; hiddenRemoved?: number }
+        | null;
+      if (!response.ok || !payload?.created) throw new Error(payload?.error ?? "Upload failed. Try again.");
+      setUploadMessage({
+        tone: "ok",
+        text: [
+          `Added ${payload.created.length === 1 ? `“${payload.created[0]}”` : `${payload.created.length} parts`}. Check the text and remove anything you do not want drafts to reuse.`,
+          payload.skippedForLimits ? `${payload.skippedForLimits} part(s) did not fit your library's limits.` : "",
+          payload.hiddenRemoved ? "Hidden text in the file was left out." : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      router.refresh();
+    } catch (uploadError) {
+      setUploadMessage({ tone: "error", text: uploadError instanceof Error ? uploadError.message : "Upload failed." });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const serialized = useMemo(
     () => items.map(serializeItem),
@@ -254,7 +297,36 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
           <Plus className="h-4 w-4" aria-hidden />
           Add {libraryTypeSingular[activeType].toLowerCase()}
         </Button>
+        <input
+          ref={uploadInput}
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) uploadDocument(file);
+          }}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => uploadInput.current?.click()}
+          disabled={uploading || pending || (activeType === "company_profile" && hasCompanyProfile)}
+          className="w-full gap-2 sm:w-fit"
+          title="Add the text of a PDF or Word file, such as a past proposal or a résumé"
+        >
+          <Upload className="h-4 w-4" aria-hidden />
+          {uploading ? "Reading…" : "Upload a document"}
+        </Button>
       </div>
+
+      {uploadMessage ? (
+        <p role="status" className={uploadMessage.tone === "ok" ? "text-sm text-slate" : "text-sm text-danger"}>
+          {uploadMessage.text}
+        </p>
+      ) : null}
 
       {activeType === "company_profile" && hasCompanyProfile ? (
         <p className="text-sm text-slate">
@@ -358,6 +430,43 @@ export function LibraryView({ items }: { items: LibraryItem[] }) {
               </DialogHeader>
 
               <div className="flex flex-col gap-4">
+                {editor.mode === "create" && templatesFor(editor.type).length > 0 ? (
+                  <label className="flex flex-col gap-2 text-sm font-medium text-ink">
+                    Start from a template (optional)
+                    <Select
+                      value=""
+                      disabled={pending}
+                      onChange={(event) => {
+                        const template = templatesFor(editor.type).find((item) => item.id === event.target.value);
+                        if (!template) return;
+                        if (
+                          (editor.title.trim() || editor.content.trim()) &&
+                          !window.confirm("Replace what you have typed with the template?")
+                        ) {
+                          return;
+                        }
+                        setEditor((current) =>
+                          current ? { ...current, title: template.title, content: template.content } : current,
+                        );
+                      }}
+                    >
+                      <option value="">Choose a template…</option>
+                      {templatesFor(editor.type).map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.segment ? `${TEMPLATE_SEGMENTS[template.segment]}: ` : ""}
+                          {template.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                ) : null}
+                {/\[\[[^\]]+\]\]/.test(editor.content) ? (
+                  <p className="text-xs text-slate">
+                    Replace every [[placeholder]] with your real details. Anything left in brackets shows up as a
+                    gap in drafts.
+                  </p>
+                ) : null}
+
                 <label className="flex flex-col gap-2">
                   <span className="font-sans text-sm font-medium text-ink">
                     Title

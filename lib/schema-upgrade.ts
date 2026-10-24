@@ -3,8 +3,13 @@ import { prisma } from "@/lib/db";
 /**
  * Brings a database created before the US/UK release up to the current
  * schema (migrations 20261015120000_us_uk_market,
- * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits, and
- * 20261018090000_review_prompt), using the app's own DATABASE_URL so it
+ * 20261016090000_proposal_quality, 20261017090000_ai_usage_limits,
+ * 20261018090000_review_prompt, 20261023090000_terms_acceptance,
+ * 20261023100000_proposal_usage, 20261023110000_ai_daily_ceiling,
+ * 20261024090000_pricing_v2, 20261025090000_draft_citations,
+ * 20261025100000_questionnaire_map, 20261025110000_addenda,
+ * 20261025120000_key_details, 20261025130000_bid_outcomes and
+ * 20261025140000_free_tool), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -84,6 +89,117 @@ BEGIN
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "reviewRespondedAt" TIMESTAMP(3);
   ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "reviewResponse" TEXT;
 
+  -- Terms of Service acceptance.
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsVersion" TEXT;
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3);
+
+  -- October 2026 pricing: new plans, grandfathering, one-time access, overage.
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'single_bid';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'pro';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'consultant';
+  ALTER TYPE "SubscriptionTier" ADD VALUE IF NOT EXISTS 'pilot';
+  -- Existing rows get 'legacy' so they keep their original plan terms.
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "planVersion" TEXT NOT NULL DEFAULT 'legacy';
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "billingCycle" TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "accessEndsAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "overageCents" INTEGER;
+
+  -- Daily AI spend ceiling alert.
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "aiDailyAlertDay" TEXT;
+
+  -- Plan usage ledger (survives RFP deletion).
+  CREATE TABLE IF NOT EXISTS "ProposalUsage" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rfpId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ProposalUsage_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "ProposalUsage_userId_createdAt_idx" ON "ProposalUsage"("userId", "createdAt");
+  ALTER TABLE "ProposalUsage" ADD COLUMN IF NOT EXISTS "overageCents" INTEGER;
+  ALTER TABLE "ProposalUsage" ADD COLUMN IF NOT EXISTS "overageBilledAt" TIMESTAMP(3);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProposalUsage_userId_fkey') THEN
+    ALTER TABLE "ProposalUsage" ADD CONSTRAINT "ProposalUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  -- Existing uploads already count against the plan.
+  INSERT INTO "ProposalUsage" ("id", "userId", "rfpId", "createdAt")
+  SELECT 'pu_' || r."id", r."userId", r."id", r."createdAt"
+  FROM "Rfp" r
+  WHERE r."originalFileUrl" IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM "ProposalUsage" p WHERE p."rfpId" = r."id");
+
+  -- Per-claim citations on drafted sections.
+  ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "citations" JSONB;
+
+  -- Spreadsheet questionnaire column mapping.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "questionnaireMap" JSONB;
+
+  -- Funnel analytics (own database) and segment attribution.
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "signupSegment" TEXT;
+  ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "industry" TEXT;
+  CREATE TABLE IF NOT EXISTS "FunnelEvent" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "userId" TEXT,
+    "segment" TEXT,
+    "path" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "FunnelEvent_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "FunnelEvent_event_createdAt_idx" ON "FunnelEvent"("event", "createdAt");
+  CREATE INDEX IF NOT EXISTS "FunnelEvent_userId_event_idx" ON "FunnelEvent"("userId", "event");
+
+  -- Free checklist tool: rate-limit records (hashed IPs only) and opted-in leads.
+  CREATE TABLE IF NOT EXISTS "ToolUsage" (
+    "id" TEXT NOT NULL,
+    "tool" TEXT NOT NULL,
+    "ipHash" TEXT NOT NULL,
+    "costMicros" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ToolUsage_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "ToolUsage_tool_createdAt_idx" ON "ToolUsage"("tool", "createdAt");
+  CREATE INDEX IF NOT EXISTS "ToolUsage_ipHash_createdAt_idx" ON "ToolUsage"("ipHash", "createdAt");
+  CREATE TABLE IF NOT EXISTS "Lead" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "segment" TEXT,
+    "consentAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Lead_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "Lead_email_idx" ON "Lead"("email");
+
+  -- Bid outcome tracking.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcome" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcomeAt" TIMESTAMP(3);
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "contractValueCents" INTEGER;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "contractCurrency" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "outcomeNotes" TEXT;
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "hoursSaved" DOUBLE PRECISION;
+
+  -- Key details with verified page references.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "extractedDetails" JSONB;
+
+  -- Addenda: extra files per bid, and what re-reading them changed.
+  ALTER TABLE "Rfp" ADD COLUMN IF NOT EXISTS "extractionChanges" JSONB;
+  CREATE TABLE IF NOT EXISTS "RfpFile" (
+    "id" TEXT NOT NULL,
+    "rfpId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'addendum',
+    "fileName" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "includedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "RfpFile_pkey" PRIMARY KEY ("id")
+  );
+  CREATE INDEX IF NOT EXISTS "RfpFile_rfpId_idx" ON "RfpFile"("rfpId");
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RfpFile_rfpId_fkey') THEN
+    ALTER TABLE "RfpFile" ADD CONSTRAINT "RfpFile_rfpId_fkey" FOREIGN KEY ("rfpId") REFERENCES "Rfp"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -93,7 +209,18 @@ BEGIN
       ('20261015120000_us_uk_market', '6309163e29f44cdb05ae7758576caefed729f1d7ee1347ae094b7ebb7b06c371'),
       ('20261016090000_proposal_quality', '6e82dcd09d60e036fe723f1c6ef5a0e598abc472485b6beede362d55eadc4ab4'),
       ('20261017090000_ai_usage_limits', '291108a67b31cfa6b1eed95c210e49c5fe9164c48cca825ff4c69c8498ec0141'),
-      ('20261018090000_review_prompt', '8cfa77ef427e04d3b6ecc19e893857ac8a34aea642cbfaee84a4c2c5305bb8e0')
+      ('20261018090000_review_prompt', '8cfa77ef427e04d3b6ecc19e893857ac8a34aea642cbfaee84a4c2c5305bb8e0'),
+      ('20261023090000_terms_acceptance', '2eaa6834d9350e4e7d9a35e34a0aac65443c27ec60ce5357f9b67fe1f79745a3'),
+      ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
+      ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
+      ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261025150000_funnel_events', 'd3c17b1f73a2da9fc71a8b87904678f2a84f0079ce921b61bebf1b97920256d6'),
+      ('20261025140000_free_tool', 'c9b93e096b9152ec00202fc106a30d88d24bfaeb1188910c51d17d53e479a446'),
+      ('20261025130000_bid_outcomes', '3153d823c3393f20d0ac68c3d35b067f2d57610167289b98876afbfb8e78d024'),
+      ('20261025120000_key_details', '0197716203261ec688e17926b6a71ddfb0f9093019de5ed5c9a85a44c328a44f'),
+      ('20261025110000_addenda', 'bd7421ae9a5a21457dbeb1c5a79b707d283e3cd765dd3965a2cf896c37543ea6'),
+      ('20261025100000_questionnaire_map', '475732645a35588d44d91139e235d9f8513b8e987de9e859a88d5dfe36564b7e'),
+      ('20261025090000_draft_citations', 'd6d6b59e60b37818eb6e83be5d983cbcef0dd7e9f5390b3d2ac3cf1c2198ce61')
     ) AS m(name, checksum)
     WHERE NOT EXISTS (
       SELECT 1 FROM "_prisma_migrations" p
@@ -131,7 +258,40 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'reviewResponse'
-  ) AS "needsUpgrade"
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'termsVersion'
+  )
+  OR to_regclass('"ProposalUsage"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'aiDailyAlertDay'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'ProposalUsage' AND column_name = 'overageCents'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Draft' AND column_name = 'citations'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'questionnaireMap'
+  )
+  OR to_regclass('"RfpFile"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'extractedDetails'
+  )
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Rfp' AND column_name = 'hoursSaved'
+  )
+  OR to_regclass('"ToolUsage"') IS NULL
+  OR to_regclass('"Lead"') IS NULL
+  OR to_regclass('"FunnelEvent"') IS NULL AS "needsUpgrade"
 `;
 
 export { NEEDS_UPGRADE_SQL, UPGRADE_SQL };

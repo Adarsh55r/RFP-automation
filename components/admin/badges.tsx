@@ -3,12 +3,25 @@ import { cn } from "@/lib/cn";
 
 export const PLAN_COLORS: Record<string, string> = {
   free: "#3987e5",
+  single_bid: "#8b6be8",
   starter: "#d95926",
+  pro: "#e0457b",
+  consultant: "#2fb5c9",
+  pilot: "#9aa64b",
   growth: "#199e70",
   agency: "#c98500",
 };
 
-const PLAN_LABELS: Record<string, string> = { free: "Free", starter: "Starter", growth: "Growth", agency: "Team" };
+const PLAN_LABELS: Record<string, string> = {
+  free: "Free",
+  single_bid: "Single bid",
+  starter: "Starter",
+  pro: "Pro",
+  consultant: "Consultant",
+  pilot: "Pilot",
+  growth: "Growth",
+  agency: "Team",
+};
 
 export function PlanBadge({ tier, className }: { tier: string; className?: string }) {
   const color = PLAN_COLORS[tier] ?? "#6b778a";

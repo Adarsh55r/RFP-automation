@@ -1,36 +1,41 @@
 import { Card } from "@/components/ui/card";
 
-type StatCardsProps = {
-  rfpsThisMonth: number;
-  rfpsRemaining: number | null;
-  rfpsLimit: number | null;
-  draftsInProgress: number;
+export type AllowanceSummary = {
+  planName: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  periodLabel: string;
+  overagePriceUsd: number | null;
+  accessEnded: boolean;
 };
 
 export function StatCards({
-  rfpsThisMonth,
-  rfpsRemaining,
-  rfpsLimit,
+  allowance,
   draftsInProgress,
-}: StatCardsProps) {
-  const remainingLabel =
-    rfpsRemaining === null
-      ? "Unlimited"
-      : `${rfpsRemaining} of ${rfpsLimit ?? "—"}`;
+}: {
+  allowance: AllowanceSummary;
+  draftsInProgress: number;
+}) {
+  const { planName, used, limit, remaining, periodLabel, overagePriceUsd, accessEnded } = allowance;
+  const remainingHint = accessEnded
+    ? "Your pass has ended"
+    : remaining === 0 && overagePriceUsd !== null
+      ? `Extra proposals are $${overagePriceUsd} each, after you confirm`
+      : periodLabel === "this month"
+        ? "Resets on the 1st of each month (UTC)"
+        : `Included ${periodLabel}`;
 
   const stats = [
     {
-      label: "RFPs this month",
-      value: String(rfpsThisMonth),
-      hint: "Uploaded in the current billing month",
+      label: `Proposals used ${periodLabel}`,
+      value: String(used),
+      hint: `${planName} plan`,
     },
     {
-      label: "RFPs remaining on plan",
-      value: remainingLabel,
-      hint:
-        rfpsRemaining === null
-          ? "Team plan — no monthly cap"
-          : "Resets on the 1st of each month",
+      label: "Proposals left",
+      value: remaining === null ? "No limit" : `${remaining} of ${limit}`,
+      hint: remainingHint,
     },
     {
       label: "Drafts in progress",

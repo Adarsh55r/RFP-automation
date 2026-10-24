@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { LibraryView } from "@/components/dashboard/library-view";
+import { WebsiteImportCard } from "@/components/dashboard/website-import-card";
+import { isLibraryItemType } from "@/lib/library";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { getLibraryItemsForClerkUser } from "@/lib/library-data";
 
@@ -10,7 +12,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { type } = await searchParams;
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     redirect("/sign-in");
@@ -40,7 +47,9 @@ export default async function LibraryPage() {
         </p>
       </header>
 
-      <LibraryView items={items} />
+      {items.length < 3 ? <WebsiteImportCard /> : null}
+
+      <LibraryView items={items} initialType={type && isLibraryItemType(type) ? type : undefined} />
     </div>
   );
 }

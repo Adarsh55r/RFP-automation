@@ -1,0 +1,92 @@
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/db";
+import { TERMS_VERSION } from "@/lib/legal";
+import { CURRENT_PLAN_VERSION } from "@/lib/plans";
+import type { OnboardingPayload } from "@/lib/onboarding";
+import { teamSizeOptions } from "@/lib/onboarding";
+import { recordEvent } from "@/lib/funnel";
+import { isAttributionSource, isIndustry } from "@/lib/funnel-sources";
+import { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prisma";
+
+function isTeamSize(
+  value: string,
+): value is (typeof teamSizeOptions)[number]["value"] {
+  return teamSizeOptions.some((option) => option.value === value);
+}
+
+/**
+ * Creates or updates the user's workspace. `acceptedTerms` is true only when
+ * the user ticked the box in this request; when the onboarding page repairs a
+ * missing workspace it passes false, and the dashboard then asks for acceptance.
+ */
+export async function saveOnboarding(
+  payload: Omit<OnboardingPayload, "acceptTerms">,
+  acceptedTerms: boolean,
+) {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
+    return { ok: false as const, error: "You must be signed in." };
+  }
+
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    return { ok: false as const, error: "Could not load your Clerk account." };
+  }
+
+  const agencyName = payload.agencyName.trim();
+  if (agencyName.length < 2) {
+    return { ok: false as const, error: "Enter a valid company name." };
+  }
+
+  if (!isTeamSize(payload.teamSize)) {
+    return { ok: false as const, error: "Pick a valid team size." };
+  }
+
+  const acceptance = acceptedTerms
+    ? { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() }
+    : {};
+
+  const email =
+    clerkUser.primaryEmailAddress?.emailAddress ??
+    clerkUser.emailAddresses[0]?.emailAddress;
+
+  if (!email) {
+    return { ok: false as const, error: "Your account needs an email address." };
+  }
+
+  const industry = isIndustry(payload.industry) ? payload.industry : undefined;
+  const existed = Boolean(await prisma.user.findUnique({ where: { clerkId }, select: { id: true } }));
+
+  const user = await prisma.user.upsert({
+    where: { clerkId },
+    create: {
+      clerkId,
+      email,
+      agencyName,
+      teamSize: payload.teamSize,
+      ...acceptance,
+      industry,
+      signupSegment: isAttributionSource(payload.segment) ? payload.segment : null,
+      subscription: {
+        create: {
+          tier: SubscriptionTier.free,
+          status: SubscriptionStatus.active,
+          // New accounts are on the current pricing (a one-proposal free trial).
+          planVersion: CURRENT_PLAN_VERSION,
+        },
+      },
+    },
+    update: {
+      email,
+      agencyName,
+      teamSize: payload.teamSize,
+      ...acceptance,
+      ...(industry ? { industry } : {}),
+    },
+  });
+  if (!existed) {
+    await recordEvent("complete_signup", { userId: user.id, segment: user.signupSegment });
+  }
+
+  return { ok: true as const, userId: user.id };
+}

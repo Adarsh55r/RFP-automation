@@ -1,18 +1,8 @@
 export type RfpId = string;
 
-export type PlanId = "free" | "starter" | "growth" | "agency";
+/** Same values as the SubscriptionTier enum in prisma/schema.prisma. */
+export type PlanId = "free" | "starter" | "growth" | "agency" | "single_bid" | "pro" | "consultant" | "pilot";
 
 export type BillingCycle = "monthly" | "annual";
 
 export type Currency = "usd" | "gbp";
-
-export type Plan = {
-  id: PlanId;
-  name: string;
-  /** Monthly list price per currency. */
-  monthly: Record<Currency, number>;
-  summary: string;
-  features: string[];
-  ctaLabel: string;
-  highlighted?: boolean;
-};

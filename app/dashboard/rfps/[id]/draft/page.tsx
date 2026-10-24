@@ -18,6 +18,11 @@ import {
 } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 import { credentialsIn } from "@/lib/claim-checks";
+import { parseQuestionnaireMap } from "@/lib/spreadsheet";
+import { DraftStrengthCard } from "@/components/dashboard/draft-strength-card";
+import { storedKeyDetails } from "@/lib/key-details";
+import { draftStrength } from "@/lib/library-readiness";
+import { pageLimitFrom } from "@/lib/page-limit";
 
 type DraftPageProps = {
   params: Promise<{ id: string }>;
@@ -65,7 +70,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
       where: { rfpId: rfp.id },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.libraryItem.findMany({ where: { userId: user.id }, select: { title: true, content: true } }),
+    prisma.libraryItem.findMany({ where: { userId: user.id }, select: { type: true, title: true, content: true } }),
   ]);
   // Credentials the bidder's own library mentions; anything else a draft claims gets flagged.
   const supportedCredentials = credentialsIn(library.map((item) => `${item.title}\n${item.content}`).join("\n"));
@@ -117,6 +122,16 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         </div>
       </header>
 
+      <DraftStrengthCard
+        strength={draftStrength(library, {
+          requirementsText: [rfp.extractedEligibility, rfp.extractedDesirable, rfp.extractedSubmission, rfp.extractedEvaluationCriteria]
+            .flatMap((list) => (Array.isArray(list) ? list : []))
+            .join("\n"),
+          keyDetails: storedKeyDetails(rfp.extractedDetails),
+          questionCount: Array.isArray(rfp.extractedQuestionnaire) ? rfp.extractedQuestionnaire.length : 0,
+        })}
+      />
+
       <RfpDraftView
         rfpId={rfp.id}
         rfpTitle={rfp.title}
@@ -127,6 +142,8 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         cover={cover}
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
         supportedCredentials={supportedCredentials}
+        spreadsheet={parseQuestionnaireMap(rfp.questionnaireMap)?.format ?? null}
+        pageLimit={pageLimitFrom(storedKeyDetails(rfp.extractedDetails), rfp.extractedSubmission)}
         allowance={{
           fullDrafts: { used: rfp.fullDraftCount, limit: limits.full_draft },
           revisions: { used: rfp.revisionCount, limit: limits.revision },

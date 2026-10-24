@@ -1,4 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { canonicalRedirect } from "@/lib/canonical-host";
+import { SITE_URL } from "@/lib/site";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -7,6 +10,16 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const redirect = canonicalRedirect(
+    req.nextUrl,
+    req.headers.get("host"),
+    SITE_URL,
+    process.env.CANONICAL_HOST_REDIRECT === "1",
+  );
+  if (redirect) {
+    return NextResponse.redirect(redirect, 308);
+  }
+
   if (isProtectedRoute(req)) {
     await auth.protect();
   }

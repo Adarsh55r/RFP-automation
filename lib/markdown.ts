@@ -14,6 +14,8 @@ export type InlineRun = {
   strike?: boolean;
   /** `[[Confirm: …]]`-style gap the bidder still has to fill in. */
   placeholder?: boolean;
+  /** `[S3, S7]` citation marker: the library passage IDs a claim came from. */
+  citation?: string[];
 };
 
 export type TableAlign = "left" | "center" | "right" | null;
@@ -92,19 +94,28 @@ export function normalizeMarkdown(markdown: string) {
   return out.join("\n");
 }
 
+/** Citation markers from lib/citations.ts, matched here too so every renderer agrees. */
+const CITATION_MARKER = /\[(S\d+(?:\s*,\s*S\d+)*)\]/g;
+const INLINE_MARKERS = new RegExp(`${PLACEHOLDER_PATTERN.source}|${CITATION_MARKER.source}`, "g");
+
 function splitPlaceholders(run: InlineRun): InlineRun[] {
   if (run.code || !run.text.includes("[")) {
     return [run];
   }
   const parts: InlineRun[] = [];
   let last = 0;
-  for (const match of run.text.matchAll(PLACEHOLDER_PATTERN)) {
+  for (const match of run.text.matchAll(INLINE_MARKERS)) {
     const at = match.index ?? 0;
     if (at > last) {
       parts.push({ ...run, text: run.text.slice(last, at) });
     }
-    const inner = match[0].replace(/^\[\[?|\]\]?$/g, "").trim();
-    parts.push({ ...run, text: `[${inner}]`, placeholder: true });
+    if (match[1]) {
+      const ids = match[1].split(",").map((id) => id.trim());
+      parts.push({ ...run, text: `[${ids.join(", ")}]`, citation: ids });
+    } else {
+      const inner = match[0].replace(/^\[\[?|\]\]?$/g, "").trim();
+      parts.push({ ...run, text: `[${inner}]`, placeholder: true });
+    }
     last = at + match[0].length;
   }
   if (last < run.text.length) {
@@ -189,7 +200,9 @@ function sameStyle(a: InlineRun, b: InlineRun) {
     Boolean(a.code) === Boolean(b.code) &&
     Boolean(a.strike) === Boolean(b.strike) &&
     !a.placeholder &&
-    !b.placeholder
+    !b.placeholder &&
+    !a.citation &&
+    !b.citation
   );
 }
 
@@ -341,4 +354,31 @@ export function columnWeights(header: InlineRun[][], rows: InlineRun[][][]) {
   }
   const total = weights.reduce((sum, value) => sum + value, 0);
   return weights.map((value) => value / total);
+}
+
+function blocksToPlainText(blocks: MdBlock[]): string[] {
+  return blocks.flatMap((block): string[] => {
+    switch (block.type) {
+      case "heading":
+      case "paragraph":
+        return [runsToPlainText(block.runs)];
+      case "list":
+        return block.items.map(
+          (item, index) => `${block.ordered ? `${block.start + index}.` : "•"} ${blocksToPlainText(item).join(" ")}`,
+        );
+      case "table":
+        return [block.header, ...block.rows].map((row) => row.map((cell) => runsToPlainText(cell)).join(" | "));
+      case "quote":
+        return blocksToPlainText(block.blocks);
+      case "code":
+        return [block.text];
+      default:
+        return [];
+    }
+  });
+}
+
+/** Markdown as plain text (for spreadsheet cells): one line per paragraph, list item or table row. */
+export function markdownToPlainText(markdown: string) {
+  return blocksToPlainText(parseMarkdown(markdown)).filter((line) => line.trim()).join("\n");
 }

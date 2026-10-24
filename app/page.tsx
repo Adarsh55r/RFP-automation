@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import {
   ClosingCta,
-  FeatureGrid,
   HashScroll,
   Hero,
+  HowItCompares,
   HowItWorks,
-  PositioningStrip,
+  Pillars,
   PricingTeaser,
+  SampleGallery,
   SiteFooter,
   SiteHeader,
+  Testimonials,
+  WhoItsFor,
 } from "@/components/marketing";
 import { JsonLd } from "@/components/seo/json-ld";
 import { homeStructuredData } from "@/lib/structured-data";
+import { FunnelBeacon } from "@/components/marketing/funnel-beacon";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -22,12 +26,16 @@ export default function Home() {
     <>
       <JsonLd data={homeStructuredData()} />
       <HashScroll />
+      <FunnelBeacon />
       <SiteHeader />
       <main id="main-content">
         <Hero />
-        <PositioningStrip />
+        <Pillars />
+        <WhoItsFor />
         <HowItWorks />
-        <FeatureGrid />
+        <HowItCompares />
+        <SampleGallery />
+        <Testimonials />
         <PricingTeaser />
         <ClosingCta />
       </main>

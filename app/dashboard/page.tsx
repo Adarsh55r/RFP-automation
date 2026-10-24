@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Inbox } from "lucide-react";
 import { RecentRfps } from "@/components/dashboard/recent-rfps";
+import { SetupChecklist } from "@/components/dashboard/setup-checklist";
+import { OutcomesSummary } from "@/components/dashboard/outcomes-summary";
 import { StatCards } from "@/components/dashboard/stat-cards";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,12 +42,11 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      <StatCards
-        rfpsThisMonth={data.stats.rfpsThisMonth}
-        rfpsRemaining={data.stats.rfpsRemaining}
-        rfpsLimit={data.stats.rfpsLimit}
-        draftsInProgress={data.stats.draftsInProgress}
-      />
+      <SetupChecklist steps={data.setup} />
+
+      <StatCards allowance={data.allowance} draftsInProgress={data.draftsInProgress} />
+
+      <OutcomesSummary summary={data.outcomes} />
 
       {data.recentRfps.length > 0 ? (
         <RecentRfps rfps={data.recentRfps} />
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
         <EmptyState
           icon={Inbox}
           headline="Upload your first RFP"
-          description="Drop in any RFP, tender, or security questionnaire (PDF or Word). DraftBid AI pulls out every requirement for you to check, then drafts your proposal in minutes."
+          description="Drop in any RFP, tender, or questionnaire (PDF, Word, Excel or CSV). DraftBid AI pulls out every requirement for you to check, then drafts your proposal in minutes."
           action={
             <Button asChild>
               <Link href="/dashboard/rfps/new">Upload your first RFP</Link>

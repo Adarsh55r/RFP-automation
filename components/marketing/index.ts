@@ -11,3 +11,6 @@ export { Section } from "./section";
 export { SiteFooter } from "./site-footer";
 export { SiteHeader } from "./site-header";
 export { ClosingCta } from "./closing-cta";
+export { Pillars } from "./pillars";
+export { WhoItsFor } from "./who-its-for";
+export { HowItCompares, SampleGallery, Testimonials } from "./proof-sections";

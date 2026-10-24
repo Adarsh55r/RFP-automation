@@ -1,0 +1,10 @@
+{
+  "rfp": "example.pdf",
+  "segment": "it-services",
+  "sector": "public",
+  "source": "Format example only: ignored by the runner. Replace with real public RFPs and gold lists.",
+  "requirements": [
+    { "text": "Submission deadline with date, time and time zone as written in the RFP", "mandatory": true },
+    { "text": "A desirable requirement as written in the RFP", "mandatory": false }
+  ]
+}

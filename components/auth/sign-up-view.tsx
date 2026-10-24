@@ -12,7 +12,7 @@ import {
   INTENDED_PLAN_COOKIE,
   INTENDED_PLAN_COOKIE_MAX_AGE,
 } from "@/lib/intended-plan";
-import { plans } from "@/lib/plans";
+import { isSellablePlan, PLANS } from "@/lib/plans";
 import type { PlanId } from "@/types";
 
 function persistIntendedPlan(planId: PlanId) {
@@ -24,17 +24,17 @@ function persistIntendedPlan(planId: PlanId) {
   }
 }
 
-export function SignUpView({ planId }: { planId?: PlanId }) {
+export function SignUpView({ planId, segment }: { planId?: PlanId; segment?: string }) {
   useEffect(() => {
     if (planId) persistIntendedPlan(planId);
   }, [planId]);
 
-  const plan = plans.find((item) => item.id === planId);
+  const plan = planId && isSellablePlan(planId) ? PLANS[planId] : undefined;
 
   return (
     <AuthShell
-      title="Start winning more RFPs"
-      subtitle="Create your free account — your first draft is minutes away. No credit card needed."
+      title="Create your free account"
+      subtitle="Upload an RFP, check the requirements, and get a first draft written from your own documents. No credit card needed."
       footer={
         <p>
           Already have an account?{" "}
@@ -70,8 +70,21 @@ export function SignUpView({ planId }: { planId?: PlanId }) {
         fallbackRedirectUrl="/onboarding"
         unsafeMetadata={{
           intendedPlan: planId ?? null,
+          // Which landing page or campaign the sign-up came from (funnel report).
+          seg: segment ?? null,
         }}
       />
+      <p className="mt-4 text-xs leading-relaxed text-slate">
+        Next, you will be asked to accept our{" "}
+        <Link href="/terms" className={cn(textLink, "font-semibold")}>
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className={cn(textLink, "font-semibold")}>
+          Privacy Policy
+        </Link>{" "}
+        before you can upload anything.
+      </p>
     </AuthShell>
   );
 }

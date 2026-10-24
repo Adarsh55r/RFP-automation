@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { DeleteRfpButton } from "@/components/dashboard/delete-rfp-button";
 import { RfpExtractionPanel } from "@/components/dashboard/rfp-extraction-panel";
+import { SpreadsheetColumnsCard } from "@/components/dashboard/spreadsheet-columns-card";
+import { AddendaCard } from "@/components/dashboard/addenda-card";
+import { BidOutcomeCard } from "@/components/dashboard/bid-outcome-card";
+import { KeyDetailsCard } from "@/components/dashboard/key-details-card";
+import { storedKeyDetails } from "@/lib/key-details";
+import { prisma } from "@/lib/db";
+import { parseExtractionChanges } from "@/lib/requirement-diff";
 import { proposalAllowance } from "@/lib/ai-guard";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -11,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import { rfpStatusLabel, rfpStatusVariant } from "@/lib/rfp-status";
 import { getRfpForUser } from "@/lib/rfps";
+import { parseQuestionnaireMap } from "@/lib/spreadsheet";
 import {
   isRfpDocumentType,
   rfpDocumentTypeLabel,
@@ -55,6 +64,9 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
   if (!rfp) {
     notFound();
   }
+  const sheetMap = parseQuestionnaireMap(rfp.questionnaireMap);
+  const keyDetails = storedKeyDetails(rfp.extractedDetails);
+  const addenda = await prisma.rfpFile.findMany({ where: { rfpId: rfp.id }, orderBy: { createdAt: "asc" } });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
@@ -112,6 +124,9 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         ) : (
           <p className="mt-2 text-sm text-slate">File URL not available.</p>
         )}
+        <div className="mt-4 border-t border-border pt-4">
+          <DeleteRfpButton rfpId={rfp.id} title={rfp.title} />
+        </div>
       </Card>
 
       <RfpExtractionPanel
@@ -132,6 +147,55 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
         }}
         extractLimit={proposalAllowance(user.subscription?.tier ?? "free").extract}
       />
+
+      {keyDetails.length > 0 && rfp.status !== "extracting" ? (
+        <KeyDetailsCard rfpId={rfp.id} details={keyDetails} />
+      ) : null}
+
+      {rfp.originalFileUrl && rfp.status !== "extracting" ? (
+        <AddendaCard
+          rfpId={rfp.id}
+          files={addenda.map((file) => ({
+            id: file.id,
+            fileName: file.fileName,
+            createdAt: file.createdAt.toISOString(),
+            included: Boolean(file.includedAt),
+          }))}
+          changes={parseExtractionChanges(rfp.extractionChanges)}
+          extracted={Boolean(rfp.extractedDocumentType)}
+        />
+      ) : null}
+
+      {rfp.status === "drafted" || rfp.status === "exported" || rfp.submittedAt || rfp.outcome ? (
+        <BidOutcomeCard
+          rfpId={rfp.id}
+          initial={{
+            submittedAt: rfp.submittedAt ? rfp.submittedAt.toISOString().slice(0, 10) : "",
+            outcome: rfp.outcome ?? "",
+            contractValue: rfp.contractValueCents !== null ? String(rfp.contractValueCents / 100) : "",
+            contractCurrency: rfp.contractCurrency ?? "USD",
+            notes: rfp.outcomeNotes ?? "",
+            hoursSaved: rfp.hoursSaved !== null ? String(rfp.hoursSaved) : "",
+          }}
+        />
+      ) : null}
+
+      {sheetMap && rfp.status !== "extracting" ? (
+        <SpreadsheetColumnsCard
+          key={`${sheetMap.sheet}-${sheetMap.questionColumn}-${sheetMap.answerColumn}-${sheetMap.rows.length}`}
+          rfpId={rfp.id}
+          columns={{
+            format: sheetMap.format,
+            sheet: sheetMap.sheet,
+            headerRow: sheetMap.headerRow,
+            questionColumn: sheetMap.questionColumn,
+            answerColumn: sheetMap.answerColumn,
+            idColumn: sheetMap.idColumn,
+            questionCount: sheetMap.rows.length,
+            sheets: sheetMap.sheets ?? [],
+          }}
+        />
+      ) : null}
     </div>
   );
 }

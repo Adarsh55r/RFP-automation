@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/lib/generated/prisma";
+import { PrismaClient, type SubscriptionTier } from "@/lib/generated/prisma";
 
 export const hasTestDb = Boolean(process.env.TEST_DATABASE_URL);
 
@@ -8,11 +8,11 @@ export function testDb() {
 
 export async function resetDb() {
   await testDb().$executeRawUnsafe(
-    `TRUNCATE "AiUsage", "Draft", "LibraryItem", "Rfp", "Subscription", "User" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "AiUsage", "Draft", "LibraryItem", "Rfp", "Subscription", "User", "ToolUsage", "Lead", "FunnelEvent" RESTART IDENTITY CASCADE`,
   );
 }
 
-export async function createUser(clerkId: string, tier: "free" | "starter" | "growth" | "agency" = "starter") {
+export async function createUser(clerkId: string, tier: SubscriptionTier = "starter") {
   return testDb().user.create({
     data: {
       clerkId,

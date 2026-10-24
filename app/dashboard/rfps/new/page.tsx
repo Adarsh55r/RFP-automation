@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PlanLimitNotice } from "@/components/dashboard/plan-limit-notice";
 import { RfpUploadZone } from "@/components/dashboard/rfp-upload-zone";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { requireDashboardUser } from "@/lib/dashboard";
-import { getRfpUploadQuota } from "@/lib/rfps";
+import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
 
 export const metadata: Metadata = {
   title: "Upload RFP",
@@ -18,10 +16,11 @@ export default async function NewRfpPage() {
     redirect("/onboarding");
   }
 
-  const tier = user.subscription?.tier ?? "free";
-  const quota = await getRfpUploadQuota(user.id, tier);
-
-  const atLimit = quota.remaining === 0;
+  const allowance = await getProposalAllowance(user.id, user.subscription);
+  const decision = decideUpload(allowance);
+  // A hard stop (no pay-per-proposal option) replaces the upload box; an
+  // overage plan keeps it and asks for confirmation after the file is chosen.
+  const blocked = !decision.ok && decision.status === 403;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
@@ -33,37 +32,26 @@ export default async function NewRfpPage() {
           Upload an RFP
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
-          Add any RFP, tender, or security questionnaire in PDF or Word.
-          Next, DraftBid AI pulls out every requirement for you to check before
+          Add an RFP, tender or questionnaire as a PDF or Word file. Next,
+          DraftBid AI lists the requirements it finds for you to check before
           drafting.
         </p>
       </header>
 
-      {atLimit ? (
-        <Card className="flex flex-col gap-4">
-          <h2 className="font-sans text-lg font-semibold text-ink">
-            Monthly limit reached
-          </h2>
-          <p className="text-sm leading-relaxed text-slate">
-            You have used all {quota.limit} RFP uploads on your current plan
-            this month. Upgrade to add more capacity.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href="/dashboard/billing">View plans</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/dashboard">Back to dashboard</Link>
-            </Button>
-          </div>
-        </Card>
+      {blocked && !decision.ok ? (
+        <PlanLimitNotice
+          title={allowance.accessEnded ? "Your pass has ended" : "Proposal limit reached"}
+          message={decision.error}
+        />
       ) : (
         <>
           <RfpUploadZone />
           <p className="font-mono text-xs tracking-wide text-slate">
-            {quota.remaining === null
-              ? "Unlimited uploads on your plan."
-              : `${quota.remaining} of ${quota.limit} uploads remaining this month.`}
+            {allowance.remaining === null
+              ? `No proposal limit on your ${allowance.plan.name} plan.`
+              : allowance.remaining > 0
+                ? `${allowance.remaining} of ${allowance.limit} proposals left ${allowance.periodLabel}.`
+                : `You have used the ${allowance.limit} proposals included ${allowance.periodLabel}. Extra proposals are $${allowance.overagePriceUsd} each, after you confirm.`}
           </p>
         </>
       )}

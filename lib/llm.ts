@@ -445,3 +445,89 @@ export async function* streamLlmText(request: LlmTextRequest) {
   }
   yield* streamTextWithGemini(request);
 }
+
+export type LlmDocumentRequest = {
+  /** A short PDF (a few pages) for the model to read as images and text. */
+  pdf: Uint8Array;
+  system: string;
+  user: string;
+  maxTokens: number;
+  onUsage?: (usage: LlmUsage) => void;
+};
+
+/**
+ * Sends a PDF to the configured provider as a document (used to read scanned
+ * pages). Same provider and data flow as extraction, so no new subprocessor.
+ */
+export async function generateTextFromPdf(request: LlmDocumentRequest) {
+  const provider = getLlmProvider();
+  const base64 = Buffer.from(request.pdf).toString("base64");
+  const meta: LlmTextRequest = { ...request, purpose: "extraction" };
+
+  if (provider === "openai") {
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: modelFor("extraction", "openai"),
+      max_completion_tokens: Math.min(request.maxTokens, OPENAI_MAX_OUTPUT_TOKENS),
+      messages: [
+        { role: "system", content: request.system },
+        {
+          role: "user",
+          content: [
+            { type: "file", file: { filename: "pages.pdf", file_data: `data:application/pdf;base64,${base64}` } },
+            { type: "text", text: request.user },
+          ],
+        },
+      ],
+    });
+    reportUsage(meta, "openai", completion.usage && {
+      input: completion.usage.prompt_tokens,
+      cached: completion.usage.prompt_tokens_details?.cached_tokens,
+      output: completion.usage.completion_tokens,
+    });
+    const choice = completion.choices[0];
+    if (choice?.message?.refusal) throw new Error("The AI model declined to read this document.");
+    const text = choice?.message?.content ?? "";
+    return choice?.finish_reason === "length" ? text + TRUNCATION_MARKER : text;
+  }
+
+  if (provider === "anthropic") {
+    const message = await getAnthropicClient().beta.messages.create({
+      model: modelFor("extraction", "anthropic"),
+      max_tokens: request.maxTokens,
+      system: request.system,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+            { type: "text", text: request.user },
+          ],
+        },
+      ],
+    });
+    reportUsage(meta, "anthropic", anthropicUsage(message));
+    assertNotRefused(message);
+    const text = message.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("");
+    return message.stop_reason === "max_tokens" ? text + TRUNCATION_MARKER : text;
+  }
+
+  const model = getGeminiClient().getGenerativeModel({
+    model: modelFor("extraction", "gemini"),
+    systemInstruction: request.system,
+  });
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [{ inlineData: { mimeType: "application/pdf", data: base64 } }, { text: request.user }],
+      },
+    ],
+    generationConfig: { maxOutputTokens: request.maxTokens },
+  });
+  reportUsage(meta, "gemini", geminiUsage(result.response.usageMetadata as GeminiUsageMetadata | undefined));
+  const text = result.response.text();
+  return result.response.candidates?.[0]?.finishReason === "MAX_TOKENS" ? text + TRUNCATION_MARKER : text;
+}

@@ -75,7 +75,7 @@ function CleanProposal() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-[10px] tracking-wide text-slate">
-              CITY OF MAPLE GROVE
+              CITY OF EXAMPLE
             </p>
             <p className="mt-1 font-mono text-[10px] tracking-wide text-slate">
               RFP 2026-IT-041
@@ -87,12 +87,12 @@ function CleanProposal() {
           Technical &amp; commercial proposal
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-slate">
-          Managed IT &amp; cloud migration · 3 years · Minnesota / remote
+          Managed IT &amp; cloud migration · 3 years · Illustrative example
         </p>
         <ul className="mt-4 space-y-2">
           {[
             "Understanding of scope",
-            "Every mandatory item answered",
+            "Mandatory items checked",
             "Three past-performance references",
             "Cost proposal in the required format",
           ].map((item) => (
@@ -113,7 +113,7 @@ function CleanProposal() {
           <div className="mb-4 h-2 overflow-hidden rounded-control bg-border">
             <div className="h-full w-[92%] bg-brand" />
           </div>
-          <Badge variant="accent">Ready to send</Badge>
+          <Badge variant="accent">Ready for your review</Badge>
         </div>
       </div>
     </div>
