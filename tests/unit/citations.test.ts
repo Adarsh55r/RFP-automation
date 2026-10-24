@@ -140,6 +140,7 @@ describe("citation markers in documents", () => {
       unsupported: ["a"],
       figures: [],
       overclaims: [],
+      misstated: [],
       dismissed: [],
     });
   });

@@ -287,6 +287,38 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     expect(kept.ok && kept.citations.figures).toEqual([]);
   });
 
+  it("fact-checks cited sentences against their sources and lists the ones that do not match", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    const { FACT_CHECK_SYSTEM } = await import("@/lib/fact-check");
+    llm.script.json = (req) =>
+      req.system === FACT_CHECK_SYSTEM
+        ? JSON.stringify({ results: [{ n: 1, verdict: "distorted", issue: "The source says 6 dental offices, not 12." }] })
+        : JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) return;
+      if (req.user.includes("EXECUTIVE SUMMARY")) yield "We support 12 dental offices for Bluegrass Dental Group [S2].";
+      else yield "We will review every alert.";
+    };
+    const events = await readEvents(await run());
+    const checked = events.find((e) => e.type === "section_checked") as unknown as { section: string };
+    expect(checked.section).toBe("exec_summary");
+    const exec = await testDb().draft.findFirstOrThrow({ where: { rfpId: rfp.id, sectionKey: "exec_summary" } });
+    expect(exec.citations).toMatchObject({
+      misstated: [{ claim: "We support 12 dental offices for Bluegrass Dental Group.", issue: "The source says 6 dental offices, not 12." }],
+    });
+    // The fact-check runs on the cheaper extraction model, metered like every call.
+    const factCheckCall = llm.calls.find((call) => call.system === FACT_CHECK_SYSTEM);
+    expect(factCheckCall?.purpose).toBe("extraction");
+    expect(factCheckCall?.user).toContain("Managed IT for 6 dental offices");
+
+    // Editing the section keeps the finding while the sentence is still there, and drops it once fixed.
+    const { saveDraftSection } = await import("@/lib/actions/rfp-draft");
+    const kept = await saveDraftSection({ rfpId: rfp.id, sectionKey: "exec_summary", content: `${exec.content} We will review every alert.` });
+    expect(kept.ok && kept.draft.citations.misstated).toHaveLength(1);
+    const fixed = await saveDraftSection({ rfpId: rfp.id, sectionKey: "exec_summary", content: "We support 6 dental offices for Bluegrass Dental Group [S2]." });
+    expect(fixed.ok && fixed.draft.citations.misstated).toEqual([]);
+  });
+
   it("drafting only ever sees the current account's library", async () => {
     const other = await createUser("someone-else", "starter");
     await testDb().libraryItem.create({

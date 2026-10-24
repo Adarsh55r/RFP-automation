@@ -55,6 +55,7 @@ type StreamEvent =
   | { type: "delta"; section: string; text: string }
   | { type: "section_done"; section: string; content: string; citations: DraftCitations }
   | { type: "section_error"; section: string; message: string }
+  | { type: "section_checked"; section: string; citations: DraftCitations }
   | { type: "meta_start"; block: string }
   | { type: "meta_delta"; block: string; text: string }
   | { type: "meta_done"; block: string }
@@ -96,9 +97,10 @@ function sectionsFromDrafts(drafts: Draft[]): Record<string, SectionState> {
 function itemsToCheck(citations: DraftCitations | null | undefined) {
   if (!citations) return [];
   return [
-    ...citations.unsupported.map((text) => ({ text, label: "No source" })),
-    ...(citations.figures ?? []).map((text) => ({ text, label: "Figure not in your library or the RFP" })),
-    ...(citations.overclaims ?? []).map((text) => ({ text, label: "Absolute claim" })),
+    ...(citations.misstated ?? []).map((item) => ({ text: `${item.claim} (${item.issue})`, claim: item.claim, label: "Does not match its source" })),
+    ...citations.unsupported.map((text) => ({ text, claim: text, label: "No source" })),
+    ...(citations.figures ?? []).map((text) => ({ text, claim: text, label: "Figure not in your library or the RFP" })),
+    ...(citations.overclaims ?? []).map((text) => ({ text, claim: text, label: "Absolute claim" })),
   ];
 }
 
@@ -431,14 +433,14 @@ function InputChecklist({
               ) : null}
               {group.uncited.length > 0 ? (
                 <ul className="mt-2 flex flex-col gap-2" aria-label="Statements to check">
-                  {group.uncited.map(({ text: claim, label }) => (
+                  {group.uncited.map(({ text, claim, label }) => (
                     <li
                       key={`${label}:${claim}`}
                       className="flex flex-col gap-2 rounded-control border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-ink sm:flex-row sm:items-start sm:justify-between"
                     >
                       <span>
                         <span className="font-semibold text-danger">{label}: </span>
-                        {claim}
+                        {text}
                       </span>
                       <button
                         type="button"
@@ -649,6 +651,12 @@ export function RfpDraftView({
               setError(
                 `${plannedSections.find((item) => item.key === payload.section)?.title ?? "A section"}: ${payload.message}`,
               );
+              break;
+            case "section_checked":
+              setSections((current) => ({
+                ...current,
+                [payload.section]: { ...(current[payload.section] ?? EMPTY), citations: payload.citations },
+              }));
               break;
             case "meta_start":
               setCoverageStreaming(true);

@@ -46,7 +46,7 @@ export type ProposalDocument = {
 
 export type ReviewAppendix = {
   sources: { section: string; id: string; title: string; excerpt: string }[];
-  openItems: { section: string; kind: "Uncited claim" | "Figure to check" | "Absolute claim" | "Needs your input"; text: string }[];
+  openItems: { section: string; kind: "Does not match its source" | "Uncited claim" | "Figure to check" | "Absolute claim" | "Needs your input"; text: string }[];
 };
 
 export type ExportFormat = "docx" | "pdf";
@@ -88,6 +88,9 @@ function reviewAppendix(sections: ReturnType<typeof exportableSections>): Review
           : { section, id, title: "Unknown source", excerpt: "This marker does not match a library passage. Check the claim." },
       );
     }
+    for (const item of citations?.misstated ?? []) {
+      appendix.openItems.push({ section, kind: "Does not match its source", text: `${item.claim} (${item.issue})` });
+    }
     for (const claim of citations?.unsupported ?? []) {
       appendix.openItems.push({ section, kind: "Uncited claim", text: claim });
     }
@@ -108,19 +111,37 @@ export function draftsReadyForExport(rfp: Rfp, drafts: Draft[]) {
   return exportableSections(rfp, drafts).length > 0;
 }
 
-function complianceRows(coverageMap: string | null) {
+/**
+ * The compliance matrix for the buyer: each requirement the proposal must
+ * meet and where it answers it. The internal review (statuses, actions,
+ * scoring weights, delivery logistics) stays in the app and the review copy.
+ * A mandatory requirement the draft does not answer stays as a highlighted
+ * gap, so the matrix never claims compliance the proposal does not show.
+ */
+export function complianceRows(coverageMap: string | null) {
   const rows = parseCoverageTable(coverageMap ?? "");
   if (rows.length === 0) return null;
-  return rows.map((row) => {
-    const addressed = row.addressedIn.trim();
-    const missing = !addressed || /^[-—–]+$/.test(addressed);
-    return {
-      requirement: row.requirement,
-      type: row.type,
-      // Never claim compliance the draft does not show: unanswered rows stay a visible gap.
-      reference: missing ? "[[Confirm where this is addressed]]" : addressed,
-    };
-  });
+  const out = rows
+    .filter((row) => !/evaluat/i.test(row.type))
+    .map((row) => {
+      const addressed = row.addressedIn
+        // Reviewer notes such as "(not in draft)" or "(pending section)" are for the bidder.
+        .replace(/\s*\((?:[^)]*\b(?:draft|pending|narrative|missing|not (?:yet )?(?:in|addressed)|confirm)\b[^)]*)\)/gi, "")
+        .replace(/\[\[[^\]]*\]\]/g, "")
+        .trim();
+      const missing = !addressed || /^[-—–]+$/.test(addressed) || /^gap$/i.test(addressed);
+      return {
+        // Requirement IDs (M3, S2) are the app's own numbering, not the buyer's.
+        requirement: row.requirement.replace(/^[MDESQ]\d+\s*[:.)-]\s*/, ""),
+        type: row.type,
+        missing,
+        reference: missing ? "[[Answer this requirement before submitting]]" : addressed,
+      };
+    })
+    // Delivery logistics left to the bidder (file format, deadline) are not proposal content.
+    .filter((row) => !(row.missing && /submission/i.test(row.type)))
+    .map(({ requirement, type, reference }) => ({ requirement, type, reference }));
+  return out.length > 0 ? out : null;
 }
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];

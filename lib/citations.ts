@@ -34,6 +34,8 @@ export type DraftCitations = {
   figures: string[];
   /** Sentences making absolute claims (guarantees, "full compliance") the library never makes. */
   overclaims: string[];
+  /** Cited sentences the fact-check found do not match their source (lib/fact-check.ts). */
+  misstated: { claim: string; issue: string }[];
   /** Sentences the user reviewed and chose to keep anyway. */
   dismissed: string[];
 };
@@ -211,7 +213,7 @@ export function analyzeDraft(
 
   return {
     content,
-    citations: { version: 1, sources, unsupported, figures, overclaims: claims, dismissed: dismissed.filter(Boolean) },
+    citations: { version: 1, sources, unsupported, figures, overclaims: claims, misstated: [], dismissed: dismissed.filter(Boolean) },
   };
 }
 
@@ -225,6 +227,12 @@ export function parseCitations(value: unknown): DraftCitations | null {
     unsupported: Array.isArray(raw.unsupported) ? raw.unsupported.filter((item) => typeof item === "string") : [],
     figures: Array.isArray(raw.figures) ? raw.figures.filter((item) => typeof item === "string") : [],
     overclaims: Array.isArray(raw.overclaims) ? raw.overclaims.filter((item) => typeof item === "string") : [],
+    misstated: Array.isArray(raw.misstated)
+      ? raw.misstated.filter(
+          (item): item is { claim: string; issue: string } =>
+            Boolean(item) && typeof item.claim === "string" && typeof item.issue === "string",
+        )
+      : [],
     dismissed: Array.isArray(raw.dismissed) ? raw.dismissed.filter((item) => typeof item === "string") : [],
   };
 }

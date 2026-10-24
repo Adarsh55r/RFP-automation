@@ -12,7 +12,8 @@ import {
   stripCitations,
   type DraftCitations,
 } from "@/lib/citations";
-import { draftKey, upsertGeneratedDraftSection } from "@/lib/draft-store";
+import { draftKey, findSectionDraft, upsertGeneratedDraftSection } from "@/lib/draft-store";
+import { FACT_CHECK_SYSTEM, planFactCheck } from "@/lib/fact-check";
 import { getLibraryItemsForUser } from "@/lib/library-data";
 import {
   generateLlmText,
@@ -71,6 +72,7 @@ type StreamEvent =
   | { type: "delta"; section: string; text: string }
   | { type: "section_done"; section: string; content: string; citations: DraftCitations }
   | { type: "section_error"; section: string; message: string }
+  | { type: "section_checked"; section: string; citations: DraftCitations }
   | { type: "meta_start"; block: MetaBlock }
   | { type: "meta_delta"; block: MetaBlock; text: string }
   | { type: "meta_done"; block: MetaBlock }
@@ -414,6 +416,7 @@ export async function POST(request: Request, context: RouteContext) {
           return cleanSection(text);
         };
 
+        const writtenCitations = new Map<string, DraftCitations>();
         const outcomes = await mapLimit(targets, SECTION_CONCURRENCY, async (planned) => {
           const section = planned.key;
           try {
@@ -427,6 +430,7 @@ export async function POST(request: Request, context: RouteContext) {
             );
             await upsertGeneratedDraftSection({ rfpId: rfp.id, section: planned, content, citations });
             currentContent.set(section, content);
+            writtenCitations.set(section, citations);
             send({ type: "section_done", section, content, citations });
             return true;
           } catch (sectionError) {
@@ -447,8 +451,52 @@ export async function POST(request: Request, context: RouteContext) {
         }
         if (!onlySection) await recordFirst("first_draft", user.id);
 
-        // 3. Compliance review of the actual draft against every requirement.
+        // 3. Fact-check every cited sentence against the passage it cites,
+        //    then review the draft against every requirement.
         send({ type: "phase", phase: "reviewing" });
+        try {
+          const check = planFactCheck(
+            targets
+              .filter((planned) => writtenCitations.has(planned.key))
+              .map((planned) => ({
+                key: planned.key,
+                content: currentContent.get(planned.key) ?? "",
+                sources: writtenCitations.get(planned.key)?.sources ?? {},
+              })),
+          );
+          if (check.task) {
+            const reply = await generateLlmText({
+              purpose: "extraction",
+              system: FACT_CHECK_SYSTEM,
+              user: check.task,
+              maxTokens: 6000,
+              effort: "low",
+              json: true,
+              onUsage,
+            });
+            const bySection = check.results(reply);
+            for (const planned of targets) {
+              const citations = writtenCitations.get(planned.key);
+              const misstated = (bySection.get(planned.key) ?? []).filter(
+                (item) => !(dismissedClaims.get(planned.key) ?? []).includes(item.claim),
+              );
+              if (!citations || misstated.length === 0) continue;
+              const next = { ...citations, misstated };
+              const row = await findSectionDraft(rfp.id, planned);
+              if (row) {
+                await prisma.draft.update({
+                  where: { id: row.id },
+                  data: { citations: next as unknown as Prisma.InputJsonValue },
+                });
+              }
+              send({ type: "section_checked", section: planned.key, citations: next });
+            }
+          }
+        } catch (checkError) {
+          // The draft stands without it; the citation and figure checks still ran.
+          console.error("Fact-check failed:", safeErrorSummary(checkError));
+          reportError(checkError, { area: "draft-fact-check", userId: user.id, rfpId: rfp.id });
+        }
         send({ type: "meta_start", block: "coverage_map" });
         let coverageMap = "";
         try {

@@ -11,6 +11,7 @@ import {
   type DraftCitations,
 } from "@/lib/citations";
 import { prisma } from "@/lib/db";
+import { citedClaims } from "@/lib/fact-check";
 import { DraftStatus, RfpStatus, type Prisma } from "@/lib/generated/prisma";
 import { draftKey, findSectionDraft } from "@/lib/draft-store";
 import { getLibraryItemsForUser } from "@/lib/library-data";
@@ -30,10 +31,15 @@ async function recheckCitations(userId: string, content: string, previous: Draft
     const passage = library.byId.get(id);
     return passage ? sourceFromPassage(passage) : undefined;
   };
-  return analyzeDraft(content, lookup, previous?.dismissed ?? [], {
+  const checked = analyzeDraft(content, lookup, previous?.dismissed ?? [], {
     libraryText: items.map((item) => `${item.title}\n${item.content}`).join("\n"),
     rfpText,
   });
+  // The fact-check needs the AI, so it is not re-run on save; its findings stay
+  // listed while the sentence they are about is still in the section.
+  const stillThere = new Set(citedClaims(checked.content).map((item) => item.claim));
+  checked.citations.misstated = (previous?.misstated ?? []).filter((item) => stillThere.has(item.claim));
+  return checked;
 }
 
 const asJson = (citations: DraftCitations) => citations as unknown as Prisma.InputJsonValue;
@@ -169,6 +175,7 @@ export async function setClaimReviewed(input: {
         unsupported: current.unsupported.filter((item) => item !== claim),
         figures: current.figures.filter((item) => item !== claim),
         overclaims: current.overclaims.filter((item) => item !== claim),
+        misstated: current.misstated.filter((item) => item.claim !== claim),
         dismissed: current.dismissed.includes(claim) ? current.dismissed : [...current.dismissed, claim],
       }
     : {
