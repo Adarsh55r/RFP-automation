@@ -1,4 +1,3 @@
-import { companyPlaceholders } from "@/lib/company";
 import { prisma } from "@/lib/db";
 import { getLlmProvider } from "@/lib/llm";
 import { feedbackEmail, reviewUrl } from "@/lib/review-prompt";
@@ -137,19 +136,7 @@ export async function getSetupStatus() {
     databaseSpeedCheck(),
     bucketPrivacyCheck(),
   ]);
-  const unsetCompany = companyPlaceholders();
   const checks: SetupCheck[] = [
-    unsetCompany.length === 0
-      ? { id: "company", group: "Core", label: "Company and legal details", required: true, state: "on", detail: "Legal name, address and contacts are filled in." }
-      : {
-          id: "company",
-          group: "Core",
-          label: "Company and legal details",
-          required: true,
-          state: "missing",
-          detail: `Still placeholders on the legal pages and footer: ${unsetCompany.join(", ")}.`,
-          fix: "Fill them in lib/company.ts (see FOUNDER_TODO.md), and have the Terms, Privacy Policy and DPA reviewed by a lawyer.",
-        },
     database,
     ...(databaseSpeed ? [databaseSpeed] : []),
     ...(bucket ? [bucket] : []),

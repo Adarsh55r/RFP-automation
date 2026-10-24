@@ -550,3 +550,14 @@ What changed and why, newest last. Commits are on branch `claude/vigilant-lovela
 - **`npm audit --omit=dev`:** PostCSS advisories bundled in Next.js 15. They were there before this work and are build-time only; the only fix is the breaking Next.js 16 upgrade, logged in FOUNDER_TODO.
 - **Reports:** `FINAL_REPORT.md` written; `FOUNDER_TODO.md` has a new "Before you merge" section (approval, the 11 additive migrations, a Preview database branch, environment variables, a preview walkthrough, the "ready" deviation, the Next.js upgrade).
 - **Not done:** a click-through with real keys on a preview deployment. It is in FOUNDER_TODO.
+
+## Pre-merge: no placeholders, no legal-entity claims
+
+The founder runs DraftBid AI as an individual, with no registered company, and asked for every placeholder to be removed and no legal claims to be made.
+- **`lib/company.ts`:** only the product name and one contact address (`privacy@draftbidai.com`, already public on main) remain. The legal name, address, company number, governing law, venue and founder fields are gone, along with the admin Setup check that listed them. `SETUP_BOOKING_URL` is empty, so the setup button opens an email.
+- **Terms:** the agreement is with "DraftBid AI, an independent software product built and run by its founder". The governing-law and venue clause is replaced by "Complaints and disputes" (email first, statutory rights kept). Price changes are emailed before they apply; refunds are handled individually; the liability cap is fees paid in the last 12 months, with no minimum; data at the end is deleted within a reasonable time, and backups follow the provider's cycle.
+- **Privacy, Security, DPA:** no postal address or entity; retention wording refers to the provider's restore window, plan retention or API data policy, without invented numbers. The DPA uses "without undue delay" for breaches, email notice before a new subprocessor, and a blank customer name line.
+- **Subprocessors:** the Neon region is read from `DATABASE_URL` (for example "AWS us-east-2"); Supabase says "Available on request"; Vercel says its default US region. The unnamed payment-provider row is removed; the Privacy Policy says it will be added before checkout opens.
+- **About and footer:** no founder name, legal block or address; the footer reads "© 2026 DraftBid AI".
+- **Versions:** Terms, Privacy and DPA versions set to 2026-10-24 (the Privacy version previously carried a future date).
+- **Tests:** a test fails if any public legal page, the DPA or the subprocessor list contains a `{{…}}` placeholder or a company-number, registered-address or governing-law claim; another covers the region parser.

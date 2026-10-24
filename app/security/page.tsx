@@ -63,7 +63,7 @@ const sections: LegalSection[] = [
     title: "Retention and deletion",
     body: [
       "You can delete an RFP, with its file, extracted text and drafts, at any time, and you can delete your whole workspace from Settings. Deleted data is removed from our live systems straight away.",
-      `Database backups are kept for ${"{{BACKUP_RETENTION}}"} and then overwritten.`,
+      "Database backups are held by our database provider for its restore window and then overwritten.",
     ],
   },
   {
@@ -85,7 +85,7 @@ export default function SecurityPage() {
     <LegalPage
       eyebrow="Trust"
       title="Security"
-      meta="Last updated October 23, 2026"
+      meta="Last updated October 24, 2026"
       intro="What we do to protect the RFPs, company content and drafts you put into DraftBid AI. Everything on this page describes how the product works today."
       sections={sections}
     />

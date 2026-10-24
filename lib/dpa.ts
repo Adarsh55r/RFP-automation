@@ -11,7 +11,7 @@ export function dpaClauses(): DpaClause[] {
     {
       title: "1. Parties and scope",
       paragraphs: [
-        `This Data Processing Addendum ("DPA") forms part of the agreement between {{CUSTOMER_LEGAL_NAME}} ("Customer") and ${COMPANY.legalName}, company number ${COMPANY.companyNumber}, of ${COMPANY.registeredAddress} ("Processor") for the ${COMPANY.productName} service (the "Agreement").`,
+        `This Data Processing Addendum ("DPA") forms part of the agreement between the customer named in the signature block ("Customer") and ${COMPANY.productName} ("Processor") for the ${COMPANY.productName} service (the "Agreement").`,
         "It applies where the Processor processes personal data on the Customer's behalf in providing the service, and the UK GDPR, the EU GDPR, or similar data protection law applies.",
       ],
     },
@@ -40,7 +40,7 @@ export function dpaClauses(): DpaClause[] {
     {
       title: "5. Subprocessors",
       paragraphs: [
-        "The Customer gives general authorisation for the Processor to use the subprocessors listed at https://draftbidai.com/subprocessors. The Processor will give at least {{SUBPROCESSOR_NOTICE_DAYS}} days' notice of a new subprocessor that will process Customer personal data. The Customer may object on reasonable data protection grounds; if the parties cannot resolve the objection, the Customer may terminate the affected service and receive a refund of prepaid fees for the unused period.",
+        "The Customer gives general authorisation for the Processor to use the subprocessors listed at https://draftbidai.com/subprocessors. The Processor will notify the Customer by email before a new subprocessor starts processing Customer personal data. The Customer may object on reasonable data protection grounds; if the parties cannot resolve the objection, the Customer may terminate the affected service and receive a refund of prepaid fees for the unused period.",
         "The Processor imposes data protection obligations on each subprocessor that are no less protective than this DPA and remains responsible for their performance.",
       ],
     },
@@ -53,7 +53,7 @@ export function dpaClauses(): DpaClause[] {
     {
       title: "7. Personal data breaches",
       paragraphs: [
-        "The Processor will notify the Customer without undue delay, and in any case within {{BREACH_NOTICE_HOURS}} hours, after becoming aware of a personal data breach affecting Customer personal data, with the information the Customer reasonably needs to meet its own obligations.",
+        "The Processor will notify the Customer without undue delay after becoming aware of a personal data breach affecting Customer personal data, with the information the Customer reasonably needs to meet its own obligations.",
       ],
     },
     {
@@ -65,7 +65,7 @@ export function dpaClauses(): DpaClause[] {
     {
       title: "9. Deletion and return",
       paragraphs: [
-        "The Customer can export its proposals and delete its data in the service at any time. At the end of the Agreement the Processor will delete Customer personal data from live systems within {{DATA_RETENTION_AFTER_TERMINATION}}, and backups will be overwritten within {{BACKUP_RETENTION}}, unless the law requires it to be kept.",
+        "The Customer can export its proposals and delete its data in the service at any time. At the end of the Agreement the Processor will delete Customer personal data from live systems within a reasonable time, and backups will be overwritten on the database provider's normal backup cycle, unless the law requires it to be kept.",
       ],
     },
     {
@@ -94,8 +94,8 @@ export function dpaClauses(): DpaClause[] {
     {
       title: "Signatures",
       paragraphs: [
-        "Customer: {{CUSTOMER_LEGAL_NAME}}. Name, title, date, signature: ____________________",
-        `Processor: ${COMPANY.legalName}. Name, title, date, signature: ____________________`,
+        "Customer (company name): ____________________. Name, title, date, signature: ____________________",
+        `Processor: ${COMPANY.productName}. Name, title, date, signature: ____________________`,
         `Template version ${DPA_VERSION}.`,
       ],
     },

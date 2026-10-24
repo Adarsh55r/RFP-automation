@@ -18,7 +18,7 @@ const sections: LegalSection[] = [
   {
     title: "Who we are and who these terms are with",
     body: [
-      `These Terms of Service ("Terms") are an agreement between ${COMPANY.legalName} (company number ${COMPANY.companyNumber}), registered at ${COMPANY.registeredAddress} ("we", "us"), and the business that creates a ${COMPANY.productName} account ("you").`,
+      `These Terms of Service ("Terms") are an agreement between ${COMPANY.productName}, an independent software product built and run by its founder ("we", "us"), and the business that creates a ${COMPANY.productName} account ("you").`,
       "You accept these Terms when you tick the acceptance box while creating or setting up your account, or when you accept an updated version we show you. If you accept on behalf of a company, you confirm you are authorised to bind it. DraftBid AI is for businesses only; it is not offered to consumers.",
     ],
   },
@@ -86,14 +86,14 @@ const sections: LegalSection[] = [
       <>
         Paid plans, one-time purchases and their limits are described on the <Link className={link} href="/pricing">pricing page</Link> at the time you buy. Subscriptions are billed in advance for each monthly or annual period and renew automatically until cancelled. Prices exclude taxes, which are added where required.
       </>,
-      `Payments are processed by our payment provider; we do not store full card numbers. We may change prices for future periods with at least ${"{{PRICE_CHANGE_NOTICE_DAYS}}"} days' notice; the change applies from your next renewal.`,
+      "Payments are processed by our payment provider; we do not store full card numbers. We may change prices for future periods. We will email you before a price change affects your plan, and the change applies from your next renewal.",
     ],
   },
   {
     title: "Cancellation, refunds and plan changes",
     body: [
       "You can cancel a subscription at any time from your account or by emailing us. Cancellation takes effect at the end of the current paid period, and you keep access until then.",
-      `${"{{REFUND_POLICY}}"} Nothing in these Terms limits any refund right you have by law.`,
+      "Refund requests for paid plans are handled individually: email us and we will respond fairly. Nothing in these Terms limits any refund right you have by law.",
       "If you upgrade, the new limits apply straight away and any price difference is charged as shown at checkout. If you downgrade, the change applies from the next renewal.",
     ],
   },
@@ -114,7 +114,7 @@ const sections: LegalSection[] = [
   {
     title: "Your data when the agreement ends",
     body: [
-      `You can export your proposals at any time while your account is active. When you delete your workspace, or ${"{{DATA_RETENTION_AFTER_TERMINATION}}"} after the agreement ends, we delete Customer Data from our live systems. Backups are overwritten on their normal cycle (${"{{BACKUP_RETENTION}}"}).`,
+      "You can export your proposals at any time while your account is active. When you delete your workspace, we delete Customer Data from our live systems straight away. If the agreement ends without you deleting your workspace, we delete it from our live systems within a reasonable time. Backup copies held by our database provider are overwritten on that provider's normal backup cycle.",
     ],
   },
   {
@@ -133,7 +133,7 @@ const sections: LegalSection[] = [
     title: "Limitation of liability",
     body: [
       "To the extent the law allows, neither party is liable for indirect or consequential loss, or for loss of profits, revenue, contracts (including bids not won), goodwill or data, however caused.",
-      `To the extent the law allows, each party's total liability arising out of or in connection with these Terms in any 12-month period is limited to the greater of the fees you paid us in the 12 months before the event giving rise to the claim and ${"{{MINIMUM_LIABILITY_CAP}}"}.`,
+      "To the extent the law allows, each party's total liability arising out of or in connection with these Terms is limited to the fees you paid us in the 12 months before the event giving rise to the claim.",
       "Nothing in these Terms limits liability that cannot be limited by law, such as liability for fraud, or for death or personal injury caused by negligence.",
     ],
   },
@@ -145,9 +145,9 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "Governing law and venue",
+    title: "Complaints and disputes",
     body: [
-      `These Terms are governed by the laws of ${COMPANY.governingLaw}. The courts of ${COMPANY.venue} have exclusive jurisdiction, except that either party may seek urgent relief in any competent court.`,
+      "If you have a complaint or a dispute about the service, email us first and we will try in good faith to resolve it informally. Nothing in these Terms takes away rights you have under the law that applies to you.",
     ],
   },
   {
@@ -164,7 +164,7 @@ const sections: LegalSection[] = [
   },
   {
     title: "Contact",
-    body: [`Questions about these Terms: ${COMPANY.contactEmail}. Notices to us: ${COMPANY.legalName}, ${COMPANY.registeredAddress}.`],
+    body: [`Questions about these Terms, and notices to us: ${COMPANY.contactEmail}.`],
   },
 ];
 

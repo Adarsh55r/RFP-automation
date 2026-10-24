@@ -1,11 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { GET as dpaTemplate } from "@/app/dpa/template/route";
-import * as companyModule from "@/lib/company";
-import { companyPlaceholders, isPlaceholder } from "@/lib/company";
 import { dpaClauses } from "@/lib/dpa";
 import { PUBLIC_PAGES } from "@/lib/site";
-import { getSubprocessors } from "@/lib/subprocessors";
+import { databaseRegion, getSubprocessors } from "@/lib/subprocessors";
 
 describe("legal and trust pages", () => {
   it("every integration that can receive customer data is on the subprocessor list", () => {
@@ -47,13 +45,25 @@ describe("legal and trust pages", () => {
     }
   });
 
-  it("unfilled company details are detected so they cannot go live unnoticed", () => {
-    expect(isPlaceholder("{{LEGAL_ENTITY_NAME}}")).toBe(true);
-    expect(isPlaceholder("Acme Ltd")).toBe(false);
-    // Whatever is filled in today, the check lists exactly the fields still holding a placeholder.
-    const { COMPANY } = companyModule;
-    expect(companyPlaceholders().sort()).toEqual(
-      Object.entries(COMPANY).filter(([, value]) => isPlaceholder(value)).map(([key]) => key).sort(),
-    );
+  it("public pages carry no placeholders and no claims of a registered company", () => {
+    const sources = [
+      "app/terms/page.tsx",
+      "app/privacy/page.tsx",
+      "app/security/page.tsx",
+      "app/about/page.tsx",
+      "app/dpa/page.tsx",
+      "app/subprocessors/page.tsx",
+      "components/marketing/site-footer.tsx",
+    ].map((file) => readFileSync(file, "utf8"));
+    const generated = [JSON.stringify(dpaClauses()), JSON.stringify(getSubprocessors())];
+    for (const text of [...sources, ...generated]) {
+      expect(text).not.toMatch(/\{\{[A-Z_]/);
+      expect(text).not.toMatch(/company number|registered (at|address|office)|governed by the laws of/i);
+    }
+  });
+
+  it("the database region comes from its address, never guessed", () => {
+    expect(databaseRegion("postgresql://u:p@ep-cool-1-pooler.us-east-2.aws.neon.tech/db")).toBe("AWS us-east-2");
+    expect(databaseRegion("postgresql://u:p@localhost/db")).toBe("Available on request");
   });
 });

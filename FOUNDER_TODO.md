@@ -28,28 +28,11 @@ Everything only you can provide or decide. Items marked **blocks launch** must b
 - [ ] **Dependency advisory:** `npm audit` reports PostCSS issues inside Next.js 15. They were already there before this work, are build-time only, and only touch our own CSS. The only fix is a Next.js 16 upgrade. Decide when to schedule it.
 
 ## Company and legal (blocks launch)
-Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
-- [ ] `{{LEGAL_ENTITY_NAME}}`, `{{REGISTERED_ADDRESS}}`, `{{COMPANY_NUMBER}}` (or remove the number if there is none)
-- [ ] `{{GOVERNING_LAW}}` and `{{VENUE}}` (courts)
-- [ ] `{{CONTACT_EMAIL}}` and `{{SECURITY_EMAIL}}`; confirm that `privacy@draftbidai.com` receives mail
-- [ ] `{{FOUNDER_NAME}}`, `{{FOUNDER_BIO}}`, `{{FOUNDER_PHOTO_URL}}` for `/about`
-- [ ] Terms placeholders in `app/terms/page.tsx`:
-  - `{{PRICE_CHANGE_NOTICE_DAYS}}`;
-  - `{{REFUND_POLICY}}`;
-  - `{{DATA_RETENTION_AFTER_TERMINATION}}`;
-  - `{{BACKUP_RETENTION}}`;
-  - `{{MINIMUM_LIABILITY_CAP}}`;
-  - confirm the 12-month fees liability cap.
-- [ ] DPA placeholders in `lib/dpa.ts`: `{{SUBPROCESSOR_NOTICE_DAYS}}`, `{{BREACH_NOTICE_HOURS}}`
-- [ ] Subprocessor regions in `lib/subprocessors.ts`:
-  - `{{VERCEL_REGION}}` (Vercel → Settings → Functions);
-  - `{{NEON_REGION}}` (Neon → project settings);
-  - `{{SUPABASE_REGION}}` (Supabase → project settings);
-  - payment provider name and region once chosen.
-- [ ] Security page: `{{BACKUP_RETENTION}}` (Neon → Backup & restore / history retention)
-- [ ] Privacy page placeholders:
-  - `{{LOG_RETENTION}}` (Vercel log retention on your plan, and Sentry data retention);
-  - `{{AI_PROVIDER_RETENTION}}` (for example OpenAI API abuse-monitoring retention; confirm in your provider's terms).
+DraftBid AI is run by you as an independent founder, with no registered company. The public pages therefore name only the product and one address, `privacy@draftbidai.com`, and make no claims about a legal entity, registered address, company number or governing law. Retention periods and notice periods are worded without invented numbers.
+- [ ] **Make sure `privacy@draftbidai.com` receives mail** (for example email forwarding at your domain registrar). It is the contact, privacy and security address on every page, the footer "Contact" link, and the billing and setup request buttons. To use separate addresses, change them in `lib/company.ts`.
+- [ ] If you later form a company, add its name, address and governing law to `lib/company.ts`, the Terms, the Privacy Policy and the DPA, and bump the versions in `lib/legal.ts`.
+- [ ] Optional, to replace general wording with exact figures: database backup window (Neon → Backup & restore), log retention on your Vercel and Sentry plans, your AI provider's API retention, and the Supabase storage region. The Neon region is shown automatically from `DATABASE_URL`; other regions say "Available on request".
+- [ ] Add the payment provider to `lib/subprocessors.ts` before checkout opens (the Privacy Policy promises this).
 - [ ] **Lawyer review** of the Terms, Privacy Policy, DPA and subprocessor list (see `docs/legal/README.md`)
 - [ ] **AI provider data terms:** from each provider's account settings or contract, confirm that API data is not used for training and note its retention period. Then set `AI_NO_TRAINING_CONFIRMED = true` in `lib/company.ts`. Until then the site does not claim the provider does not train on your data.
 
@@ -92,7 +75,7 @@ Fill these in `lib/company.ts`; the admin Setup page lists any still unset.
 ## Content
 - [ ] **Review the segment landing page copy** in `lib/segments.ts`: headline, subheadline, pains, checklist items and "upload first" list for `/for/it-services`, `/for/consultancies`, `/for/service-contractors` and `/for/consultants`. These are first drafts. Swap or add segments by editing that file; no code changes are needed.
 - [ ] Review the use-case pages `/use-cases/uk-tenders` and `/use-cases/security-questionnaires`.
-- [ ] `{{SETUP_BOOKING_URL}}` in `lib/company.ts`: a booking link for the done-with-you setup (optional). Until it is set, "Get help with your first bid" goes to the setup card on the pricing page. That card emails `{{CONTACT_EMAIL}}` once it is set, and otherwise sends people to sign up and request setup from Billing.
+- [ ] `SETUP_BOOKING_URL` in `lib/company.ts`: a booking link for the done-with-you setup (optional, empty for now). Until it is set, "Get help with your first bid" goes to the setup card on the pricing page, whose button opens an email to `privacy@draftbidai.com`.
 - [ ] **How it compares** (`COMPARISON` in `lib/marketing-content.ts`): run one real public RFP through ChatGPT and DraftBid AI, publish both outputs, and fill in the rows. The section stays hidden until then.
 - [ ] **Sample outputs** (`SAMPLE_OUTPUTS`, and `sampleOutput` per segment): three drafts from public RFPs, one per segment. Hidden until supplied.
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark

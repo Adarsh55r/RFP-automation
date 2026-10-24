@@ -37,7 +37,7 @@ Links go to each commit.
 | Area | Change |
 | --- | --- |
 | Audit and plan ([d18b6d0](https://github.com/Adarsh55r/RFP-automation/commit/d18b6d0)) | Stack, plans, pipeline, tenant boundaries, 15 unsupported marketing claims, AI cost estimate. |
-| Legal and trust pages ([e9a1345](https://github.com/Adarsh55r/RFP-automation/commit/e9a1345)) | Terms, Security, Subprocessors, DPA (with a Word template) and About, plus the footer. All are drafts with `{{placeholders}}` and an internal note asking for lawyer review (`docs/legal/README.md`). |
+| Legal and trust pages ([e9a1345](https://github.com/Adarsh55r/RFP-automation/commit/e9a1345)) | Terms, Security, Subprocessors, DPA (with a Word template) and About, plus the footer. All are drafts with an internal note asking for lawyer review (`docs/legal/README.md`). Before merge the placeholders were removed: the pages name only the product and `privacy@draftbidai.com`, with no legal-entity, address or governing-law claims, because there is no registered company. |
 | Terms acceptance ([b8a0c03](https://github.com/Adarsh55r/RFP-automation/commit/b8a0c03)) | Clickwrap at sign-up; version and time stored per user; existing users are asked when the version changes. |
 | Usage ledger ([dc4ed82](https://github.com/Adarsh55r/RFP-automation/commit/dc4ed82)) | Plan usage counted in a table that survives deletion, so deleting an RFP doesn't give the quota back. |
 | Self-service deletion ([d77de29](https://github.com/Adarsh55r/RFP-automation/commit/d77de29), [83db4fb](https://github.com/Adarsh55r/RFP-automation/commit/83db4fb)) | Delete one RFP, or the whole workspace, including its files. |
@@ -157,7 +157,7 @@ UI fixes from the visual check: [db49b2d](https://github.com/Adarsh55r/RFP-autom
 
 1. Work through **Before you merge** in `FOUNDER_TODO.md`: a Neon branch for Preview, environment variables, the walkthrough on a preview deployment, and approval.
 2. Choose the payment provider and share test keys. Then build checkout and the billing tests (1.7).
-3. Fill in the legal placeholders and get the lawyer review.
+3. Make sure `privacy@draftbidai.com` receives mail, and get the lawyer review.
 4. Collect 20 public RFPs and gold lists, then run the benchmark and fix the weakest segment first.
 5. Replace the hidden placeholders with real content (comparison, sample outputs, guides), and check the segment copy.
 6. After launch, watch `/admin/funnel` to choose the segment to double down on, and `/admin/costs` for real average and p95 cost.

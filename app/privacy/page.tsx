@@ -20,14 +20,14 @@ const sections: LegalSection[] = [
   {
     title: "Who we are",
     body: [
-      `DraftBid AI is operated by ${COMPANY.legalName} (company number ${COMPANY.companyNumber}), ${COMPANY.registeredAddress} ("we", "us"). It is a B2B software product that helps businesses turn RFPs, public-sector tenders and questionnaires into proposal drafts.`,
+      `${COMPANY.productName} is an independent B2B software product, built and run by its founder ("we", "us"), that helps businesses turn RFPs, public-sector tenders and questionnaires into proposal drafts.`,
       "DraftBid AI is a drafting tool. It is not a procurement portal, and we do not ask for or store your logins to government or buyer procurement portals.",
     ],
   },
   {
     title: "Our role: controller and processor",
     body: [
-      `For account data (who you are, your sign-in, your plan), ${COMPANY.legalName} is the controller.`,
+      "For account data (who you are, your sign-in, your plan), we are the controller.",
       <>
         For the content you put into your workspace (RFPs, library items, drafts), your company is the controller (or &ldquo;business&rdquo;) and we act as its processor (or &ldquo;service provider&rdquo;). You must have a lawful basis to upload any personal data in those documents. Our <Link className={link} href="/dpa">Data Processing Addendum</Link> sets out our processor commitments.
       </>,
@@ -41,7 +41,7 @@ const sections: LegalSection[] = [
         "Workspace content: RFP files you upload, the full text read from them, the requirements extracted from them, your library items (case studies, bios, certifications, saved answers, company profile), and generated drafts.",
         "Usage records: which plan allowances you have used, and for each AI request the model, the number of tokens and the cost. These records never contain document text.",
         "Product events, kept in our own database: milestones on your account such as your first upload, first draft and first export, the page or campaign you signed up from, and your optional answer to the industry question. Marketing pages also record anonymous page views (the page and campaign only, with no cookie or identifier). None of these contain document content.",
-        "Payment data: paid checkout is not live yet, so we do not collect payment details. When it opens, the payment provider listed on our subprocessors page will collect them; we will not store full card numbers.",
+        "Payment data: paid checkout is not live yet, so we do not collect payment details. When it opens, the payment provider will collect them, and we will add it to our subprocessors page before checkout opens; we will not store full card numbers.",
         "Technical data: IP address, browser type and timestamps in our hosting provider's logs, used for security and debugging.",
         "Free checklist tool (no account): the file you upload is read in memory to build the checklist and sent to our AI provider for that purpose; it is not stored. To apply the daily limit we keep a one-way hash of your IP address, never the address itself. If you choose to leave your email there, we keep it with the date you agreed to be contacted.",
         "Website import: if you ask us to import your company website, we read its public pages and send their text to our AI provider to draft library items for you.",
@@ -95,9 +95,9 @@ const sections: LegalSection[] = [
         "Free checklist tool: the file is not kept at all; hashed IP records are deleted after 30 days; an email you left there is kept until you ask us to delete it.",
         "Account data and usage records: while you have a workspace; deleted when you delete your workspace.",
         "We do not create embeddings or other derived copies of your documents beyond the extracted text and requirements described above.",
-        `Database backups: overwritten after ${"{{BACKUP_RETENTION}}"}.`,
-        `Hosting logs and error reports: kept by Vercel and Sentry for ${"{{LOG_RETENTION}}"}.`,
-        `AI provider: document text sent for a request may be kept by the provider for up to ${"{{AI_PROVIDER_RETENTION}}"} under its API terms (for example for abuse monitoring), then deleted.`,
+        "Database backups: held by our database provider for its restore window, then overwritten.",
+        "Hosting logs and error reports: kept by Vercel and Sentry for the retention period of our plan with each provider, then deleted.",
+        "AI provider: document text sent for a request may be kept by the provider for a limited period under its API data policy (for example for abuse monitoring), then deleted.",
         "Invoices and records we must keep by law, once paid plans are live, are kept for the period the law requires.",
       ],
     ],
@@ -139,7 +139,7 @@ const sections: LegalSection[] = [
   {
     title: "Contact",
     body: [
-      `Privacy questions, access requests and deletion requests: ${COMPANY.privacyEmail}. Postal address: ${COMPANY.legalName}, ${COMPANY.registeredAddress}. We aim to reply within two business days, and in any case within the time limits set by applicable law.`,
+      `Privacy questions, access requests and deletion requests: ${COMPANY.privacyEmail}. We aim to reply within two business days, and in any case within the time limits set by applicable law.`,
       "If you are in the UK, you can complain to the Information Commissioner's Office (ico.org.uk). If you are in the EU, you can complain to your local data protection authority. We would appreciate the chance to resolve your concern first.",
     ],
   },

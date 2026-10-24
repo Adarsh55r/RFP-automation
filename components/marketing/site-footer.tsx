@@ -71,7 +71,7 @@ export function SiteFooter() {
           </nav>
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <p className="font-mono text-xs tracking-wide text-surface-raised/80">
-              © 2026 {COMPANY.legalName} · {COMPANY.registeredAddress}
+              © 2026 {COMPANY.productName}
             </p>
             <p className="text-surface-raised/80">
               Not affiliated with any government procurement portal.

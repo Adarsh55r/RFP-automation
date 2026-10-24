@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/legal-page";
-import { COMPANY, isPlaceholder } from "@/lib/company";
+import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Who builds DraftBid AI, the company behind it, and how to reach us.",
+  description: "Why DraftBid AI exists, who builds it, and how to reach us.",
   alternates: { canonical: "/about" },
 };
 
@@ -17,41 +17,14 @@ const sections: LegalSection[] = [
   },
   {
     title: "Who builds it",
-    body: [`${COMPANY.founderName}. ${COMPANY.founderBio}`],
-  },
-  {
-    title: "The company",
-    body: [
-      [
-        `Legal name: ${COMPANY.legalName}`,
-        `Company number: ${COMPANY.companyNumber}`,
-        `Registered address: ${COMPANY.registeredAddress}`,
-      ],
-    ],
+    body: ["DraftBid AI is an independent product, built and run by its founder."],
   },
   {
     title: "Contact",
-    body: [
-      [
-        `General and sales: ${COMPANY.contactEmail}`,
-        `Privacy requests: ${COMPANY.privacyEmail}`,
-        `Security reports: ${COMPANY.securityEmail}`,
-      ],
-    ],
+    body: [`Questions, sales, privacy requests and security reports: ${COMPANY.contactEmail}.`],
   },
 ];
 
 export default function AboutPage() {
-  return (
-    <LegalPage eyebrow="Company" title="About DraftBid AI" sections={sections}>
-      {isPlaceholder(COMPANY.founderPhotoUrl) ? null : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={COMPANY.founderPhotoUrl}
-          alt={COMPANY.founderName}
-          className="mt-12 size-32 rounded-full object-cover"
-        />
-      )}
-    </LegalPage>
-  );
+  return <LegalPage eyebrow="Company" title="About DraftBid AI" sections={sections} />;
 }

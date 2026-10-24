@@ -227,9 +227,6 @@ export function PricingView() {
             <Button asChild variant="secondary" className="w-fit">
               <a href={setupRequestHref()}>Get help with your first bid</a>
             </Button>
-            {setupRequestHref().startsWith("/sign-up") ? (
-              <p className="text-xs text-slate">Create a free account, then request setup from the Billing page.</p>
-            ) : null}
           </Card>
           <Card className="flex flex-col gap-2">
             <h2 className="font-sans text-lg font-semibold text-ink">On the roadmap</h2>

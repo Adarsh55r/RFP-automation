@@ -16,7 +16,7 @@ export default function SubprocessorsPage() {
   return (
     <LegalPage
       title="Subprocessors"
-      meta="Last updated October 23, 2026"
+      meta="Last updated October 24, 2026"
       intro={
         <p>
           These are the companies that process customer data so {COMPANY.productName} can run. We

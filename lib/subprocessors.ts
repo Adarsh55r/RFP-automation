@@ -11,11 +11,18 @@ export type Subprocessor = {
 
 const has = (name: string) => Boolean(process.env[name]?.trim());
 
+/** The AWS region in a Neon database address (e.g. ep-x.us-east-2.aws.neon.tech), if there is one. */
+export function databaseRegion(url = process.env.DATABASE_URL ?? "") {
+  const region = /\.([a-z]{2}-[a-z]+-\d)\.aws\.neon\.tech/.exec(url)?.[1];
+  return region ? `AWS ${region}` : "Available on request";
+}
+
 /**
  * Every third party that can receive customer data, found by reading the
- * code and its configuration. Regions marked {{…}} depend on account settings
- * the founder must confirm. Keep in sync with the code: a test checks that
- * each integration in package.json appears here.
+ * code and its configuration. The database region is read from its address;
+ * other regions depend on account settings and are given on request. Keep in
+ * sync with the code: a test checks that each integration in package.json
+ * appears here.
  */
 export function getSubprocessors(): Subprocessor[] {
   const provider = getLlmProvider();
@@ -24,21 +31,21 @@ export function getSubprocessors(): Subprocessor[] {
       name: "Vercel Inc.",
       purpose: "Hosting and running the application; cookie-free page-view analytics",
       data: "All data passing through the app, including uploads in transit; page URLs and coarse device data for analytics",
-      location: "{{VERCEL_REGION}} (United States by default)",
+      location: "United States (Vercel's default region)",
       inUse: true,
     },
     {
       name: "Neon (database hosting)",
       purpose: "Postgres database",
       data: "Account details, extracted requirements, full RFP text, library items, drafts, usage records",
-      location: "{{NEON_REGION}}",
+      location: databaseRegion(),
       inUse: true,
     },
     {
       name: "Supabase Inc.",
       purpose: "File storage for uploaded RFP files",
       data: "Original RFP files (PDF, Word)",
-      location: "{{SUPABASE_REGION}}",
+      location: "Available on request",
       inUse: true,
     },
     {
@@ -82,13 +89,6 @@ export function getSubprocessors(): Subprocessor[] {
       data: "Account ID and usage amount (no email or document content)",
       location: "United States",
       inUse: has("ALERT_WEBHOOK_URL"),
-    },
-    {
-      name: "{{PAYMENT_PROVIDER}}",
-      purpose: "Payments and invoices, once paid plans are live",
-      data: "Billing name, address, tax ID, payment details (card data is held by the provider, not by us)",
-      location: "{{PAYMENT_PROVIDER_REGION}}",
-      inUse: false,
     },
   ];
 }

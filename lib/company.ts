@@ -1,21 +1,15 @@
 /**
- * Who operates DraftBid AI. Every value wrapped in {{…}} is a placeholder the
- * founder must replace before these pages go live (see FOUNDER_TODO.md); the
- * admin Setup page flags any that remain.
+ * Who runs DraftBid AI. It is an independent product built and run by its
+ * founder, not a registered company, so the public pages name only the
+ * product and one contact address, and make no claims about a legal entity,
+ * registered address or jurisdiction. If a company is formed later, add its
+ * details here and to the Terms, Privacy Policy and DPA (see FOUNDER_TODO.md).
  */
 export const COMPANY = {
   productName: "DraftBid AI",
-  legalName: "{{LEGAL_ENTITY_NAME}}",
-  registeredAddress: "{{REGISTERED_ADDRESS}}",
-  companyNumber: "{{COMPANY_NUMBER}}",
-  governingLaw: "{{GOVERNING_LAW}}",
-  venue: "{{VENUE}}",
-  contactEmail: "{{CONTACT_EMAIL}}",
+  contactEmail: "privacy@draftbidai.com",
   privacyEmail: "privacy@draftbidai.com",
-  securityEmail: "{{SECURITY_EMAIL}}",
-  founderName: "{{FOUNDER_NAME}}",
-  founderBio: "{{FOUNDER_BIO}}",
-  founderPhotoUrl: "{{FOUNDER_PHOTO_URL}}",
+  securityEmail: "privacy@draftbidai.com",
 } as const;
 
 /**
@@ -24,33 +18,18 @@ export const COMPANY = {
  */
 export const AI_NO_TRAINING_CONFIRMED = false;
 
-export function isPlaceholder(value: string) {
-  return /\{\{[A-Z0-9_]+\}\}/.test(value);
-}
-
-/** Company fields still holding a placeholder. */
-export function companyPlaceholders() {
-  return Object.entries(COMPANY)
-    .filter(([, value]) => isPlaceholder(value))
-    .map(([key]) => key);
-}
-
 /**
  * Optional booking page for the done-with-you setup (e.g. a scheduling link).
  * Until it is set, "Get help with your first bid" goes to the setup add-on on
- * the pricing page.
+ * the pricing page, and the add-on's button opens an email.
  */
-export const SETUP_BOOKING_URL = "{{SETUP_BOOKING_URL}}";
+export const SETUP_BOOKING_URL = "";
 
 export function setupHelpHref() {
-  return isPlaceholder(SETUP_BOOKING_URL) ? "/pricing#setup" : SETUP_BOOKING_URL;
+  return SETUP_BOOKING_URL || "/pricing#setup";
 }
 
-/** Where the setup add-on's own button goes: booking page, then email, then sign-up (request it from Billing). */
+/** Where the setup add-on's own button goes: the booking page if set, otherwise an email. */
 export function setupRequestHref() {
-  if (!isPlaceholder(SETUP_BOOKING_URL)) return SETUP_BOOKING_URL;
-  if (!isPlaceholder(COMPANY.contactEmail)) {
-    return `mailto:${COMPANY.contactEmail}?subject=${encodeURIComponent("Done-with-you setup")}`;
-  }
-  return "/sign-up?plan=free";
+  return SETUP_BOOKING_URL || `mailto:${COMPANY.contactEmail}?subject=${encodeURIComponent("Done-with-you setup")}`;
 }
