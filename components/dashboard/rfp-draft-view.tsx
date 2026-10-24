@@ -22,6 +22,8 @@ import { saveDraftSection, setClaimReviewed } from "@/lib/actions/rfp-draft";
 import { parseCitations, type DraftCitations } from "@/lib/citations";
 import { downloadRfpExport, type DownloadFormat } from "@/lib/download-rfp-export";
 import { unverifiedCredentials } from "@/lib/claim-checks";
+import { rateConflicts } from "@/lib/grounding";
+import { datesAfterDeadline } from "@/lib/proposal-dates";
 import { findPlaceholders } from "@/lib/markdown";
 import type { ExportVariant } from "@/lib/proposal-document";
 import type { CoverDetails } from "@/lib/rfp-draft";
@@ -101,6 +103,7 @@ function itemsToCheck(citations: DraftCitations | null | undefined) {
     ...citations.unsupported.map((text) => ({ text, claim: text, label: "No source" })),
     ...(citations.figures ?? []).map((text) => ({ text, claim: text, label: "Figure not in your library or the RFP" })),
     ...(citations.overclaims ?? []).map((text) => ({ text, claim: text, label: "Absolute claim" })),
+    ...(citations.notes ?? []).map((text) => ({ text, claim: text, label: "Note to you left in the text" })),
   ];
 }
 
@@ -399,8 +402,10 @@ function InputChecklist({
             Facts DraftBid AI could not find in the RFP or your library (signatures,
             prices, reference contacts, figures to confirm) are highlighted in yellow.
             Listed in red: statements about your company that no library passage
-            supports, figures that appear in neither your library nor the RFP, and
-            absolute claims evaluators distrust. Check each one, then fix it or keep it.
+            supports, figures that appear in neither your library nor the RFP, absolute
+            claims evaluators distrust, and notes meant for you (&ldquo;to be
+            confirmed&rdquo;) that would otherwise reach the buyer. Check each one, then
+            fix it or keep it.
           </p>
         </div>
         <Badge variant={total > 0 ? "accent" : "success"} className="w-fit shrink-0 whitespace-nowrap">
@@ -474,6 +479,7 @@ export function RfpDraftView({
   initialCoverageMap,
   autoStart,
   cover,
+  referenceNotInRfp = false,
   legacyDraft,
   supportedCredentials,
   allowance,
@@ -488,6 +494,8 @@ export function RfpDraftView({
   initialCoverageMap?: string | null;
   autoStart: boolean;
   cover: CoverDetails;
+  /** The cover's solicitation number is printed nowhere in the RFP: probably invented or mistyped. */
+  referenceNotInRfp?: boolean;
   /** Drafted before bid plans existed: no cover letter, plan, or new structure. */
   legacyDraft: boolean;
   /** Credentials the bidder's library mentions (SOC 2, ISO 27001, ...). */
@@ -551,6 +559,35 @@ export function RfpDraftView({
     }
     return [...where.entries()];
   }, [plannedSections, sectionState, supportedCredentials]);
+
+  // The same kind of price stated differently in two places ($95 vs $99 per user).
+  const conflicts = useMemo(
+    () =>
+      rateConflicts(
+        plannedSections.map((section) => ({ title: section.title, content: (sectionState[section.key] ?? EMPTY).content })),
+      ),
+    [plannedSections, sectionState],
+  );
+
+  // Things on the cover and in the dated parts that would make the bid look wrong or late.
+  const coverIssues = useMemo(() => {
+    const issues: string[] = [];
+    if (referenceNotInRfp) {
+      issues.push(
+        `The solicitation number on the cover, "${cover.solicitationNumber}", does not appear anywhere in the RFP. Correct it, or clear it in Cover page details if the RFP has none.`,
+      );
+    }
+    const dated = [
+      { title: "Cover page", text: cover.submissionDate },
+      ...plannedSections
+        .filter((section) => section.kind === "cover_letter" || section.kind === "form")
+        .map((section) => ({ title: section.title, text: (sectionState[section.key] ?? EMPTY).content })),
+    ];
+    for (const late of datesAfterDeadline(cover.dueDate, dated)) {
+      issues.push(`${late.title} is dated ${late.date}, after the deadline (${cover.dueDate}). A bid dated after its deadline reads as late.`);
+    }
+    return issues;
+  }, [referenceNotInRfp, cover, plannedSections, sectionState]);
 
   const runGeneration = async (revision?: { section: string; instruction: string }) => {
     setGenerating(true);
@@ -712,13 +749,19 @@ export function RfpDraftView({
     // The review copy is for checking these, so it never asks.
     const warnings = exportVariant === "review" && format !== "sheet" ? [] : [
       uncitedTotal > 0
-        ? `${uncitedTotal} statement${uncitedTotal === 1 ? " needs" : "s need"} checking: claims with no source in your library, figures found in neither your library nor the RFP, or absolute claims (listed under "Needs your input"). Make sure each one is true.`
+        ? `${uncitedTotal} statement${uncitedTotal === 1 ? " needs" : "s need"} checking: claims with no source in your library, figures found in neither your library nor the RFP, absolute claims, or notes to you left in the text (listed under "Needs your input"). Make sure each one is true.`
         : "",
       placeholderTotal > 0
         ? `${placeholderTotal} item${placeholderTotal === 1 ? "" : "s"} still need your input (highlighted in yellow).`
         : "",
       unverifiedClaims.length > 0
         ? `The draft mentions ${unverifiedClaims.map(([name]) => name).join(", ")}, which your library does not support. Check you are not claiming something you do not hold.`
+        : "",
+      ...coverIssues,
+      conflicts.length > 0
+        ? `The draft quotes different prices for the same thing: ${conflicts
+            .map((conflict) => `per ${conflict.unit}: ${conflict.amounts.map((item) => `${item.amount} (${item.where.join(", ")})`).join(" vs ")}`)
+            .join("; ")}. Make them consistent unless they are different services.`
         : "",
     ].filter(Boolean);
     if (warnings.length > 0 && !window.confirm(`${warnings.join("\n\n")}\n\nExport anyway?`)) {
@@ -942,6 +985,34 @@ export function RfpDraftView({
               <li key={name}>
                 <span className="font-semibold">{name}</span>
                 <span className="text-slate"> (in {[...new Set(where)].join(", ")})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {!generating && hasAnyContent && coverIssues.length > 0 ? (
+        <div role="status" className="rounded-control border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-ink">
+          <p className="font-semibold">Check the cover and dates</p>
+          <ul className="mt-2 list-disc pl-5">
+            {coverIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {!generating && conflicts.length > 0 ? (
+        <div role="status" className="rounded-control border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-ink">
+          <p className="font-semibold">The same price is stated differently</p>
+          <p className="mt-1 text-slate">
+            Evaluators check prices against each other. Make these consistent, unless they are prices for different services.
+          </p>
+          <ul className="mt-2 list-disc pl-5">
+            {conflicts.map((conflict) => (
+              <li key={conflict.unit}>
+                <span className="font-semibold">Per {conflict.unit}:</span>{" "}
+                {conflict.amounts.map((item) => `${item.amount} in ${item.where.join(", ")}`).join("; ")}
               </li>
             ))}
           </ul>

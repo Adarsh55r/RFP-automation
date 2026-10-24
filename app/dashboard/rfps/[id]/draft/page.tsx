@@ -15,6 +15,7 @@ import {
   parseDraftPlan,
   proposalOutline,
   resolveCover,
+  verifiedReference,
 } from "@/lib/rfp-draft";
 import { getRfpForUser } from "@/lib/rfps";
 import { credentialsIn } from "@/lib/claim-checks";
@@ -65,13 +66,15 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
     redirect(`/dashboard/rfps/${rfp.id}`);
   }
 
-  const [drafts, library] = await Promise.all([
+  const [drafts, library, source] = await Promise.all([
     prisma.draft.findMany({
       where: { rfpId: rfp.id },
       orderBy: { updatedAt: "asc" },
     }),
     prisma.libraryItem.findMany({ where: { userId: user.id }, select: { type: true, title: true, content: true } }),
+    prisma.rfp.findUnique({ where: { id: rfp.id }, select: { sourceText: true } }),
   ]);
+  const sourceText = source?.sourceText ?? "";
   // Credentials the bidder's own library mentions; anything else a draft claims gets flagged.
   const supportedCredentials = credentialsIn(library.map((item) => `${item.title}\n${item.content}`).join("\n"));
 
@@ -140,6 +143,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
         initialCoverageMap={rfp.coverageMap}
         autoStart={autoStart}
         cover={cover}
+        referenceNotInRfp={Boolean(cover.solicitationNumber && sourceText.trim() && !verifiedReference(cover.solicitationNumber, sourceText))}
         legacyDraft={drafts.length > 0 && !hasModelPlan(plan)}
         supportedCredentials={supportedCredentials}
         spreadsheet={parseQuestionnaireMap(rfp.questionnaireMap)?.format ?? null}

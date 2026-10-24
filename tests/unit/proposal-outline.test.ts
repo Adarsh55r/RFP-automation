@@ -3,8 +3,10 @@ import {
   buildOutline,
   buildSectionTask,
   cleanSection,
+  DRAFTING_SYSTEM,
   emptyDraftPlan,
   requirementRefs,
+  stripRequirementIds,
   verifiedReference,
 } from "@/lib/rfp-draft";
 
@@ -117,5 +119,36 @@ describe("solicitation reference", () => {
   it("drops a reference the RFP never printed", () => {
     expect(verifiedReference("RFP-2026-00123", source)).toBe("");
     expect(verifiedReference("RFP", source)).toBe("");
+  });
+});
+
+describe("requirement IDs in drafted text", () => {
+  it("are removed wherever the model leaks them", () => {
+    const md = [
+      "## Proof or Summary of Insurance Coverage and Limits (M2, S12)",
+      "",
+      "- M1 (Mandatory): We maintain the licenses the work requires.",
+      "- **D3 (Desirable):** Security experience.",
+      "M4: We comply with non-discrimination laws (M4).",
+      "Our Microsoft 365 plan and the RFP's Section 3.B (backup) are covered.",
+    ].join("\n");
+    expect(stripRequirementIds(md)).toBe(
+      [
+        "## Proof or Summary of Insurance Coverage and Limits",
+        "",
+        "- We maintain the licenses the work requires.",
+        "- Security experience.",
+        "We comply with non-discrimination laws.",
+        "Our Microsoft 365 plan and the RFP's Section 3.B (backup) are covered.",
+      ].join("\n"),
+    );
+  });
+});
+
+describe("drafting rules", () => {
+  it("treat commercial terms as facts and gaps as placeholders, never notes", () => {
+    expect(DRAFTING_SYSTEM).toMatch(/Commercial terms are the bidder's business decisions/);
+    expect(DRAFTING_SYSTEM).toMatch(/a gap is only ever a placeholder, never a note/);
+    expect(DRAFTING_SYSTEM).toMatch(/Never write them in the proposal/);
   });
 });

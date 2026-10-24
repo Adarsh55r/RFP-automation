@@ -573,3 +573,16 @@ Triggered by a real test on the City of Harrison, MI managed IT RFP. The draft s
 - **Export:** table columns never narrower than their longest word; citation ranges such as `[S4, S7–S10]` stripped; cover date never after the deadline (editable); no Confidential stamp for public-sector bids; compliance matrix without scoring rows, logistics, internal IDs or reviewer notes, with unanswered mandatory items kept as visible gaps; RFP labels used as the numbering.
 - **Tests:** 250+ passing, including outline building and requirement assignment, the drafting route following an A–J outline end to end, figure and claim checks, the fact-check flow, and matrix cleaning. A rendered PDF was checked by eye.
 - **Not verified:** a real AI run. No AI key is available in this environment, so the new prompts have only been exercised with a scripted model. Running the Harrison RFP again on a preview deployment is the real test (FOUNDER_TODO).
+
+## Draft quality, round 2 (from the second Harrison test, rated 6/10)
+
+- **Notes to the bidder in the text** ("to be confirmed", "must be verified before submission") are forbidden by the prompt and, when they slip through, listed in the checklist, the export warning and the review copy.
+- **Commercial terms** (term, increases, renewal, termination, carry-over, trip and after-hours charges, payment terms, storage allowances) are treated as facts: from the library or a placeholder. Blanket compliance claims ("meets or exceeds", "all required licenses") are forbidden.
+- **Figure check matches like for like:** money with money or shown arithmetic, percentages with percentages, durations in the same unit, data sizes (GB/TB) and counts. "0%", "1 TB" and "30 hours" no longer pass on an unrelated 0 or 30.
+- **Conflicting prices** (the same per-user, per-server… price stated differently in two parts) are flagged in the editor, at export and in the review copy.
+- **Requirement IDs** (M1, "(M2, S12)") are removed from drafted text; the prompt forbids them.
+- **Wide tables** (more than 5 columns) are laid out as one block per row instead of crushing words; references are drafted as blocks.
+- **Email links** are printed once, not followed by "(mailto:…)".
+- **Cover details:** only fields the bidder changes are saved, so a drafted value can no longer stick through later drafts; a solicitation number not printed in the RFP and any date in the cover letter, forms or cover after the deadline are flagged before export.
+- **Executive summary** capped at about 400 words; parts told not to repeat each other.
+- **Not verified:** a real AI run (no key here). Re-run the Harrison test after deploy.

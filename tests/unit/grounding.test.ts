@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numbersIn, overclaims, unsupportedFigures } from "@/lib/grounding";
+import { bidderNotes, numbersIn, overclaims, rateConflicts, unsupportedFigures } from "@/lib/grounding";
 
 const library = `Pricing: Managed services $95 per user per month. Server management $150 per server per month.
 On-site visits and project work: $125 per hour. Critical response within 30 minutes. 99.9% server uptime in 2025.
@@ -54,5 +54,60 @@ describe("absolute claims", () => {
       "All work is in full compliance with the RFP.",
     ]);
     expect(overclaims("We operate a zero-trust model [S9].", "Our zero-trust architecture was audited in 2025.")).toEqual([]);
+  });
+});
+
+describe("figures matched like for like (from the second Harrison draft)", () => {
+  const library2 = "Normal: response within 1 business day. In the first 30 days we document every device. Weeks 2 to 3: audit. Week 4: written findings. Critical: response within 30 minutes. $95 per user per month.";
+  const rfp2 = "Proposals valid for at least 90 days. Identify pricing differences for a one-year, two-year, or three-year term.";
+  const src = `${library2}\n${rfp2}`;
+
+  it("flags data allowances, percentages and durations the sources never state", () => {
+    expect(unsupportedFigures("Standard backup storage allowance is 1 TB per server and 100 GB per Microsoft 365 user.", src)).toHaveLength(1);
+    expect(unsupportedFigures("Annual price increases: 0% during the initial contract term.", src)).toHaveLength(1);
+    // "30 minutes" in the library does not support "30 hours".
+    expect(unsupportedFigures("Payment is due within 30 hours.", src)).toHaveLength(1);
+  });
+
+  it("accepts durations in the same unit, however they are written", () => {
+    expect(unsupportedFigures("The transition takes four weeks. Normal requests get a response within 1 business day.", src)).toEqual([]);
+    expect(unsupportedFigures("We document everything in the first 30 days; the proposal is valid for 90 days.", src)).toEqual([]);
+  });
+});
+
+describe("conflicting prices", () => {
+  it("finds the same per-unit price stated differently in two parts", () => {
+    expect(
+      rateConflicts([
+        { title: "B. Executive Summary", content: "Our standard pricing is $99 per user per month." },
+        { title: "G. Cost Proposal", content: "| Managed services | $95 per user | 15 |\n\nServers are $150 per server." },
+        { title: "Exhibit A", content: "$95 per user × 15 users = $1,425. [[Amount]] per server for extras." },
+      ]),
+    ).toEqual([
+      {
+        unit: "user",
+        amounts: [
+          { amount: "$99", where: ["B. Executive Summary"] },
+          { amount: "$95", where: ["G. Cost Proposal", "Exhibit A"] },
+        ],
+      },
+    ]);
+  });
+});
+
+describe("notes to the bidder left in the text", () => {
+  it("are listed, while ordinary prose is not", () => {
+    const md = [
+      "The company's authorized representative must verify the company's litigation history before submission.",
+      "| General Liability | Current insurance carrier — to be confirmed | $1,000,000, subject to verification |",
+      "Any storage allowance must be verified with the backup provider before submission.",
+      "Changes must be reviewed and approved by the City before they are made.",
+      "We add the device to the City's domain. Our cyber liability limit is [[Confirm: limit, to be confirmed]].",
+    ].join("\n");
+    expect(bidderNotes(md)).toEqual([
+      "The company's authorized representative must verify the company's litigation history before submission.",
+      "General Liability · Current insurance carrier — to be confirmed · $1,000,000, subject to verification",
+      "Any storage allowance must be verified with the backup provider before submission.",
+    ]);
   });
 });
