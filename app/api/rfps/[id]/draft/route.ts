@@ -266,7 +266,11 @@ export async function POST(request: Request, context: RouteContext) {
         dismissedClaims.set(draftKey(draft), parseCitations(draft.citations)?.dismissed ?? []);
       }
     }
-    return { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText: source.text };
+    const checkAgainst = {
+      libraryText: libraryItems.map((item) => `${item.title}\n${item.content}`).join("\n"),
+      rfpText: source.text,
+    };
+    return { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText: source.text, checkAgainst };
   };
 
   let prepared: Awaited<ReturnType<typeof prepare>>;
@@ -279,7 +283,7 @@ export async function POST(request: Request, context: RouteContext) {
     reportError(error, { area: "draft-setup", userId: user.id, rfpId: rfp.id });
     return Response.json({ error: errorMessage(error, "Drafting failed.") }, { status: 500 });
   }
-  const { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText } = prepared;
+  const { sharedContext, currentContent, questions, citeLookup, dismissedClaims, sourceText, checkAgainst } = prepared;
   const requirements = requirementRefs(rfp);
 
   const stream = new ReadableStream({
@@ -419,6 +423,7 @@ export async function POST(request: Request, context: RouteContext) {
               written,
               citeLookup,
               dismissedClaims.get(section) ?? [],
+              checkAgainst,
             );
             await upsertGeneratedDraftSection({ rfpId: rfp.id, section: planned, content, citations });
             currentContent.set(section, content);

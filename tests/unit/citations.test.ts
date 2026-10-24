@@ -138,6 +138,8 @@ describe("citation markers in documents", () => {
       version: 1,
       sources: {},
       unsupported: ["a"],
+      figures: [],
+      overclaims: [],
       dismissed: [],
     });
   });

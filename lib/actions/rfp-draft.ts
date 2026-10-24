@@ -21,15 +21,19 @@ import { proposalOutline } from "@/lib/rfp-draft";
  * to the passage they pointed to when drafted; a marker the user adds by hand
  * is checked against the library as it is now.
  */
-async function recheckCitations(userId: string, content: string, previous: DraftCitations | null) {
-  const library = buildSourceIndex(await getLibraryItemsForUser(userId));
+async function recheckCitations(userId: string, content: string, previous: DraftCitations | null, rfpText: string) {
+  const items = await getLibraryItemsForUser(userId);
+  const library = buildSourceIndex(items);
   const lookup = (id: string): CitationSource | undefined => {
     const stored = previous?.sources[id];
     if (stored) return stored;
     const passage = library.byId.get(id);
     return passage ? sourceFromPassage(passage) : undefined;
   };
-  return analyzeDraft(content, lookup, previous?.dismissed ?? []);
+  return analyzeDraft(content, lookup, previous?.dismissed ?? [], {
+    libraryText: items.map((item) => `${item.title}\n${item.content}`).join("\n"),
+    rfpText,
+  });
 }
 
 const asJson = (citations: DraftCitations) => citations as unknown as Prisma.InputJsonValue;
@@ -68,7 +72,7 @@ export async function saveDraftSection(input: {
   }
 
   const existing = await findSectionDraft(rfp.id, section);
-  const checked = await recheckCitations(user.id, input.content.trim(), parseCitations(existing?.citations));
+  const checked = await recheckCitations(user.id, input.content.trim(), parseCitations(existing?.citations), rfp.sourceText ?? "");
   const content = checked.content.trim();
   const citations = asJson(checked.citations);
 
@@ -163,6 +167,8 @@ export async function setClaimReviewed(input: {
     ? {
         ...current,
         unsupported: current.unsupported.filter((item) => item !== claim),
+        figures: current.figures.filter((item) => item !== claim),
+        overclaims: current.overclaims.filter((item) => item !== claim),
         dismissed: current.dismissed.includes(claim) ? current.dismissed : [...current.dismissed, claim],
       }
     : {

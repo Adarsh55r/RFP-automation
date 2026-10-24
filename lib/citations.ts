@@ -1,5 +1,6 @@
 import { credentialsIn } from "@/lib/claim-checks";
 import { CITATION_BODY, citationIds } from "@/lib/markdown";
+import { overclaims, unsupportedFigures } from "@/lib/grounding";
 import type { LibraryItem, LibraryItemType } from "@/lib/generated/prisma";
 
 /**
@@ -29,6 +30,10 @@ export type DraftCitations = {
   sources: Record<string, CitationSource>;
   /** Factual-looking sentences with no supporting citation: the user must check or fill these. */
   unsupported: string[];
+  /** Sentences stating a price, percentage or duration found in neither the library nor the RFP. */
+  figures: string[];
+  /** Sentences making absolute claims (guarantees, "full compliance") the library never makes. */
+  overclaims: string[];
   /** Sentences the user reviewed and chose to keep anyway. */
   dismissed: string[];
 };
@@ -169,6 +174,8 @@ export function analyzeDraft(
   markdown: string,
   lookup: (id: string) => CitationSource | undefined,
   dismissed: string[] = [],
+  /** The library and RFP text, to check figures and claims against. Omitted, those checks are skipped. */
+  checkAgainst?: { libraryText: string; rfpText: string },
 ): { content: string; citations: DraftCitations } {
   const sources: Record<string, CitationSource> = {};
   // Markers are rewritten in one canonical form ([S4, S7, S8]) so every later reader agrees.
@@ -196,7 +203,16 @@ export function analyzeDraft(
     if (unsupported.length >= 40) break;
   }
 
-  return { content, citations: { version: 1, sources, unsupported, dismissed: dismissed.filter(Boolean) } };
+  const open = (items: string[]) => items.filter((item) => !dismissed.includes(item));
+  const figures = checkAgainst
+    ? open(unsupportedFigures(content, `${checkAgainst.libraryText}\n${checkAgainst.rfpText}`))
+    : [];
+  const claims = checkAgainst ? open(overclaims(content, checkAgainst.libraryText)) : [];
+
+  return {
+    content,
+    citations: { version: 1, sources, unsupported, figures, overclaims: claims, dismissed: dismissed.filter(Boolean) },
+  };
 }
 
 /** Reads stored citations defensively (older drafts have none). */
@@ -207,6 +223,8 @@ export function parseCitations(value: unknown): DraftCitations | null {
     version: 1,
     sources: raw.sources && typeof raw.sources === "object" ? (raw.sources as Record<string, CitationSource>) : {},
     unsupported: Array.isArray(raw.unsupported) ? raw.unsupported.filter((item) => typeof item === "string") : [],
+    figures: Array.isArray(raw.figures) ? raw.figures.filter((item) => typeof item === "string") : [],
+    overclaims: Array.isArray(raw.overclaims) ? raw.overclaims.filter((item) => typeof item === "string") : [],
     dismissed: Array.isArray(raw.dismissed) ? raw.dismissed.filter((item) => typeof item === "string") : [],
   };
 }

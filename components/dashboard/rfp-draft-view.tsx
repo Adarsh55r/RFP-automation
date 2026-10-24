@@ -92,6 +92,16 @@ function sectionsFromDrafts(drafts: Draft[]): Record<string, SectionState> {
   return next;
 }
 
+/** Statements in a section the bidder must check: uncited facts, figures not in the sources, absolute claims. */
+function itemsToCheck(citations: DraftCitations | null | undefined) {
+  if (!citations) return [];
+  return [
+    ...citations.unsupported.map((text) => ({ text, label: "No source" })),
+    ...(citations.figures ?? []).map((text) => ({ text, label: "Figure not in your library or the RFP" })),
+    ...(citations.overclaims ?? []).map((text) => ({ text, label: "Absolute claim" })),
+  ];
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -161,7 +171,7 @@ function DraftSectionCard({
 
   const streaming = state.status === "streaming";
   const placeholders = useMemo(() => findPlaceholders(state.content), [state.content]);
-  const uncited = state.citations?.unsupported.length ?? 0;
+  const uncited = itemsToCheck(state.citations).length;
   const hasContent = state.content.trim().length > 0;
 
   const submitRevision = (text: string) => {
@@ -207,7 +217,7 @@ function DraftSectionCard({
           ) : null}
           {!streaming && hasContent && uncited > 0 ? (
             <Badge variant="danger" className="whitespace-nowrap">
-              {uncited} without a source
+              {uncited} to check
             </Badge>
           ) : null}
           {!streaming && hasContent ? (
@@ -360,7 +370,7 @@ function InputChecklist({
       section: key,
       title,
       items: findPlaceholders((state[key] ?? EMPTY).content),
-      uncited: state[key]?.citations?.unsupported ?? [],
+      uncited: itemsToCheck(state[key]?.citations),
     }))
     .filter((group) => group.items.length > 0 || group.uncited.length > 0);
   const total = groups.reduce((sum, group) => sum + group.items.length + group.uncited.length, 0);
@@ -386,8 +396,9 @@ function InputChecklist({
           <p className="mt-2 text-sm leading-relaxed text-slate">
             Facts DraftBid AI could not find in the RFP or your library (signatures,
             prices, reference contacts, figures to confirm) are highlighted in yellow.
-            Statements about your company that no library passage supports are listed
-            in red: check each one, then fix it or keep it as written.
+            Listed in red: statements about your company that no library passage
+            supports, figures that appear in neither your library nor the RFP, and
+            absolute claims evaluators distrust. Check each one, then fix it or keep it.
           </p>
         </div>
         <Badge variant={total > 0 ? "accent" : "success"} className="w-fit shrink-0 whitespace-nowrap">
@@ -419,14 +430,14 @@ function InputChecklist({
                 </ul>
               ) : null}
               {group.uncited.length > 0 ? (
-                <ul className="mt-2 flex flex-col gap-2" aria-label="Claims without a source">
-                  {group.uncited.map((claim) => (
+                <ul className="mt-2 flex flex-col gap-2" aria-label="Statements to check">
+                  {group.uncited.map(({ text: claim, label }) => (
                     <li
-                      key={claim}
+                      key={`${label}:${claim}`}
                       className="flex flex-col gap-2 rounded-control border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-ink sm:flex-row sm:items-start sm:justify-between"
                     >
                       <span>
-                        <span className="font-semibold text-danger">No source: </span>
+                        <span className="font-semibold text-danger">{label}: </span>
                         {claim}
                       </span>
                       <button
@@ -520,7 +531,7 @@ export function RfpDraftView({
     0,
   );
   const uncitedTotal = plannedSections.reduce(
-    (sum, section) => sum + (sections(section.key).citations?.unsupported.length ?? 0),
+    (sum, section) => sum + itemsToCheck(sections(section.key).citations).length,
     0,
   );
   const updateCitations = (section: string, content: string, citations: DraftCitations) =>
@@ -693,7 +704,7 @@ export function RfpDraftView({
     // The review copy is for checking these, so it never asks.
     const warnings = exportVariant === "review" && format !== "sheet" ? [] : [
       uncitedTotal > 0
-        ? `${uncitedTotal} statement${uncitedTotal === 1 ? " about your company has" : "s about your company have"} no source in your library (listed under "Needs your input"). Make sure each one is true.`
+        ? `${uncitedTotal} statement${uncitedTotal === 1 ? " needs" : "s need"} checking: claims with no source in your library, figures found in neither your library nor the RFP, or absolute claims (listed under "Needs your input"). Make sure each one is true.`
         : "",
       placeholderTotal > 0
         ? `${placeholderTotal} item${placeholderTotal === 1 ? "" : "s"} still need your input (highlighted in yellow).`

@@ -268,6 +268,25 @@ describe.skipIf(!hasTestDb)("drafting route", () => {
     expect(doc.confidential).toBe(false);
   });
 
+  it("lists figures found in neither the library nor the RFP, and lets the bidder keep one after checking", async () => {
+    const { rfp, run, llm } = await setup(FIXTURES[0].text);
+    llm.script.json = () => JSON.stringify(llm.SAMPLE_PLAN);
+    llm.script.stream = async function* (req) {
+      if (req.user.includes("bid reviewer")) return;
+      yield "Project work is billed at $187 per hour. We guarantee zero downtime.";
+    };
+    await readEvents(await run());
+    const pricing = await testDb().draft.findFirstOrThrow({ where: { rfpId: rfp.id, sectionKey: "pricing" } });
+    expect(pricing.citations).toMatchObject({
+      figures: ["Project work is billed at $187 per hour."],
+      overclaims: ["We guarantee zero downtime."],
+    });
+
+    const { setClaimReviewed } = await import("@/lib/actions/rfp-draft");
+    const kept = await setClaimReviewed({ rfpId: rfp.id, sectionKey: "pricing", claim: "Project work is billed at $187 per hour.", reviewed: true });
+    expect(kept.ok && kept.citations.figures).toEqual([]);
+  });
+
   it("drafting only ever sees the current account's library", async () => {
     const other = await createUser("someone-else", "starter");
     await testDb().libraryItem.create({

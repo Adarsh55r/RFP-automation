@@ -46,7 +46,7 @@ export type ProposalDocument = {
 
 export type ReviewAppendix = {
   sources: { section: string; id: string; title: string; excerpt: string }[];
-  openItems: { section: string; kind: "Uncited claim" | "Needs your input"; text: string }[];
+  openItems: { section: string; kind: "Uncited claim" | "Figure to check" | "Absolute claim" | "Needs your input"; text: string }[];
 };
 
 export type ExportFormat = "docx" | "pdf";
@@ -90,6 +90,12 @@ function reviewAppendix(sections: ReturnType<typeof exportableSections>): Review
     }
     for (const claim of citations?.unsupported ?? []) {
       appendix.openItems.push({ section, kind: "Uncited claim", text: claim });
+    }
+    for (const figure of citations?.figures ?? []) {
+      appendix.openItems.push({ section, kind: "Figure to check", text: figure });
+    }
+    for (const claim of citations?.overclaims ?? []) {
+      appendix.openItems.push({ section, kind: "Absolute claim", text: claim });
     }
     for (const placeholder of findPlaceholders(content)) {
       appendix.openItems.push({ section, kind: "Needs your input", text: placeholder });
