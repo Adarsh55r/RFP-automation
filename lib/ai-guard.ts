@@ -47,6 +47,13 @@ export const dailySpendCapUsd: Record<SubscriptionTier, number> = {
   agency: 40,
 };
 
+/**
+ * AI spend ceiling per UTC day for all free accounts together. Free accounts
+ * cost an email address each, so someone making many of them is stopped here
+ * rather than by any one account's limits. Paid accounts never count toward it.
+ */
+export const FREE_TIER_DAILY_BUDGET_USD = 10;
+
 export const FULL_DRAFT_COOLDOWN_SECONDS = 60;
 export const HOURLY_CALL_LIMIT = 120;
 /** Longest an AI task can hold the account lock if it never releases (crash, timeout). */
@@ -83,6 +90,37 @@ export async function monthlySpendUsd(userId: string, now = new Date()) {
 
 export async function dailySpendUsd(userId: string, now = new Date()) {
   return spendSinceUsd(userId, startOfDayUtc(now));
+}
+
+/** Today's AI spend by every account on the free plan (no subscription counts as free). */
+export async function freeTierSpendTodayUsd(now = new Date()) {
+  const total = await prisma.aiUsage.aggregate({
+    where: {
+      createdAt: { gte: startOfDayUtc(now) },
+      user: { OR: [{ subscription: { is: null } }, { subscription: { is: { tier: "free" } } }] },
+    },
+    _sum: { costMicros: true },
+  });
+  return (total._sum.costMicros ?? 0) / 1_000_000;
+}
+
+/** Day the shared free budget was last reported by this server instance, so the alert is sent about once a day. */
+let freeBudgetAlertDay: string | null = null;
+
+async function alertFreeBudget(spentUsd: number, now: Date) {
+  const day = now.toISOString().slice(0, 10);
+  if (freeBudgetAlertDay === day) return;
+  freeBudgetAlertDay = day;
+  const text = `[DraftBid AI] Free-plan AI budget reached: free accounts together spent $${spentUsd.toFixed(2)} of $${FREE_TIER_DAILY_BUDGET_USD} on ${day}. AI features are paused for free accounts until midnight UTC. Check the admin panel for a burst of new sign-ups.`;
+  console.error(`[ai-budget] ALERT ${text}`);
+  const webhook = process.env.ALERT_WEBHOOK_URL?.trim();
+  if (webhook) {
+    await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }).catch((error) => console.error("[ai-budget] Alert webhook failed:", safeErrorSummary(error)));
+  }
 }
 
 async function alertSpendCap(
@@ -127,6 +165,18 @@ export async function beginAccountAiTask(
   tier: SubscriptionTier,
   now = new Date(),
 ): Promise<AiGranted | AiDenied> {
+  if (tier === "free") {
+    const freeSpentUsd = await freeTierSpendTodayUsd(now);
+    if (freeSpentUsd >= FREE_TIER_DAILY_BUDGET_USD) {
+      await alertFreeBudget(freeSpentUsd, now);
+      return {
+        ok: false,
+        status: 429,
+        error:
+          "The free trial has reached its AI usage for today and resumes at midnight UTC. Your work is saved; upgrade to a paid plan to continue now.",
+      };
+    }
+  }
 
   const dayCapUsd = dailySpendCapUsd[tier];
   const spentTodayUsd = await dailySpendUsd(user.id, now);
