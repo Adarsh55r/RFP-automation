@@ -9,7 +9,7 @@ import { COMPANY } from "@/lib/company";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
 import { getProposalAllowance } from "@/lib/entitlements";
-import { displayPrice, formatPrice, publicPlans, SETUP_ADDON } from "@/lib/plans";
+import { displayPrice, formatPrice, publicPlans } from "@/lib/plans";
 import { recordFirst } from "@/lib/funnel";
 import { PlanRequestLink } from "@/components/dashboard/plan-request-link";
 
@@ -139,17 +139,6 @@ export default async function BillingPage() {
             );
           })}
         </div>
-        <Card className="flex flex-col gap-2">
-          <h3 className="font-sans text-base font-semibold text-ink">
-            {SETUP_ADDON.name} · {formatPrice(SETUP_ADDON.price.usd, "usd")} one-time
-          </h3>
-          <p className="text-sm leading-relaxed text-slate">
-            {SETUP_ADDON.description} Included free with {SETUP_ADDON.waivedOn}.
-          </p>
-          <Button asChild variant="secondary" className="w-fit">
-            <a href={requestHref(SETUP_ADDON.name)}>Request setup</a>
-          </Button>
-        </Card>
       </section>
     </div>
   );

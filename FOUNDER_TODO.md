@@ -79,7 +79,6 @@ DraftBid AI is run by you as an independent founder, with no registered company.
 ## Content
 - [ ] **Review the segment landing page copy** in `lib/segments.ts`: headline, subheadline, pains, checklist items and "upload first" list for `/for/it-services`, `/for/consultancies`, `/for/service-contractors` and `/for/consultants`. These are first drafts. Swap or add segments by editing that file; no code changes are needed.
 - [ ] Review the use-case pages `/use-cases/uk-tenders` and `/use-cases/security-questionnaires`.
-- [ ] `SETUP_BOOKING_URL` in `lib/company.ts`: a booking link for the done-with-you setup (optional, empty for now). Until it is set, "Get help with your first bid" goes to the setup card on the pricing page, whose button opens an email to `privacy@draftbidai.com`.
 - [ ] **How it compares** (`COMPARISON` in `lib/marketing-content.ts`): run one real public RFP through ChatGPT and DraftBid AI, publish both outputs, and fill in the rows. The section stays hidden until then.
 - [ ] **Sample outputs** (`SAMPLE_OUTPUTS`, and `sampleOutput` per segment): three drafts from public RFPs, one per segment. Hidden until supplied.
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark

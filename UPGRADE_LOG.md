@@ -586,3 +586,12 @@ Triggered by a real test on the City of Harrison, MI managed IT RFP. The draft s
 - **Cover details:** only fields the bidder changes are saved, so a drafted value can no longer stick through later drafts; a solicitation number not printed in the RFP and any date in the cover letter, forms or cover after the deadline are flagged before export.
 - **Executive summary** capped at about 400 words; parts told not to repeat each other.
 - **Not verified:** a real AI run (no key here). Re-run the Harrison test after deploy.
+
+## Repricing (October 2026)
+
+Prices lowered to fit small firms, aiming for about 85% margin after AI, hosting and payment costs at typical use:
+- Single-bid pass: $149 → **$29** (1 proposal, 30 days; credited if they subscribe within 30 days).
+- Starter: $99/month, 4 proposals, $29 extra → **$49/month ($490/year), 3 proposals, $15 extra**.
+- Pro: $249/month, 12 proposals, $25 extra → **$129/month ($1,290/year), 10 proposals, $12 extra**.
+- **Done-with-you setup removed** for now: its card on the pricing and billing pages, its FAQ and the Pro annual perk are gone, and "Get help with your first bid" buttons now point to the free RFP checklist. The private paid pilot, which included setup, is retired.
+- No subscriber had paid, so no grandfathering was needed; the legacy terms logic is unchanged. The monthly AI spending caps per account are unchanged and should be reviewed against the new prices once real costs are known.

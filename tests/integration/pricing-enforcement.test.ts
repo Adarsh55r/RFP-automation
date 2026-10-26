@@ -34,16 +34,16 @@ describe.skipIf(!hasTestDb)("plan enforcement on the server", () => {
   });
 
   it("current Starter asks before an extra proposal and records the confirmed charge", async () => {
-    const user = await onPlan("starter-now", "starter", "2026-10", 4);
+    const user = await onPlan("starter-now", "starter", "2026-10", 3);
     const ask = await upload();
     expect(ask.status).toBe(402);
-    expect(await ask.json()).toMatchObject({ overagePriceUsd: 29 });
+    expect(await ask.json()).toMatchObject({ overagePriceUsd: 15 });
     expect(await testDb().rfp.count({ where: { userId: user.id } })).toBe(0);
 
-    const confirmed = await upload(29);
+    const confirmed = await upload(15);
     expect(confirmed.status).toBe(200);
     const usage = await testDb().proposalUsage.findMany({ where: { userId: user.id, overageCents: { not: null } } });
-    expect(usage.map((row) => row.overageCents)).toEqual([2900]);
+    expect(usage.map((row) => row.overageCents)).toEqual([1500]);
   });
 
   it("grandfathered Starter keeps its original 5 a month with no surprise charge", async () => {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DocumentTransform } from "@/components/marketing/document-transform";
 import { HeroAtmosphere } from "@/components/marketing/hero-atmosphere";
-import { setupHelpHref } from "@/lib/company";
 
 export function Hero() {
   const reduceMotion = useReducedMotion();
@@ -36,7 +35,7 @@ export function Hero() {
               <Link href="/sign-up?plan=free">Draft your first proposal free</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <Link href={setupHelpHref()}>Get help with your first bid</Link>
+              <Link href="/tools/rfp-checklist">Try the free RFP checklist</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-slate">

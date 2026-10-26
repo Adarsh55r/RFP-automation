@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Check, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/marketing/section";
-import { setupHelpHref } from "@/lib/company";
 import type { Segment } from "@/lib/segments";
 
 /** The one landing-page template every segment page uses (config in lib/segments.ts). */
@@ -22,7 +21,7 @@ export function SegmentLanding({ segment }: { segment: Segment }) {
               <Link href={signup}>Draft your first proposal free</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <Link href={setupHelpHref()}>Get help with your first bid</Link>
+              <Link href="/tools/rfp-checklist">Try the free RFP checklist</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-slate">
