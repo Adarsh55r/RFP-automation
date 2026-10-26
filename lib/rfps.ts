@@ -1,7 +1,10 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
-import type { Prisma } from "@/lib/generated/prisma";
+import { RfpStatus, type Prisma } from "@/lib/generated/prisma";
+import { allowancePeriodStart, computeAllowance, decideUpload, type SubscriptionTerms } from "@/lib/entitlements";
 import { recordFirst } from "@/lib/funnel";
+import { safeErrorSummary } from "@/lib/safe-log";
+import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * One RFP for its pages. Leaves out the full document text, which can run to
@@ -36,9 +39,109 @@ export async function getRfpsForClerkUser(clerkId: string) {
   });
 }
 
+/** Upload attempts allowed per account per hour, finished or not. */
+export const UPLOADS_PER_HOUR = 10;
+
+/** A large upload not finished within this time is abandoned, and its proposal is given back. */
+export const PENDING_UPLOAD_TTL_MS = 60 * 60 * 1000;
+
+const RATE_LIMITED =
+  "You have uploaded a lot of files in the last hour. Please wait a few minutes and try again.";
+
+/** Message when the hourly upload rate limit is reached, or null when there is room. */
+export async function uploadRateLimited(userId: string) {
+  const recent = await prisma.rfp.count({
+    where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  return recent >= UPLOADS_PER_HOUR ? RATE_LIMITED : null;
+}
+
+export type Reservation =
+  | { ok: true; rfpId: string; overageCents: number | null }
+  | { ok: false; status: 402 | 403 | 429; error: string; overagePriceUsd?: number };
+
 /**
- * Marks an upload as finished and records that it used one proposal from the
- * plan, together. Abandoned uploads never reach this, so they never count.
+ * Starts a new proposal: checks the plan's limit and books the proposal in
+ * one step. The account's row is locked while the limit is counted, so two
+ * uploads started at the same moment, or several large uploads started
+ * before any of them finishes, cannot all see a free slot. The RFP is created
+ * without its file; `completeRfpUpload` attaches it, `releaseReservation`
+ * gives the proposal back if the upload never completes.
+ */
+export async function reserveProposal(input: {
+  userId: string;
+  subscription: SubscriptionTerms;
+  title: string;
+  confirmedOverageUsd: number | null;
+  now?: Date;
+}): Promise<Reservation> {
+  const now = input.now ?? new Date();
+  await releaseAbandonedUploads(input.userId, now);
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${input.userId} FOR UPDATE`;
+
+    const recent = await tx.rfp.count({
+      where: { userId: input.userId, createdAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+    });
+    if (recent >= UPLOADS_PER_HOUR) return { ok: false as const, status: 429 as const, error: RATE_LIMITED };
+
+    const since = allowancePeriodStart(input.subscription, now);
+    const used = await tx.proposalUsage.count({
+      where: { userId: input.userId, ...(since ? { createdAt: { gte: since } } : {}) },
+    });
+    const decision = decideUpload(computeAllowance(input.subscription, used, now), input.confirmedOverageUsd);
+    if (!decision.ok) return decision;
+
+    const rfp = await tx.rfp.create({
+      data: { userId: input.userId, title: input.title, status: RfpStatus.uploaded, overageCents: decision.overageCents },
+    });
+    // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
+    await tx.proposalUsage.create({ data: { userId: input.userId, rfpId: rfp.id, overageCents: decision.overageCents } });
+    return { ok: true as const, rfpId: rfp.id, overageCents: decision.overageCents };
+  });
+}
+
+/**
+ * Gives back the proposal booked for an upload that never completed (failed,
+ * cancelled, invalid or abandoned) and removes its RFP. Does nothing once the
+ * file has arrived: a finished proposal stays counted, even if deleted later.
+ */
+export async function releaseReservation(rfpId: string, userId: string) {
+  await prisma.$transaction(async (tx) => {
+    const pending = await tx.rfp.findFirst({ where: { id: rfpId, userId, originalFileUrl: null }, select: { id: true } });
+    if (!pending) return;
+    await tx.proposalUsage.deleteMany({ where: { rfpId, userId } });
+    await tx.rfp.delete({ where: { id: rfpId } });
+  });
+}
+
+/** Releases this account's uploads started more than an hour ago and never finished, with any file left behind. */
+export async function releaseAbandonedUploads(userId: string, now = new Date()) {
+  const stale = await prisma.rfp.findMany({
+    where: { userId, originalFileUrl: null, createdAt: { lt: new Date(now.getTime() - PENDING_UPLOAD_TTL_MS) } },
+    select: { id: true },
+  });
+  for (const { id } of stale) {
+    await removePendingFiles(`${userId}/${id}`);
+    await releaseReservation(id, userId);
+  }
+}
+
+/** Best effort: storage may not be configured, and a stray file must not block the user. */
+async function removePendingFiles(folder: string) {
+  try {
+    const bucket = getSupabaseAdmin().storage.from(getRfpStorageBucket());
+    const { data } = await bucket.list(folder);
+    if (data?.length) await bucket.remove(data.map((item) => `${folder}/${item.name}`));
+  } catch (error) {
+    console.error("[uploads] Could not remove an abandoned upload's file:", safeErrorSummary(error));
+  }
+}
+
+/**
+ * Marks an upload as finished. The proposal was booked when the upload
+ * started (`reserveProposal`); uploads started before reservations existed
+ * get their proposal recorded here, exactly once.
  */
 export async function completeRfpUpload(
   rfpId: string,
@@ -46,25 +149,12 @@ export async function completeRfpUpload(
   originalFileUrl: string,
   overageCents: number | null = null,
 ) {
-  await prisma.$transaction([
-    prisma.rfp.update({ where: { id: rfpId }, data: { originalFileUrl } }),
-    // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
-    prisma.proposalUsage.create({ data: { userId, rfpId, overageCents } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.rfp.update({ where: { id: rfpId }, data: { originalFileUrl } });
+    const booked = await tx.proposalUsage.count({ where: { rfpId, userId } });
+    if (booked === 0) await tx.proposalUsage.create({ data: { userId, rfpId, overageCents } });
+  });
   const proposals = await prisma.proposalUsage.count({ where: { userId } });
   if (proposals === 1) await recordFirst("first_upload", userId);
   if (proposals === 2) await recordFirst("second_proposal", userId);
-}
-
-/** Upload attempts allowed per account per hour, finished or not. */
-export const UPLOADS_PER_HOUR = 10;
-
-/** Message when the hourly upload rate limit is reached, or null when there is room. */
-export async function uploadRateLimited(userId: string) {
-  const recent = await prisma.rfp.count({
-    where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
-  });
-  return recent >= UPLOADS_PER_HOUR
-    ? "You have uploaded a lot of files in the last hour. Please wait a few minutes and try again."
-    : null;
 }

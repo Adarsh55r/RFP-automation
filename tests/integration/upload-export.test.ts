@@ -82,12 +82,17 @@ describe.skipIf(!hasTestDb)("uploading an RFP", () => {
     expect(rfp.originalFileUrl).toContain(path);
   });
 
-  it("an abandoned direct upload does not use up the monthly quota", async () => {
+  it("a started upload holds its proposal until it finishes, and a cancelled one gives it back", async () => {
     const start = await import("@/app/api/rfps/upload/start/route");
+    const finish = await import("@/app/api/rfps/[id]/upload/route");
     const { getProposalAllowance } = await import("@/lib/entitlements");
     const user = await testDb().user.findUniqueOrThrow({ where: { clerkId: "up" } });
-    await start.POST(json({ fileName: "a.pdf", size: 6 * MB, contentType: "application/pdf" }));
-    expect((await getProposalAllowance(user.id, { tier: "starter", planVersion: "legacy" })).used).toBe(0);
+    const res = await start.POST(json({ fileName: "a.pdf", size: 6 * MB, contentType: "application/pdf" }));
+    const { id } = (await res.json()) as { id: string };
+    const used = async () => (await getProposalAllowance(user.id, { tier: "starter", planVersion: "legacy" })).used;
+    expect(await used()).toBe(1);
+    await finish.DELETE(new Request("http://t/x", { method: "DELETE" }), { params: Promise.resolve({ id }) });
+    expect(await used()).toBe(0);
   });
 });
 

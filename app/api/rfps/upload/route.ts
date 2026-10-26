@@ -4,7 +4,6 @@ import { reportError } from "@/lib/monitoring";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { RfpStatus } from "@/lib/generated/prisma";
 import {
   isAllowedRfpFile,
   contentTypeFor,
@@ -14,8 +13,7 @@ import {
   sanitizeStorageFilename,
   titleFromFilename,
 } from "@/lib/rfp-upload";
-import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
-import { completeRfpUpload, uploadRateLimited } from "@/lib/rfps";
+import { completeRfpUpload, releaseReservation, reserveProposal, uploadRateLimited } from "@/lib/rfps";
 import {
   getRfpPublicUrl,
   getRfpStorageBucket,
@@ -86,18 +84,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const confirmed = Number(formData.get("confirmOverageUsd"));
-  const decision = decideUpload(
-    await getProposalAllowance(user.id, user.subscription),
-    Number.isFinite(confirmed) && confirmed > 0 ? confirmed : null,
-  );
-  if (!decision.ok) {
-    return NextResponse.json(
-      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
-      { status: decision.status },
-    );
-  }
-
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!looksLikeRfpFile(bytes, file.name)) {
     return NextResponse.json(
@@ -110,17 +96,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: unsafe }, { status: 400 });
   }
 
-  const title = titleFromFilename(file.name);
   const safeName = sanitizeStorageFilename(file.name);
 
-  const rfp = await prisma.rfp.create({
-    data: {
-      userId: user.id,
-      title,
-      status: RfpStatus.uploaded,
-      overageCents: decision.overageCents,
-    },
+  // The plan limit is checked and the proposal booked in one step, so
+  // simultaneous uploads cannot all use the same free slot.
+  const confirmed = Number(formData.get("confirmOverageUsd"));
+  const reservation = await reserveProposal({
+    userId: user.id,
+    subscription: user.subscription,
+    title: titleFromFilename(file.name),
+    confirmedOverageUsd: Number.isFinite(confirmed) && confirmed > 0 ? confirmed : null,
   });
+  if (!reservation.ok) {
+    return NextResponse.json(
+      { error: reservation.error, overagePriceUsd: reservation.overagePriceUsd },
+      { status: reservation.status },
+    );
+  }
+  const rfp = { id: reservation.rfpId };
 
   const storagePath = `${user.id}/${rfp.id}/${safeName}`;
 
@@ -142,11 +135,11 @@ export async function POST(request: Request) {
 
     const originalFileUrl = getRfpPublicUrl(storagePath);
 
-    await completeRfpUpload(rfp.id, user.id, originalFileUrl, decision.overageCents);
+    await completeRfpUpload(rfp.id, user.id, originalFileUrl, reservation.overageCents);
 
     return NextResponse.json({ id: rfp.id });
   } catch (error) {
-    await prisma.rfp.delete({ where: { id: rfp.id } }).catch(() => undefined);
+    await releaseReservation(rfp.id, user.id).catch(() => undefined);
 
     const message =
       error instanceof Error && error.message.includes("Supabase is not configured")

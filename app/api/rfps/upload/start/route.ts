@@ -2,11 +2,9 @@ import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { RfpStatus } from "@/lib/generated/prisma";
 import { reportError } from "@/lib/monitoring";
 import { isAllowedRfpName, RFP_MAX_BYTES, sanitizeStorageFilename, titleFromFilename } from "@/lib/rfp-upload";
-import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
-import { uploadRateLimited } from "@/lib/rfps";
+import { releaseReservation, reserveProposal } from "@/lib/rfps";
 import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -46,30 +44,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File is too large. Maximum size is 25 MB." }, { status: 400 });
   }
 
-  const decision = decideUpload(
-    await getProposalAllowance(user.id, user.subscription),
-    typeof body?.confirmOverageUsd === "number" ? body.confirmOverageUsd : null,
-  );
-  if (!decision.ok) {
+  // The proposal is booked now, not when the file arrives, so several uploads
+  // started before any finishes cannot all use the same free slot.
+  const reservation = await reserveProposal({
+    userId: user.id,
+    subscription: user.subscription,
+    title: titleFromFilename(fileName),
+    confirmedOverageUsd: typeof body?.confirmOverageUsd === "number" ? body.confirmOverageUsd : null,
+  });
+  if (!reservation.ok) {
     return NextResponse.json(
-      { error: decision.error, overagePriceUsd: decision.overagePriceUsd },
-      { status: decision.status },
+      { error: reservation.error, overagePriceUsd: reservation.overagePriceUsd },
+      { status: reservation.status },
     );
   }
-
-  const rateLimited = await uploadRateLimited(user.id);
-  if (rateLimited) {
-    return NextResponse.json({ error: rateLimited }, { status: 429 });
-  }
-
-  const rfp = await prisma.rfp.create({
-    data: {
-      userId: user.id,
-      title: titleFromFilename(fileName),
-      status: RfpStatus.uploaded,
-      overageCents: decision.overageCents,
-    },
-  });
+  const rfp = { id: reservation.rfpId };
   const path = `${user.id}/${rfp.id}/${sanitizeStorageFilename(fileName)}`;
 
   try {
@@ -77,7 +66,7 @@ export async function POST(request: Request) {
     if (error || !data) throw error ?? new Error("No signed upload URL returned.");
     return NextResponse.json({ id: rfp.id, uploadUrl: data.signedUrl, path });
   } catch (error) {
-    await prisma.rfp.delete({ where: { id: rfp.id } }).catch(() => undefined);
+    await releaseReservation(rfp.id, user.id).catch(() => undefined);
     console.error("Could not start a direct upload:", safeErrorSummary(error));
     reportError(error, { area: "upload-start", userId: user.id, rfpId: rfp.id });
     return NextResponse.json({ error: "Upload failed. Try again in a moment." }, { status: 500 });
