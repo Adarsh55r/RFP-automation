@@ -15,7 +15,7 @@ const pillars = [
   {
     icon: Library,
     title: "Written from your own work.",
-    body: "Your past proposals, case studies, team and certifications become a library every new bid draws on, with your first bid set up with you if you want help.",
+    body: "Your past proposals, case studies, team and certifications become a library every new bid draws on.",
   },
 ] as const;
 

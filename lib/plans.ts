@@ -42,7 +42,7 @@ export type PlanDef = {
 
 // GBP prices are placeholders until the founder confirms them (FOUNDER_TODO):
 // {{GBP_PRICE_SINGLE_BID}}, {{GBP_PRICE_STARTER_MONTHLY}}, {{GBP_PRICE_STARTER_ANNUAL}},
-// {{GBP_PRICE_PRO_MONTHLY}}, {{GBP_PRICE_PRO_ANNUAL}}, {{GBP_PRICE_OVERAGE}}, {{GBP_PRICE_SETUP}}.
+// {{GBP_PRICE_PRO_MONTHLY}}, {{GBP_PRICE_PRO_ANNUAL}}, {{GBP_PRICE_OVERAGE}}.
 const usd = (amount: number): Money => ({ usd: amount, gbp: null });
 
 export const PLANS: Record<PlanId, PlanDef> = {
@@ -71,7 +71,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     summary: "One proposal with 30 days of access, for a bid you need to answer now.",
     ctaLabel: "Get a single-bid pass",
     visibility: "public",
-    billing: { kind: "one_time", price: usd(149), accessDays: 30 },
+    billing: { kind: "one_time", price: usd(29), accessDays: 30 },
     proposals: { limit: 1, per: "access_period" },
     overage: null,
     libraryItems: null,
@@ -80,7 +80,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
       "Your full content library",
       "Requirements checklist and compliance review",
       "Word and PDF export",
-      "$149 credited to your first invoice if you subscribe within 30 days",
+      "$29 credited to your first invoice if you subscribe within 30 days",
     ],
   },
   starter: {
@@ -89,13 +89,13 @@ export const PLANS: Record<PlanId, PlanDef> = {
     summary: "For teams answering a few RFPs a month.",
     ctaLabel: "Choose Starter",
     visibility: "public",
-    billing: { kind: "subscription", monthly: usd(99), annual: usd(990) },
-    proposals: { limit: 4, per: "month" },
-    overage: usd(29),
+    billing: { kind: "subscription", monthly: usd(49), annual: usd(490) },
+    proposals: { limit: 3, per: "month" },
+    overage: usd(15),
     libraryItems: 50,
     features: [
-      "4 proposals per month",
-      "Extra proposals $29 each, only after you confirm",
+      "3 proposals per month",
+      "Extra proposals $15 each, only after you confirm",
       "Library of up to 50 items: case studies, bios, certifications, answers",
       "Requirements checklist and compliance review",
       "Word and PDF export",
@@ -110,19 +110,18 @@ export const PLANS: Record<PlanId, PlanDef> = {
     ctaLabel: "Choose Pro",
     highlighted: true,
     visibility: "public",
-    billing: { kind: "subscription", monthly: usd(249), annual: usd(2490) },
-    proposals: { limit: 12, per: "month" },
-    overage: usd(25),
+    billing: { kind: "subscription", monthly: usd(129), annual: usd(1290) },
+    proposals: { limit: 10, per: "month" },
+    overage: usd(12),
     libraryItems: null,
     features: [
-      "12 proposals per month",
-      "Extra proposals $25 each, only after you confirm",
+      "10 proposals per month",
+      "Extra proposals $12 each, only after you confirm",
       "Larger library with no item limit",
       "Requirements checklist and compliance review",
       "Word and PDF export",
       "1 user",
       "Same-day email support (US and UK business hours)",
-      "Done-with-you setup included on annual billing",
     ],
   },
   consultant: {
@@ -149,8 +148,8 @@ export const PLANS: Record<PlanId, PlanDef> = {
     name: "Paid pilot",
     summary: "60 days on Pro limits, with setup done with you.",
     ctaLabel: "Start the pilot",
-    // Offered by private link or coupon only; never on the pricing page.
-    visibility: "private",
+    // Retired with the done-with-you setup it included (October 2026 repricing).
+    visibility: "retired",
     billing: { kind: "one_time", price: usd(299), accessDays: 60 },
     proposals: { limit: 12, per: "month" },
     overage: null,
@@ -214,15 +213,6 @@ export const LEGACY_PLANS: Partial<Record<PlanId, PlanDef>> = {
   agency: PLANS.agency,
 };
 
-/** One-time add-on, sold alongside a plan. */
-export const SETUP_ADDON = {
-  name: "Done-with-you setup",
-  price: usd(500),
-  description:
-    "We load your past proposals, case studies, résumés and certifications into your library, then run your first bid with you.",
-  waivedOn: "Pro on annual billing",
-};
-
 /** Plans a new customer can choose on the pricing page, in display order. */
 export const publicPlans: PlanDef[] = (["free", "single_bid", "starter", "pro"] as const).map((id) => PLANS[id]);
 
@@ -255,7 +245,7 @@ function moneyList(plan: PlanDef): Money[] {
 
 /** GBP is offered only once every public price has a confirmed GBP amount. */
 export const gbpAvailable =
-  publicPlans.every((plan) => moneyList(plan).every((price) => price.gbp !== null)) && SETUP_ADDON.price.gbp !== null;
+  publicPlans.every((plan) => moneyList(plan).every((price) => price.gbp !== null));
 
 const currencyLocale: Record<Currency, { locale: string; code: string }> = {
   usd: { locale: "en-US", code: "USD" },

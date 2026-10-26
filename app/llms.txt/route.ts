@@ -1,5 +1,5 @@
 import { faqs } from "@/lib/faqs";
-import { displayPrice, publicPlans, SETUP_ADDON } from "@/lib/plans";
+import { displayPrice, publicPlans } from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
@@ -32,7 +32,6 @@ export function GET() {
       const annual = plan.billing.kind === "subscription" ? ` (or $${plan.billing.annual.usd} a year)` : "";
       return `- ${plan.name}: $${monthly.amount}${monthly.suffix}${annual}. ${plan.summary} Includes: ${plan.features.join("; ")}.`;
     }),
-    `- Add-on: ${SETUP_ADDON.name}, $${SETUP_ADDON.price.usd} one-time. ${SETUP_ADDON.description} Included with ${SETUP_ADDON.waivedOn}.`,
     "",
     "## FAQ",
     "",

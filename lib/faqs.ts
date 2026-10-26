@@ -29,12 +29,12 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "What happens when I reach my plan's limit?",
     answer:
-      "On Starter and Pro you can keep going: before an extra proposal starts, DraftBid AI shows its price ($29 on Starter, $25 on Pro) and only continues if you confirm. The free trial and the single-bid pass include one proposal; after that you choose a plan. Nothing you have already created is deleted, and finished proposals stay downloadable.",
+      "On Starter and Pro you can keep going: before an extra proposal starts, DraftBid AI shows its price ($15 on Starter, $12 on Pro) and only continues if you confirm. The free trial and the single-bid pass include one proposal; after that you choose a plan. Nothing you have already created is deleted, and finished proposals stay downloadable.",
   },
   {
     question: "What is the single-bid pass?",
     answer:
-      "A one-time $149 payment for one proposal, with 30 days of access. If you subscribe to a plan within 30 days of buying it, the $149 is credited to your first invoice.",
+      "A one-time $29 payment for one proposal, with 30 days of access. If you subscribe to a plan within 30 days of buying it, the $29 is credited to your first invoice.",
   },
   {
     question: "How do I pay, and can I cancel?",
@@ -45,11 +45,6 @@ export const faqs: { question: string; answer: string }[] = [
     question: "Can I change plans?",
     answer:
       "Yes. Upgrades apply straight away. Downgrades apply from your next renewal, so you keep the limits you have paid for until then.",
-  },
-  {
-    question: "What is the done-with-you setup?",
-    answer:
-      "For $500 one-time, we load your past proposals, case studies, résumés and certifications into your library and run your first bid with you, so your first draft starts from strong material. It is included free with Pro on annual billing.",
   },
   {
     question: "How long does a first draft take?",

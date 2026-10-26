@@ -9,7 +9,7 @@ describe("plan config", () => {
     expect(publicPlans.map((plan) => plan.id)).toEqual(["free", "single_bid", "starter", "pro"]);
     expect(isSellablePlan("consultant")).toBe(false); // client workspaces not built
     expect(isSellablePlan("agency")).toBe(false); // retired unlimited plan
-    expect(isSellablePlan("pilot")).toBe(true); // private link only, never on the pricing page
+    expect(isSellablePlan("pilot")).toBe(false); // retired with the done-with-you setup it included
     expect(publicPlans.some((plan) => plan.id === "pilot")).toBe(false);
   });
 
@@ -22,15 +22,15 @@ describe("plan config", () => {
   });
 
   it("matches the agreed prices and limits", () => {
-    expect(PLANS.starter.billing).toMatchObject({ monthly: { usd: 99 }, annual: { usd: 990 } });
-    expect(PLANS.pro.billing).toMatchObject({ monthly: { usd: 249 }, annual: { usd: 2490 } });
-    expect(PLANS.single_bid.billing).toMatchObject({ price: { usd: 149 }, accessDays: 30 });
+    expect(PLANS.starter.billing).toMatchObject({ monthly: { usd: 49 }, annual: { usd: 490 } });
+    expect(PLANS.pro.billing).toMatchObject({ monthly: { usd: 129 }, annual: { usd: 1290 } });
+    expect(PLANS.single_bid.billing).toMatchObject({ price: { usd: 29 }, accessDays: 30 });
     expect([PLANS.free.proposals, PLANS.starter.proposals, PLANS.pro.proposals]).toEqual([
       { limit: 1, per: "lifetime" },
-      { limit: 4, per: "month" },
-      { limit: 12, per: "month" },
+      { limit: 3, per: "month" },
+      { limit: 10, per: "month" },
     ]);
-    expect([PLANS.starter.overage?.usd, PLANS.pro.overage?.usd]).toEqual([29, 25]);
+    expect([PLANS.starter.overage?.usd, PLANS.pro.overage?.usd]).toEqual([15, 12]);
   });
 
   it("hides GBP until every public price has a confirmed GBP amount", () => {
@@ -41,7 +41,7 @@ describe("plan config", () => {
     expect(resolvePlan({ tier: "starter", planVersion: "legacy" }).proposals).toEqual({ limit: 5, per: "month" });
     expect(resolvePlan({ tier: "free", planVersion: "legacy" }).proposals).toEqual({ limit: 1, per: "month" });
     expect(resolvePlan({ tier: "agency", planVersion: "legacy" }).proposals.limit).toBeNull();
-    expect(resolvePlan({ tier: "starter", planVersion: "2026-10" }).proposals).toEqual({ limit: 4, per: "month" });
+    expect(resolvePlan({ tier: "starter", planVersion: "2026-10" }).proposals).toEqual({ limit: 3, per: "month" });
   });
 });
 
@@ -56,12 +56,12 @@ describe("upload decisions", () => {
   });
 
   it("past the limit, Starter asks to confirm the exact price, then records it", () => {
-    const allowance = computeAllowance(current("starter"), 4);
+    const allowance = computeAllowance(current("starter"), 3);
     const ask = decideUpload(allowance);
-    expect(ask).toMatchObject({ ok: false, status: 402, overagePriceUsd: 29 });
-    expect(decideUpload(allowance, 25).ok).toBe(false); // the wrong price is not consent
-    expect(decideUpload(allowance, 29)).toEqual({ ok: true, overageCents: 2900 });
-    expect(decideUpload(computeAllowance(current("starter"), 3))).toEqual({ ok: true, overageCents: null });
+    expect(ask).toMatchObject({ ok: false, status: 402, overagePriceUsd: 15 });
+    expect(decideUpload(allowance, 12).ok).toBe(false); // the wrong price is not consent
+    expect(decideUpload(allowance, 15)).toEqual({ ok: true, overageCents: 1500 });
+    expect(decideUpload(computeAllowance(current("starter"), 2))).toEqual({ ok: true, overageCents: null });
   });
 
   it("a single-bid pass allows one proposal while it is valid, and none after it ends", () => {
