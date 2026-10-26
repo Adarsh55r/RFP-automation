@@ -595,3 +595,23 @@ Prices lowered to fit small firms, aiming for about 85% margin after AI, hosting
 - Pro: $249/month, 12 proposals, $25 extra → **$129/month ($1,290/year), 10 proposals, $12 extra**.
 - **Done-with-you setup removed** for now: its card on the pricing and billing pages, its FAQ and the Pro annual perk are gone, and "Get help with your first bid" buttons now point to the free RFP checklist. The private paid pilot, which included setup, is retired.
 - No subscriber had paid, so no grandfathering was needed; the legacy terms logic is unchanged. The monthly AI spending caps per account are unchanged and should be reviewed against the new prices once real costs are known.
+
+## Security fix: plan limits under raced uploads (review bug 1)
+
+- **Problem:** the upload checked the plan's proposal limit when it started but recorded the proposal only when the file arrived. Starting several large uploads before finishing any, or sending uploads at the same moment, let a free account record 4–5 proposals instead of 1, and paid plans exceed their limit without the extra charge.
+- **Fix:** `reserveProposal` (lib/rfps.ts) locks the account's row, counts, decides and books the proposal together with the RFP in one transaction, for both the direct and the large-file upload. The hourly upload limit is checked in the same locked step. `releaseReservation` gives the proposal back when the file is invalid, the upload fails or is cancelled; uploads left unfinished for over an hour are released, with any stray file, the next time the account uploads. A finished proposal stays counted, even if its RFP is deleted later.
+- **Tests:** `tests/integration/upload-limits.test.ts` replays the attack (4 sequential starts, 5 simultaneous uploads → 1 proposal), checks release on invalid, cancelled and abandoned uploads, and that simultaneous confirmed extras on Starter are each booked once at $15.
+- **Production note:** uses an interactive transaction, supported by the Neon WebSocket adapter the app uses (`PrismaNeon`).
+
+## Security fix: IPv6 spellings slipped past the website-import address check (review bug 2)
+
+- **Problem:** the website import refuses private addresses (the server itself, internal networks, cloud metadata), but it matched IPv6 addresses as text. The URL parser rewrites `[::ffff:127.0.0.1]` as `[::ffff:7f00:1]`, which the pattern did not recognise, so that address and others like it (`::ffff:169.254.169.254`, `::127.0.0.1`) were treated as public websites.
+- **Fix:** `isPrivateAddress` (lib/safe-fetch.ts) now reads an IPv6 address as its eight numeric groups, whatever the spelling. An IPv4 address carried inside one (mapped, translated, compatible, 6to4) is judged as that IPv4 address. Only global unicast IPv6 (2000::/3) outside the special-use ranges counts as public. NAT64, Teredo, documentation and ORCHID ranges are refused, and an address that cannot be parsed is refused.
+- **Tests:** `tests/unit/website-import.test.ts` covers every spelling as an address, a web address and a DNS answer, and checks that real public IPv4 and IPv6 addresses still pass. A one-off cross-check of 100,000 random spellings matched the plain IPv4 result each time.
+
+## Security fix: limit what fake free accounts can cost (review bug 3)
+
+- **Problem:** each new email gets the free trial. The one free proposal is per account for life, but website imports on the free plan were limited only by the $3 monthly AI cap, which resets every month, and nothing limited how much many free accounts could spend together.
+- **Fix:** free accounts get 3 website imports in total, for life (`FREE_WEBSITE_IMPORTS`). All free accounts together may spend at most $10 of AI per UTC day (`FREE_TIER_DAILY_BUDGET_USD` in lib/ai-guard.ts); past that, AI work pauses for free accounts until midnight UTC with a clear message, and an alert is sent. Paid accounts never count toward it and are never stopped by it.
+- **Founder action:** turn on Clerk's disposable-email and subaddress blocking and bot sign-up protection (FOUNDER_TODO.md).
+- **Tests:** shared budget (paid and earlier spend excluded, paid accounts unaffected) in cost-controls; lifetime free imports, including imports from months ago, in website-import.

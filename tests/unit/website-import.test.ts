@@ -16,6 +16,55 @@ describe("SSRF protection", () => {
     }
   });
 
+  it("judges an IPv4 address written as IPv6 by the address it reaches, in every spelling", () => {
+    for (const ip of [
+      "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      "0:0:0:0:0:ffff:7f00:1",
+      "0000:0000:0000:0000:0000:FFFF:7F00:0001",
+      "::ffff:169.254.169.254",
+      "::ffff:a9fe:a9fe",
+      "::ffff:0:a9fe:a9fe",
+      "::127.0.0.1",
+      "::7f00:1",
+      "::a9fe:a9fe",
+      "::",
+      "0:0:0:0:0:0:0:1",
+      "64:ff9b::7f00:1",
+      "64:ff9b:1::a9fe:a9fe",
+      "2002:7f00:1::",
+      "2002:a9fe:a9fe::1",
+      "2001:0:4136:e378:8000:63bf:3fff:fdd2",
+      "fe80::1%eth0",
+      "fec0::1",
+      "ff02::1",
+      "100::1",
+      "2001:db8::1",
+    ]) {
+      expect(isPrivateAddress(ip), ip).toBe(true);
+    }
+    for (const ip of ["::ffff:8.8.8.8", "::ffff:808:808", "2002:808:808::1", "2a00:1450:4001:80b::200e", "2001:4860:4860::8888"]) {
+      expect(isPrivateAddress(ip), ip).toBe(false);
+    }
+  });
+
+  it("refuses IPv6 spellings of private addresses in a web address and in a DNS answer", async () => {
+    for (const url of [
+      "http://[::ffff:127.0.0.1]/",
+      "http://[::ffff:7f00:1]/",
+      "http://[0:0:0:0:0:ffff:127.0.0.1]/",
+      "http://[::ffff:169.254.169.254]/latest/meta-data/",
+      "http://[::127.0.0.1]/",
+      "http://[::ffff:10.0.0.1]/",
+      "http://[64:ff9b::a9fe:a9fe]/",
+    ]) {
+      expect(() => checkPublicUrl(url), url).toThrow(UnsafeUrlError);
+    }
+    vi.spyOn(dns, "lookup").mockImplementation(((_host: string, _options: unknown, callback: (e: null, a: dns.LookupAddress[]) => void) =>
+      callback(null, [{ address: "::ffff:7f00:1", family: 6 }])) as unknown as typeof dns.lookup);
+    await expect(safeFetchText("http://innocent.example/")).rejects.toMatchObject({ code: "EPRIVATE" });
+  });
+
   it("refuses non-web schemes, odd ports, credentials, local names and private IP literals", () => {
     for (const url of [
       "file:///etc/passwd",

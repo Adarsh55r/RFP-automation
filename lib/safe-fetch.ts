@@ -34,6 +34,38 @@ function ipv4ToInt(ip: string) {
   return ip.split(".").reduce((value, part) => (value << 8) + Number(part), 0) >>> 0;
 }
 
+/**
+ * The eight 16-bit groups of an IPv6 address, from any valid spelling: "::"
+ * shorthand, a trailing dotted IPv4 part or a zone suffix ("fe80::1%eth0").
+ */
+function ipv6Groups(address: string): number[] | null {
+  let text = address.split("%")[0].toLowerCase();
+  const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(text);
+  if (dotted) {
+    if (!net.isIPv4(dotted[1])) return null;
+    const value = ipv4ToInt(dotted[1]);
+    text = `${text.slice(0, -dotted[1].length)}${(value >>> 16).toString(16)}:${(value & 0xffff).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < 0) return null;
+  const groups = [...head, ...Array<string>(fill).fill("0"), ...tail].map((group) => (/^[0-9a-f]{1,4}$/.test(group) ? parseInt(group, 16) : NaN));
+  return groups.length === 8 && groups.every((group) => !Number.isNaN(group)) ? groups : null;
+}
+
+function ipv4FromGroups(high: number, low: number) {
+  return [high >>> 8, high & 0xff, low >>> 8, low & 0xff].join(".");
+}
+
+/**
+ * Whether an address must not be fetched. Reads IPv6 addresses as numbers, not
+ * text, so an IPv4 address dressed as IPv6 (::ffff:7f00:1, ::127.0.0.1,
+ * 0:0:0:0:0:ffff:a9fe:a9fe) is judged as the IPv4 address it reaches. Only
+ * global unicast IPv6 (2000::/3) outside the special-use ranges is public.
+ */
 export function isPrivateAddress(address: string): boolean {
   if (net.isIPv4(address)) {
     const value = ipv4ToInt(address);
@@ -42,21 +74,25 @@ export function isPrivateAddress(address: string): boolean {
       return (value & mask) === (ipv4ToInt(base) & mask);
     });
   }
-  if (net.isIPv6(address)) {
-    const lower = address.toLowerCase();
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-    if (mapped) return isPrivateAddress(mapped[1]);
-    return (
-      lower === "::" ||
-      lower === "::1" ||
-      /^f[cd]/.test(lower) || // unique local fc00::/7
-      /^fe[89ab]/.test(lower) || // link-local fe80::/10
-      /^ff/.test(lower) || // multicast
-      /^2001:db8:/.test(lower) ||
-      /^64:ff9b:/.test(lower) // NAT64, can reach IPv4 space
-    );
+  if (!net.isIPv6(address)) return true;
+  const groups = ipv6Groups(address);
+  if (!groups) return true;
+  const [a, b, c, d, e, f, g, h] = groups;
+  // IPv4-mapped ::ffff:0:0/96, IPv4-translated ::ffff:0:0:0/96 and the
+  // deprecated IPv4-compatible ::/96 (which also covers :: and ::1).
+  if (a === 0 && b === 0 && c === 0 && d === 0) {
+    if ((e === 0 && f === 0xffff) || (e === 0xffff && f === 0) || (e === 0 && f === 0)) {
+      return isPrivateAddress(ipv4FromGroups(g, h));
+    }
+    return true;
   }
-  return true;
+  if (a >>> 13 !== 0b001) return true; // outside global unicast 2000::/3: ULA, link-local, multicast, NAT64 64:ff9b::/96 …
+  if (a === 0x2002) return isPrivateAddress(ipv4FromGroups(b, c)); // 6to4 carries an IPv4 address
+  if (a === 0x2001 && b === 0) return true; // Teredo tunnels to an IPv4 address it hides
+  if (a === 0x2001 && b === 0x0db8) return true; // documentation
+  if (a === 0x2001 && b >>> 4 === 0x001) return true; // ORCHID 2001:10::/28
+  if (a === 0x2001 && b >>> 4 === 0x002) return true; // ORCHIDv2 2001:20::/28
+  return false;
 }
 
 /** Validates a URL before fetching: scheme, port, no credentials, no IP literals in private ranges. */

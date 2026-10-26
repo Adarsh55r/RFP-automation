@@ -2,7 +2,7 @@ import { safeErrorSummary } from "@/lib/safe-log";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { completeRfpUpload } from "@/lib/rfps";
+import { completeRfpUpload, releaseReservation } from "@/lib/rfps";
 import { officeFileProblem } from "@/lib/document-safety";
 import { reportError } from "@/lib/monitoring";
 import { looksLikeRfpFile, RFP_MAX_BYTES } from "@/lib/rfp-upload";
@@ -52,7 +52,8 @@ export async function POST(_request: Request, context: RouteContext) {
         : officeFileProblem(bytes, object.name);
     if (invalid) {
       await bucket.remove([path]);
-      await prisma.rfp.delete({ where: { id: rfp.id } });
+      // An invalid file gives the booked proposal back.
+      await releaseReservation(rfp.id, user.id);
       return NextResponse.json({ error: invalid }, { status: 400 });
     }
     await completeRfpUpload(rfp.id, user.id, getRfpPublicUrl(path), rfp.overageCents);
@@ -70,13 +71,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (found.status !== 200) {
     return NextResponse.json({ error: "RFP not found." }, { status: found.status });
   }
-  const { rfp, folder } = found;
+  const { user, rfp, folder } = found;
   if (rfp.originalFileUrl) {
     return NextResponse.json({ error: "This upload already finished." }, { status: 409 });
   }
   const bucket = getSupabaseAdmin().storage.from(getRfpStorageBucket());
   const { data: listed } = await bucket.list(folder);
   if (listed?.length) await bucket.remove(listed.map((item) => `${folder}/${item.name}`));
-  await prisma.rfp.delete({ where: { id: rfp.id } });
+  await releaseReservation(rfp.id, user.id);
   return NextResponse.json({ ok: true });
 }

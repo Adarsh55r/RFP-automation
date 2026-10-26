@@ -11,7 +11,7 @@ import { friendlyLlmError, generateLlmText } from "@/lib/llm";
 import { neutralizePromptTags } from "@/lib/rfp-draft";
 import { safeErrorSummary } from "@/lib/safe-log";
 import { UnsafeUrlError } from "@/lib/safe-fetch";
-import { WEBSITE_IMPORTS_PER_DAY, WEBSITE_IMPORT_SYSTEM, parseWebsiteDraft } from "@/lib/website-draft";
+import { FREE_WEBSITE_IMPORTS, WEBSITE_IMPORTS_PER_DAY, WEBSITE_IMPORT_SYSTEM, parseWebsiteDraft } from "@/lib/website-draft";
 import { crawlCompanySite, normalizeSiteUrl } from "@/lib/website-import";
 
 /**
@@ -31,6 +31,19 @@ export async function importFromWebsite(siteUrl: string) {
     return { ok: false as const, error: "Enter your website address, for example example.com." };
   }
 
+  const tier = user.subscription?.tier ?? "free";
+  // The free trial's imports are counted for life, like its one proposal, so an
+  // unused trial account cannot spend again every month.
+  if (tier === "free") {
+    const importsEver = await prisma.aiUsage.count({ where: { userId: user.id, action: "website_import" } });
+    if (importsEver >= FREE_WEBSITE_IMPORTS) {
+      return {
+        ok: false as const,
+        error: `The free trial includes ${FREE_WEBSITE_IMPORTS} website imports, and they have been used. You can still add and edit library items yourself, or upgrade to import again.`,
+      };
+    }
+  }
+
   const today = new Date(new Date().toISOString().slice(0, 10));
   const importsToday = await prisma.aiUsage.count({
     where: { userId: user.id, action: "website_import", createdAt: { gte: today } },
@@ -39,7 +52,7 @@ export async function importFromWebsite(siteUrl: string) {
     return { ok: false as const, error: `You can import from a website ${WEBSITE_IMPORTS_PER_DAY} times a day. Try again tomorrow.` };
   }
 
-  const guard = await beginAccountAiTask(user, user.subscription?.tier ?? "free");
+  const guard = await beginAccountAiTask(user, tier);
   if (!guard.ok) return { ok: false as const, error: guard.error };
 
   try {

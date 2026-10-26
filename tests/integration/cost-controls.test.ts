@@ -35,6 +35,34 @@ describe.skipIf(!hasTestDb)("AI cost and rate controls", () => {
     expect(flagged.aiBusyUntil).toBeNull();
   });
 
+  it("stops AI work for free accounts once all free accounts together reach the shared daily budget", async () => {
+    const { beginAccountAiTask, FREE_TIER_DAILY_BUDGET_USD } = await import("@/lib/ai-guard");
+    const farmA = await createUser("farm-a", "free");
+    const farmB = await createUser("farm-b", "free");
+    const payer = await createUser("payer", "starter");
+    const newcomer = await createUser("newcomer", "free");
+    // Paid spend and yesterday's free spend never count toward the shared budget.
+    await spend(payer.id, 6);
+    await spend(farmA.id, 50, new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
+    await spend(farmA.id, FREE_TIER_DAILY_BUDGET_USD / 2 - 0.01);
+    await spend(farmB.id, FREE_TIER_DAILY_BUDGET_USD / 2);
+
+    const under = await beginAccountAiTask(newcomer, "free");
+    expect(under.ok).toBe(true);
+    if (under.ok) await under.release();
+
+    await spend(farmB.id, 0.01);
+    const denied = await beginAccountAiTask(newcomer, "free");
+    expect(denied).toMatchObject({ ok: false, status: 429 });
+    if (!denied.ok) expect(denied.error).toMatch(/free trial.*midnight UTC/);
+    expect((await testDb().user.findUniqueOrThrow({ where: { id: newcomer.id } })).aiBusyUntil).toBeNull();
+
+    // Paying customers are never affected.
+    const paid = await beginAccountAiTask(payer, "starter");
+    expect(paid.ok).toBe(true);
+    if (paid.ok) await paid.release();
+  });
+
   it("spend from earlier days does not count toward today's ceiling", async () => {
     const user = await createUser("yesterday", "starter");
     const rfp = await testDb().rfp.create({ data: { userId: user.id, title: "R", status: "extracted" } });

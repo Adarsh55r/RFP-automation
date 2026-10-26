@@ -84,3 +84,13 @@ DraftBid AI is run by you as an independent founder, with no registered company.
 - [ ] 20 public RFPs across the segments, with gold requirement lists, for the benchmark
 - [ ] 3 public RFPs (one per segment) for the sample-output gallery
 - [ ] Real, permissioned testimonials once pilots exist
+
+## Stop throwaway sign-ups (Clerk dashboard, about 2 minutes)
+
+Each new email gets one free proposal, so make new accounts harder to fake. In the Clerk dashboard, under the sign-up restrictions / protection settings:
+
+- [ ] Turn on **Block disposable email addresses** (included on every plan, off by default).
+- [ ] Turn on **Block email subaddresses** (stops `you+1@gmail.com`, `you+2@…` and Gmail dot variations of an inbox that already has an account).
+- [ ] Check **Bot sign-up protection** is on.
+
+The app also limits free accounts together to $10 of AI a day (`FREE_TIER_DAILY_BUDGET_USD` in lib/ai-guard.ts). If that alert arrives, look for a burst of new sign-ups in the admin panel.

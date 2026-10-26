@@ -65,6 +65,27 @@ describe.skipIf(!hasTestDb)("importing from the company website", () => {
     expect((await testDb().libraryItem.findFirstOrThrow({ where: { type: "company_profile" } })).title).toBe("Ours");
   });
 
+  it("gives a free account a fixed number of imports for life, not per month", async () => {
+    const user = await createUser("trial", "free");
+    h.clerkId = "trial";
+    const { importFromWebsite } = await import("@/lib/actions/website-import");
+    const { FREE_WEBSITE_IMPORTS } = await import("@/lib/website-draft");
+    const longAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await testDb().aiUsage.createMany({
+      data: Array.from({ length: FREE_WEBSITE_IMPORTS - 1 }, () => ({
+        userId: user.id, action: "website_import", provider: "openai", model: "gpt-4.1", createdAt: longAgo,
+      })),
+    });
+    expect(await importFromWebsite("ridgeline.example")).toMatchObject({ ok: true });
+
+    // The live AI call records its usage; the fake one does not, so record it here.
+    await testDb().aiUsage.create({ data: { userId: user.id, action: "website_import", provider: "openai", model: "gpt-4.1" } });
+    await testDb().libraryItem.deleteMany();
+    const result = await importFromWebsite("ridgeline.example");
+    expect(!result.ok && result.error).toMatch(/free trial includes 3 website imports/);
+    expect(await testDb().libraryItem.count()).toBe(0);
+  });
+
   it("limits imports per day", async () => {
     const user = await testDb().user.findUniqueOrThrow({ where: { clerkId: "site" } });
     await testDb().aiUsage.createMany({
