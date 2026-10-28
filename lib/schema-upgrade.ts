@@ -9,8 +9,8 @@ import { prisma } from "@/lib/db";
  * 20261024090000_pricing_v2, 20261025090000_draft_citations,
  * 20261025100000_questionnaire_map, 20261025110000_addenda,
  * 20261025120000_key_details, 20261025130000_bid_outcomes,
- * 20261025140000_free_tool, 20261025150000_funnel_events and
- * 20261026090000_proposal_outline), using the app's own DATABASE_URL so it
+ * 20261025140000_free_tool, 20261025150000_funnel_events,
+ * 20261026090000_proposal_outline and 20261028090000_dodo_billing), using the app's own DATABASE_URL so it
  * always upgrades the database the deployment actually reads.
  *
  * One DO block = one transaction. A transaction-scoped advisory lock stops
@@ -207,6 +207,36 @@ BEGIN
   ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "sectionKey" TEXT;
   ALTER TABLE "Draft" ADD COLUMN IF NOT EXISTS "title" TEXT;
 
+  -- Dodo Payments: subscription sync, prepaid extra proposals, webhook idempotency.
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "billingEventAt" TIMESTAMP(3);
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "dodoCustomerId" TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "dodoSubscriptionId" TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "passCreditCode" TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "providerStatus" TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS "Subscription_dodoSubscriptionId_key" ON "Subscription"("dodoSubscriptionId");
+  CREATE TABLE IF NOT EXISTS "ExtraProposal" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "paymentId" TEXT NOT NULL,
+    "amountCents" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "usedAt" TIMESTAMP(3),
+    "rfpId" TEXT,
+    CONSTRAINT "ExtraProposal_pkey" PRIMARY KEY ("id")
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS "ExtraProposal_paymentId_key" ON "ExtraProposal"("paymentId");
+  CREATE INDEX IF NOT EXISTS "ExtraProposal_userId_usedAt_idx" ON "ExtraProposal"("userId", "usedAt");
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExtraProposal_userId_fkey') THEN
+    ALTER TABLE "ExtraProposal" ADD CONSTRAINT "ExtraProposal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  CREATE TABLE IF NOT EXISTS "BillingEvent" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "BillingEvent_pkey" PRIMARY KEY ("id")
+  );
+
   -- Record the migrations so a later \`prisma migrate deploy\` skips them.
   IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
     INSERT INTO "_prisma_migrations"
@@ -221,6 +251,7 @@ BEGIN
       ('20261023100000_proposal_usage', 'feb6be9c36be3c1ceaf0b64366ef2a24c7fb0af537a50bf0a9a3e0b5d5db3387'),
       ('20261023110000_ai_daily_ceiling', 'e46307d58ad5c2637b7ab9a60c2f49c3a53d96764163920082ace1a8e0a93734'),
       ('20261024090000_pricing_v2', '4b71719c6b2b9b5dee05ef99d82e6dfcfaee2a2b0b46eaa1bee2419d4143ef71'),
+      ('20261028090000_dodo_billing', '6e148c43a9c338d3fc2e45a9c2d5e2cb07175ac217f3f49c9f746cbe0f1792df'),
       ('20261026090000_proposal_outline', '72058584263c0c8528555a60b41cf34888997a41cd34ed5848266287960841e0'),
       ('20261025150000_funnel_events', 'd3c17b1f73a2da9fc71a8b87904678f2a84f0079ce921b61bebf1b97920256d6'),
       ('20261025140000_free_tool', 'c9b93e096b9152ec00202fc106a30d88d24bfaeb1188910c51d17d53e479a446'),
@@ -303,6 +334,12 @@ SELECT
   OR NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'Draft' AND column_name = 'sectionKey'
+  )
+  OR to_regclass('"ExtraProposal"') IS NULL
+  OR to_regclass('"BillingEvent"') IS NULL
+  OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'Subscription' AND column_name = 'passCreditCode'
   ) AS "needsUpgrade"
 `;
 

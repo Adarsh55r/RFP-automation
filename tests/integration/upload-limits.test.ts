@@ -97,27 +97,28 @@ describe.skipIf(!hasTestDb)("proposal limits under raced uploads", () => {
     expect((await begin("again.pdf")).status).toBe(403);
   });
 
-  it("past a paid plan's limit, extras need the confirmed price, and simultaneous confirmed extras are each charged once", async () => {
-    const { user, pdf } = await setup("starter");
+  it("past a paid plan's limit, each paid extra lets exactly one upload through, and a cancelled one keeps it", async () => {
+    const { user, begin, upload, finishRoute } = await setup("starter");
     await testDb().subscription.update({ where: { userId: user.id }, data: { planVersion: "2026-10" } });
     for (let i = 0; i < 3; i += 1) await testDb().proposalUsage.create({ data: { userId: user.id } });
-    const direct = (await import("@/app/api/rfps/upload/route")).POST;
-    const upload = (confirm?: number) => {
-      const form = new FormData();
-      form.append("file", new File([new Uint8Array(pdf)], "rfp.pdf", { type: "application/pdf" }));
-      if (confirm !== undefined) form.append("confirmOverageUsd", String(confirm));
-      return direct(new Request("http://t/api/rfps/upload", { method: "POST", body: form }));
-    };
 
     const ask = await upload();
     expect(ask.status).toBe(402);
     expect(await ask.json()).toMatchObject({ overagePriceUsd: 15 });
-    expect((await upload(12)).status).toBe(402); // the wrong price is not consent
 
-    const results = await Promise.all([upload(15), upload(15)]);
-    expect(results.map((res) => res.status)).toEqual([200, 200]);
-    const extras = await testDb().proposalUsage.findMany({ where: { userId: user.id, overageCents: { not: null } } });
-    expect(extras.map((row) => row.overageCents)).toEqual([1500, 1500]);
-    expect(await testDb().proposalUsage.count({ where: { userId: user.id } })).toBe(5);
+    // One paid extra, two simultaneous uploads: only one gets through.
+    await testDb().extraProposal.create({ data: { userId: user.id, paymentId: "pay_1", amountCents: 1500 } });
+    const results = await Promise.all([upload(), upload()]);
+    expect(results.map((res) => res.status).sort()).toEqual([200, 402]);
+    expect(await testDb().proposalUsage.count({ where: { userId: user.id } })).toBe(4);
+
+    // A large upload started with a paid extra and then cancelled gives the extra back.
+    await testDb().extraProposal.create({ data: { userId: user.id, paymentId: "pay_2", amountCents: 1500 } });
+    const started = await begin("big.pdf");
+    expect(started.status).toBe(200);
+    expect(await testDb().extraProposal.count({ where: { userId: user.id, usedAt: null } })).toBe(0);
+    await finishRoute.DELETE(new Request("http://t/x", { method: "DELETE" }), ctx(started.id!));
+    expect(await testDb().extraProposal.count({ where: { userId: user.id, usedAt: null } })).toBe(1);
+    expect(await testDb().proposalUsage.count({ where: { userId: user.id } })).toBe(4);
   });
 });

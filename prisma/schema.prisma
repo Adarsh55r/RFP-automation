@@ -97,11 +97,12 @@ model User {
   termsVersion      String?
   termsAcceptedAt   DateTime?
 
-  subscription  Subscription?
-  rfps          Rfp[]
-  libraryItems  LibraryItem[]
-  aiUsage       AiUsage[]
-  proposalUsage ProposalUsage[]
+  subscription   Subscription?
+  rfps           Rfp[]
+  libraryItems   LibraryItem[]
+  aiUsage        AiUsage[]
+  proposalUsage  ProposalUsage[]
+  extraProposals ExtraProposal[]
 }
 
 model Subscription {
@@ -118,6 +119,17 @@ model Subscription {
   billingCycle         String?
   /// End of access for one-time plans (single-bid pass, pilot).
   accessEndsAt         DateTime?
+  /// Dodo Payments customer and subscription for this account, once it has paid.
+  dodoCustomerId       String?
+  dodoSubscriptionId   String?            @unique
+  /// Dodo's own subscription status ("active", "on_hold", "past_due", …).
+  providerStatus       String?
+  /// True when the subscription is set to end at currentPeriodEnd.
+  cancelAtPeriodEnd    Boolean            @default(false)
+  /// Time of the latest Dodo subscription event applied, so older events arriving late are ignored.
+  billingEventAt       DateTime?
+  /// One-time discount code worth the single-bid pass price, for a subscription started within 30 days of buying it.
+  passCreditCode       String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -298,4 +310,28 @@ model FunnelEvent {
 
   @@index([event, createdAt])
   @@index([userId, event])
+}
+
+/// An extra proposal paid for at checkout, used by the next upload past the plan's limit.
+model ExtraProposal {
+  id          String    @id @default(cuid())
+  userId      String
+  /// The Dodo payment that bought it; unique, so a repeated webhook adds nothing.
+  paymentId   String    @unique
+  amountCents Int
+  createdAt   DateTime  @default(now())
+  /// Set when an upload uses it; cleared again if that upload is cancelled or fails.
+  usedAt      DateTime?
+  rfpId       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+}
+
+/// Dodo webhook deliveries already handled, by their webhook-id, so retries are processed once.
+model BillingEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
 }

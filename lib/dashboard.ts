@@ -20,7 +20,17 @@ export const requireDashboardUser = cache(async () => {
     where: { clerkId },
     include: {
       subscription: {
-        select: { tier: true, status: true, currentPeriodEnd: true, planVersion: true, billingCycle: true, accessEndsAt: true },
+        select: {
+          tier: true,
+          status: true,
+          currentPeriodEnd: true,
+          planVersion: true,
+          billingCycle: true,
+          accessEndsAt: true,
+          providerStatus: true,
+          cancelAtPeriodEnd: true,
+          dodoCustomerId: true,
+        },
       },
     },
   });

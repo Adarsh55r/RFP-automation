@@ -8,7 +8,7 @@ export function testDb() {
 
 export async function resetDb() {
   await testDb().$executeRawUnsafe(
-    `TRUNCATE "AiUsage", "Draft", "LibraryItem", "Rfp", "Subscription", "User", "ToolUsage", "Lead", "FunnelEvent" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "AiUsage", "Draft", "LibraryItem", "Rfp", "Subscription", "User", "ToolUsage", "Lead", "FunnelEvent", "BillingEvent" RESTART IDENTITY CASCADE`,
   );
 }
 

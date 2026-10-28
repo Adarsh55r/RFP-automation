@@ -18,12 +18,11 @@ async function onPlan(clerkId: string, tier: "free" | "starter" | "pro", planVer
   return user;
 }
 
-async function upload(confirmOverageUsd?: number) {
+async function upload() {
   const form = new FormData();
   form.append("file", new File([new Uint8Array(await makeDocx("RFP text"))], "rfp.docx", {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   }));
-  if (confirmOverageUsd !== undefined) form.append("confirmOverageUsd", String(confirmOverageUsd));
   const route = await import("@/app/api/rfps/upload/route");
   return route.POST(new Request("http://t/api/rfps/upload", { method: "POST", body: form }));
 }
@@ -33,17 +32,21 @@ describe.skipIf(!hasTestDb)("plan enforcement on the server", () => {
     await resetDb();
   });
 
-  it("current Starter asks before an extra proposal and records the confirmed charge", async () => {
+  it("current Starter needs a paid extra past its limit, and records the extra as paid", async () => {
     const user = await onPlan("starter-now", "starter", "2026-10", 3);
     const ask = await upload();
     expect(ask.status).toBe(402);
     expect(await ask.json()).toMatchObject({ overagePriceUsd: 15 });
     expect(await testDb().rfp.count({ where: { userId: user.id } })).toBe(0);
 
-    const confirmed = await upload(15);
-    expect(confirmed.status).toBe(200);
+    await testDb().extraProposal.create({ data: { userId: user.id, paymentId: "pay_extra_1", amountCents: 1500 } });
+    const paid = await upload();
+    expect(paid.status).toBe(200);
     const usage = await testDb().proposalUsage.findMany({ where: { userId: user.id, overageCents: { not: null } } });
     expect(usage.map((row) => row.overageCents)).toEqual([1500]);
+    expect(usage[0].overageBilledAt).not.toBeNull();
+    expect((await testDb().extraProposal.findUniqueOrThrow({ where: { paymentId: "pay_extra_1" } })).usedAt).not.toBeNull();
+    expect((await upload()).status).toBe(402); // the paid extra is used up
   });
 
   it("grandfathered Starter keeps its original 5 a month with no surprise charge", async () => {

@@ -86,13 +86,13 @@ const sections: LegalSection[] = [
       <>
         Paid plans, one-time purchases and their limits are described on the <Link className={link} href="/pricing">pricing page</Link> at the time you buy. Subscriptions are billed in advance for each monthly or annual period and renew automatically until cancelled. Prices exclude taxes, which are added where required.
       </>,
-      "Payments are processed by our payment provider; we do not store full card numbers. We may change prices for future periods. We will email you before a price change affects your plan, and the change applies from your next renewal.",
+      "Paid plans are sold through Dodo Payments, which acts as our reseller and merchant of record: it takes your payment, adds any tax that applies, and issues your invoice, and its own terms apply to the payment. We never see or store full card numbers. We may change prices for future periods. We will email you before a price change affects your plan, and the change applies from your next renewal.",
     ],
   },
   {
     title: "Cancellation, refunds and plan changes",
     body: [
-      "You can cancel a subscription at any time from your account or by emailing us. Cancellation takes effect at the end of the current paid period, and you keep access until then.",
+      "You can cancel a subscription at any time from the billing page (Manage billing) or by emailing us. Cancellation takes effect at the end of the current paid period, and you keep access until then.",
       "Refund requests for paid plans are handled individually: email us and we will respond fairly. Nothing in these Terms limits any refund right you have by law.",
       "If you upgrade, the new limits apply straight away and any price difference is charged as shown at checkout. If you downgrade, the change applies from the next renewal.",
     ],

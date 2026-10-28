@@ -95,7 +95,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     libraryItems: 50,
     features: [
       "3 proposals per month",
-      "Extra proposals $15 each, only after you confirm",
+      "Extra proposals $15 each, paid only when you need one",
       "Library of up to 50 items: case studies, bios, certifications, answers",
       "Requirements checklist and compliance review",
       "Word and PDF export",
@@ -116,7 +116,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     libraryItems: null,
     features: [
       "10 proposals per month",
-      "Extra proposals $12 each, only after you confirm",
+      "Extra proposals $12 each, paid only when you need one",
       "Larger library with no item limit",
       "Requirements checklist and compliance review",
       "Word and PDF export",
@@ -137,7 +137,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     libraryItems: null,
     features: [
       "30 proposals per month",
-      "Extra proposals $25 each, only after you confirm",
+      "Extra proposals $25 each, paid only when you need one",
       "Separate workspaces for each client",
       "Word and PDF export",
       "Same-day email support (US and UK business hours)",

@@ -6,6 +6,8 @@ export type SubscriptionTerms = {
   tier: PlanId;
   planVersion?: string | null;
   accessEndsAt?: Date | null;
+  /** Dodo's subscription status; "on_hold" or "paused" means a renewal payment failed. */
+  providerStatus?: string | null;
 } | null | undefined;
 
 export type ProposalAllowance = {
@@ -18,6 +20,8 @@ export type ProposalAllowance = {
   /** True once a one-time plan's access window has closed. */
   accessEnded: boolean;
   accessEndsAt: Date | null;
+  /** True while a failed renewal payment holds the subscription: new proposals wait until it is paid. */
+  paymentOnHold: boolean;
   /** USD price per extra proposal when over the limit, or null when the limit is hard. */
   overagePriceUsd: number | null;
   /** Short description of the period, for the dashboard header: "this month", "on your trial", … */
@@ -60,6 +64,7 @@ export function computeAllowance(subscription: SubscriptionTerms, used: number, 
     remaining: accessEnded ? 0 : limit === null ? null : Math.max(0, limit - used),
     accessEnded,
     accessEndsAt,
+    paymentOnHold: subscription?.providerStatus === "on_hold" || subscription?.providerStatus === "paused",
     overagePriceUsd: !accessEnded && plan.overage ? plan.overage.usd : null,
     periodLabel,
   };
@@ -79,14 +84,26 @@ export async function getProposalAllowance(
 }
 
 export type UploadDecision =
-  | { ok: true; overageCents: number | null }
+  | { ok: true; useExtra: boolean }
   | { ok: false; status: 402 | 403; error: string; overagePriceUsd?: number };
 
 /**
- * Whether a new proposal may start. Past the limit, plans with overage need
- * the user to confirm the shown price first (`confirmedOverageUsd`).
+ * Whether a new proposal may start. Past the limit, an extra proposal the user
+ * has already paid for (`extrasAvailable`) is used; plans that sell extras ask
+ * for one to be bought first (402); other plans stop there (403).
  */
-export function decideUpload(allowance: ProposalAllowance, confirmedOverageUsd?: number | null): UploadDecision {
+export function decideUpload(allowance: ProposalAllowance, extrasAvailable = 0): UploadDecision {
+  if (allowance.paymentOnHold) {
+    return {
+      ok: false,
+      status: 403,
+      error:
+        "Your last subscription payment did not go through, so new proposals are paused. Update your payment method under Manage billing on the billing page; your RFPs and drafts are all still here.",
+    };
+  }
+  const withinPlan = !allowance.accessEnded && (allowance.remaining === null || allowance.remaining > 0);
+  if (withinPlan) return { ok: true, useExtra: false };
+  if (extrasAvailable > 0) return { ok: true, useExtra: true };
   if (allowance.accessEnded) {
     return {
       ok: false,
@@ -94,7 +111,6 @@ export function decideUpload(allowance: ProposalAllowance, confirmedOverageUsd?:
       error: "Your pass has ended. Subscribe to keep drafting proposals; your existing RFPs and drafts are still here.",
     };
   }
-  if (allowance.remaining === null || allowance.remaining > 0) return { ok: true, overageCents: null };
 
   const price = allowance.overagePriceUsd;
   if (price === null) {
@@ -106,13 +122,10 @@ export function decideUpload(allowance: ProposalAllowance, confirmedOverageUsd?:
           : "You have used all the proposals your plan includes this period. Upgrade your plan to upload more.";
     return { ok: false, status: 403, error: message };
   }
-  if (confirmedOverageUsd !== price) {
-    return {
-      ok: false,
-      status: 402,
-      error: `You have used the ${allowance.limit} proposals your plan includes ${allowance.periodLabel}. This one will cost $${price} extra.`,
-      overagePriceUsd: price,
-    };
-  }
-  return { ok: true, overageCents: Math.round(price * 100) };
+  return {
+    ok: false,
+    status: 402,
+    error: `You have used the ${allowance.limit} proposals your plan includes ${allowance.periodLabel}. Buy an extra proposal for $${price} to upload this one.`,
+    overagePriceUsd: price,
+  };
 }
