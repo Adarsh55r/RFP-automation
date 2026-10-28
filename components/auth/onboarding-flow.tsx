@@ -105,7 +105,8 @@ export function OnboardingFlow() {
         },
       });
 
-      router.replace("/dashboard");
+      // Someone who picked a paid plan on the pricing page goes on to pay for it.
+      router.replace(intendedPlan && intendedPlan !== "free" ? `/dashboard/billing?plan=${intendedPlan}` : "/dashboard");
     });
   };
 

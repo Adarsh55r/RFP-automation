@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getLlmProvider } from "@/lib/llm";
 import { feedbackEmail, reviewUrl } from "@/lib/review-prompt";
+import { PRODUCT_ENV } from "@/lib/dodo";
 import { NEEDS_UPGRADE_SQL } from "@/lib/schema-upgrade";
 import { getRfpStorageBucket, getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -25,6 +26,30 @@ export type SetupCheck = {
 };
 
 const has = (name: string) => Boolean(process.env[name]?.trim());
+
+function paymentsCheck(): SetupCheck {
+  const base = { id: "payments", group: "Growth" as const, label: "Online checkout (Dodo Payments)", required: false };
+  const missing = [
+    "DODO_PAYMENTS_API_KEY",
+    "DODO_PAYMENTS_WEBHOOK_KEY",
+    ...Object.values(PRODUCT_ENV),
+  ].filter((name) => !has(name));
+  if (missing.length === 0) {
+    const live = process.env.DODO_PAYMENTS_ENVIRONMENT?.trim() === "live_mode";
+    return {
+      ...base,
+      state: "on",
+      detail: live ? "Live mode: customers are charged." : "Test mode: checkout works with Dodo's test cards only.",
+      fix: live ? undefined : "When test payments work, switch to live keys and set DODO_PAYMENTS_ENVIRONMENT=live_mode.",
+    };
+  }
+  return {
+    ...base,
+    state: "missing",
+    detail: "Paid plans are requested by email until every Dodo setting is present.",
+    fix: `Add ${missing.join(", ")} (see FOUNDER_TODO.md, "Dodo Payments").`,
+  };
+}
 
 function hostOf(url: string) {
   try {
@@ -187,6 +212,7 @@ export async function getSetupStatus() {
           detail: "Uploads fail without storage.",
           fix: "Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
         },
+    paymentsCheck(),
     {
       id: "admins",
       group: "Core",

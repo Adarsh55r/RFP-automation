@@ -55,13 +55,24 @@ describe("upload decisions", () => {
     if (!second.ok) expect(second.status).toBe(403);
   });
 
-  it("past the limit, Starter asks to confirm the exact price, then records it", () => {
+  it("past the limit, Starter asks for an extra proposal to be bought first, then uses a paid one", () => {
     const allowance = computeAllowance(current("starter"), 3);
     const ask = decideUpload(allowance);
     expect(ask).toMatchObject({ ok: false, status: 402, overagePriceUsd: 15 });
-    expect(decideUpload(allowance, 12).ok).toBe(false); // the wrong price is not consent
-    expect(decideUpload(allowance, 15)).toEqual({ ok: true, overageCents: 1500 });
-    expect(decideUpload(computeAllowance(current("starter"), 2))).toEqual({ ok: true, overageCents: null });
+    if (!ask.ok) expect(ask.error).toMatch(/Buy an extra proposal for \$15/);
+    expect(decideUpload(allowance, 1)).toEqual({ ok: true, useExtra: true });
+    // Within the plan, a paid extra is kept for later.
+    expect(decideUpload(computeAllowance(current("starter"), 2), 1)).toEqual({ ok: true, useExtra: false });
+  });
+
+  it("a failed renewal on hold pauses new proposals, even with a paid extra", () => {
+    const held = computeAllowance(current("starter", { providerStatus: "on_hold" }), 0);
+    expect(held.paymentOnHold).toBe(true);
+    const decision = decideUpload(held, 1);
+    expect(decision).toMatchObject({ ok: false, status: 403 });
+    if (!decision.ok) expect(decision.error).toMatch(/payment did not go through/);
+    // The grace period after a failed payment keeps access.
+    expect(decideUpload(computeAllowance(current("starter", { providerStatus: "past_due" }), 0)).ok).toBe(true);
   });
 
   it("a single-bid pass allows one proposal while it is valid, and none after it ends", () => {

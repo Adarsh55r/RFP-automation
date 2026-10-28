@@ -21,7 +21,7 @@ export function StatCards({
   const remainingHint = accessEnded
     ? "Your pass has ended"
     : remaining === 0 && overagePriceUsd !== null
-      ? `Extra proposals are $${overagePriceUsd} each, after you confirm`
+      ? `Extra proposals are $${overagePriceUsd} each, paid before the upload`
       : periodLabel === "this month"
         ? "Resets on the 1st of each month (UTC)"
         : `Included ${periodLabel}`;

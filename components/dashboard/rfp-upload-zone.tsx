@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { FileText, Upload, X } from "lucide-react";
+import { BuyExtraProposalButton } from "@/components/dashboard/billing-controls";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
@@ -14,7 +15,7 @@ import {
   SERVER_UPLOAD_MAX_BYTES,
 } from "@/lib/rfp-upload";
 
-/** The plan's limit is reached and this upload costs extra: the user must confirm the price first. */
+/** The plan's limit is reached: this upload needs an extra proposal, paid for at checkout first. */
 class OverageRequired extends Error {
   constructor(message: string, readonly priceUsd: number) {
     super(message);
@@ -40,15 +41,11 @@ async function readError(response: Response, fallback: string) {
  * them straight to storage with a one-time signed URL, then asks the server to
  * verify the file. If anything fails, the half-created RFP is removed.
  */
-async function uploadDirect(
-  file: File,
-  onProgress: (value: number) => void,
-  confirmOverageUsd: number | null,
-): Promise<string> {
+async function uploadDirect(file: File, onProgress: (value: number) => void): Promise<string> {
   const start = await fetch("/api/rfps/upload/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fileName: file.name, size: file.size, contentType: file.type, confirmOverageUsd }),
+    body: JSON.stringify({ fileName: file.name, size: file.size, contentType: file.type }),
   });
   if (!start.ok) throw await readError(start, "Upload failed. Try again.");
   const { id, uploadUrl } = (await start.json()) as { id: string; uploadUrl: string };
@@ -78,11 +75,7 @@ async function uploadDirect(
   }
 }
 
-function uploadWithProgress(
-  file: File,
-  onProgress: (value: number) => void,
-  confirmOverageUsd: number | null,
-): Promise<string> {
+function uploadWithProgress(file: File, onProgress: (value: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/rfps/upload");
@@ -117,7 +110,6 @@ function uploadWithProgress(
 
     const formData = new FormData();
     formData.append("file", file);
-    if (confirmOverageUsd !== null) formData.append("confirmOverageUsd", String(confirmOverageUsd));
     xhr.send(formData);
   });
 }
@@ -174,7 +166,7 @@ export function RfpUploadZone() {
     setOverage(null);
   };
 
-  const handleContinue = async (confirmOverageUsd: number | null = null) => {
+  const handleContinue = async () => {
     if (!selectedFile || uploading) {
       return;
     }
@@ -187,8 +179,8 @@ export function RfpUploadZone() {
     try {
       const rfpId =
         selectedFile.size > SERVER_UPLOAD_MAX_BYTES
-          ? await uploadDirect(selectedFile, setProgress, confirmOverageUsd)
-          : await uploadWithProgress(selectedFile, setProgress, confirmOverageUsd);
+          ? await uploadDirect(selectedFile, setProgress)
+          : await uploadWithProgress(selectedFile, setProgress);
       router.push(`/dashboard/rfps/${rfpId}`);
     } catch (uploadError) {
       setUploading(false);
@@ -308,12 +300,11 @@ export function RfpUploadZone() {
         <div role="alert" className="flex flex-col gap-4 rounded-card border border-accent/40 bg-accent/10 px-4 py-4">
           <p className="text-sm leading-relaxed text-ink">{overage.message}</p>
           <p className="text-sm leading-relaxed text-slate">
-            Nothing is charged unless you confirm. Or choose a bigger plan on the billing page.
+            You pay at checkout, then come back here and upload the file again. Or choose a bigger plan on the billing
+            page.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => handleContinue(overage.priceUsd)}>
-              Confirm ${overage.priceUsd} and upload
-            </Button>
+          <div className="flex flex-wrap items-start gap-3">
+            <BuyExtraProposalButton priceUsd={overage.priceUsd} />
             <Button type="button" variant="secondary" onClick={() => setOverage(null)}>
               Cancel
             </Button>

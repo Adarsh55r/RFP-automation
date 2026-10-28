@@ -41,7 +41,7 @@ const sections: LegalSection[] = [
         "Workspace content: RFP files you upload, the full text read from them, the requirements extracted from them, your library items (case studies, bios, certifications, saved answers, company profile), and generated drafts.",
         "Usage records: which plan allowances you have used, and for each AI request the model, the number of tokens and the cost. These records never contain document text.",
         "Product events, kept in our own database: milestones on your account such as your first upload, first draft and first export, the page or campaign you signed up from, and your optional answer to the industry question. Marketing pages also record anonymous page views (the page and campaign only, with no cookie or identifier). None of these contain document content.",
-        "Payment data: paid checkout is not live yet, so we do not collect payment details. When it opens, the payment provider will collect them, and we will add it to our subprocessors page before checkout opens; we will not store full card numbers.",
+        "Payment data: payments are taken by Dodo Payments, our reseller and merchant of record, which collects your card or other payment details and billing address directly. We never receive full card numbers. We keep the Dodo customer and subscription IDs, the plan you bought, its status and renewal date, and payment IDs for extra proposals.",
         "Technical data: IP address, browser type and timestamps in our hosting provider's logs, used for security and debugging.",
         "Free checklist tool (no account): the file you upload is read in memory to build the checklist and sent to our AI provider for that purpose; it is not stored. To apply the daily limit we keep a one-way hash of your IP address, never the address itself. If you choose to leave your email there, we keep it with the date you agreed to be contacted.",
         "Website import: if you ask us to import your company website, we read its public pages and send their text to our AI provider to draft library items for you.",
@@ -74,7 +74,7 @@ const sections: LegalSection[] = [
     title: "Who we share it with",
     body: [
       <>
-        Our subprocessors, each listed with its purpose and location on the <Link className={link} href="/subprocessors">subprocessors page</Link>: Vercel (hosting and analytics), Neon (database), Supabase (file storage), Clerk (sign-in), Sentry (error reports), and our AI provider. The AI provider is OpenAI by default; Anthropic or Google (Gemini) is used only if configured instead. The AI provider receives the document text needed for each request.
+        Our subprocessors, each listed with its purpose and location on the <Link className={link} href="/subprocessors">subprocessors page</Link>: Vercel (hosting and analytics), Neon (database), Supabase (file storage), Clerk (sign-in), Sentry (error reports), Dodo Payments (payments, as merchant of record), and our AI provider. The AI provider is OpenAI by default; Anthropic or Google (Gemini) is used only if configured instead. The AI provider receives the document text needed for each request.
       </>,
       "Authorities, when we are legally required to, and only to the extent required.",
       "We do not share your workspace with other customers. DraftBid AI does not currently offer shared team workspaces, so your workspace is visible only to your own account.",
@@ -98,7 +98,7 @@ const sections: LegalSection[] = [
         "Database backups: held by our database provider for its restore window, then overwritten.",
         "Hosting logs and error reports: kept by Vercel and Sentry for the retention period of our plan with each provider, then deleted.",
         "AI provider: document text sent for a request may be kept by the provider for a limited period under its API data policy (for example for abuse monitoring), then deleted.",
-        "Invoices and records we must keep by law, once paid plans are live, are kept for the period the law requires.",
+        "Payment records: Dodo Payments keeps invoices and payment records for the period the law requires; we keep the billing IDs and plan history above for as long as your account exists.",
       ],
     ],
   },

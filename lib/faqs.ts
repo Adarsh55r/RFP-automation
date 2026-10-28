@@ -29,7 +29,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "What happens when I reach my plan's limit?",
     answer:
-      "On Starter and Pro you can keep going: before an extra proposal starts, DraftBid AI shows its price ($15 on Starter, $12 on Pro) and only continues if you confirm. The free trial and the single-bid pass include one proposal; after that you choose a plan. Nothing you have already created is deleted, and finished proposals stay downloadable.",
+      "On Starter and Pro you can keep going: buy an extra proposal ($15 on Starter, $12 on Pro) at checkout, then upload as usual. Nothing is charged unless you buy one. The free trial and the single-bid pass include one proposal; after that you choose a plan. Nothing you have already created is deleted, and finished proposals stay downloadable.",
   },
   {
     question: "What is the single-bid pass?",
@@ -39,7 +39,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "How do I pay, and can I cancel?",
     answer:
-      "Online checkout is not open yet; until it is, we set up paid plans with you directly from the billing page. Monthly plans can be cancelled at any time and stop at the end of the month you paid for. Annual plans are paid for the year; you can turn off renewal and keep access until the year ends. Prices are in US dollars, and invoices will show VAT or sales tax where it applies.",
+      "You pay by card or another local payment method through Dodo Payments, our reseller and merchant of record, from the billing page. Monthly plans can be cancelled at any time and stop at the end of the month you paid for. Annual plans are paid for the year; you can turn off renewal and keep access until the year ends. Prices are in US dollars; Dodo Payments adds VAT or sales tax where it applies and issues your invoices. Manage billing on the billing page opens your invoices, payment method and cancellation.",
   },
   {
     question: "Can I change plans?",

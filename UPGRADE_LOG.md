@@ -615,3 +615,14 @@ Prices lowered to fit small firms, aiming for about 85% margin after AI, hosting
 - **Fix:** free accounts get 3 website imports in total, for life (`FREE_WEBSITE_IMPORTS`). All free accounts together may spend at most $10 of AI per UTC day (`FREE_TIER_DAILY_BUDGET_USD` in lib/ai-guard.ts); past that, AI work pauses for free accounts until midnight UTC with a clear message, and an alert is sent. Paid accounts never count toward it and are never stopped by it.
 - **Founder action:** turn on Clerk's disposable-email and subaddress blocking and bot sign-up protection (FOUNDER_TODO.md).
 - **Tests:** shared budget (paid and earlier spend excluded, paid accounts unaffected) in cost-controls; lifetime free imports, including imports from months ago, in website-import.
+
+## Online checkout with Dodo Payments
+
+- **What:** paid plans are sold through Dodo Payments (merchant of record: it charges tax and issues invoices). The billing page starts a hosted checkout for the single-bid pass and for Starter/Pro monthly or annual; existing subscribers change plan in place (upgrades now with the unused time credited, downgrades at renewal). "Manage billing" opens Dodo's customer portal for invoices, payment method and cancellation.
+- **Extra proposals are paid first:** past Starter's or Pro's limit the user buys an extra proposal ($15 / $12) at checkout; the next upload uses it (`ExtraProposal`). A cancelled or failed upload keeps the extra for the next one. The old "confirm the price" step is gone.
+- **Single-bid credit:** subscribing within 30 days of buying the pass applies a single-use $29 discount code made for that account (reused if checkout is retried).
+- **Webhooks** (`/api/webhooks/dodo`): signatures checked (Standard Webhooks, 5-minute window); each delivery handled once by its webhook-id (`BillingEvent`); late, older events ignored; only the subscription that granted a plan can end it. A failed renewal on hold pauses new uploads until it is paid.
+- **Off until configured:** without every Dodo setting, the billing page keeps the request-by-email flow. Setup steps: FOUNDER_TODO.md, "Dodo Payments"; status on /admin/setup.
+- **Database:** migration `20261028090000_dodo_billing`, also applied by the boot-time upgrade.
+- **Legal pages:** Terms and Privacy name Dodo Payments as reseller and merchant of record (versions bumped to 2026-10-28, so signed-in users accept the updated Terms once); Dodo added to the subprocessors list.
+- **Tests:** webhook signatures, product mapping, every webhook path, checkout bodies, the $29 credit, plan changes, extras under simultaneous uploads.

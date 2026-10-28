@@ -84,6 +84,13 @@ export function getSubprocessors(): Subprocessor[] {
       inUse: has("NEXT_PUBLIC_SENTRY_DSN"),
     },
     {
+      name: "Dodo Payments",
+      purpose: "Selling paid plans as reseller and merchant of record: checkout, tax, invoices and the billing portal",
+      data: "Email address, name, billing address, payment details (collected by Dodo directly), and the plan bought",
+      location: "Available on request",
+      inUse: has("DODO_PAYMENTS_API_KEY"),
+    },
+    {
       name: "Slack Technologies (internal alerts)",
       purpose: "Alerting our team when an account reaches its AI usage limit",
       data: "Account ID and usage amount (no email or document content)",

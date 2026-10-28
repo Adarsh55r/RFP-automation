@@ -100,12 +100,10 @@ export async function POST(request: Request) {
 
   // The plan limit is checked and the proposal booked in one step, so
   // simultaneous uploads cannot all use the same free slot.
-  const confirmed = Number(formData.get("confirmOverageUsd"));
   const reservation = await reserveProposal({
     userId: user.id,
     subscription: user.subscription,
     title: titleFromFilename(file.name),
-    confirmedOverageUsd: Number.isFinite(confirmed) && confirmed > 0 ? confirmed : null,
   });
   if (!reservation.ok) {
     return NextResponse.json(

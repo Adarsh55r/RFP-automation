@@ -94,3 +94,41 @@ Each new email gets one free proposal, so make new accounts harder to fake. In t
 - [ ] Check **Bot sign-up protection** is on.
 
 The app also limits free accounts together to $10 of AI a day (`FREE_TIER_DAILY_BUDGET_USD` in lib/ai-guard.ts). If that alert arrives, look for a burst of new sign-ups in the admin panel.
+
+## Dodo Payments (online checkout)
+
+Checkout stays off, and the billing page keeps the "request by email" buttons, until every setting below is in Vercel. Do it all in **test mode** first; nobody is charged.
+
+**1. API key.** Dodo dashboard → Developer → API Keys → create a key. Vercel → Settings → Environment Variables: `DODO_PAYMENTS_API_KEY` = the key, `DODO_PAYMENTS_ENVIRONMENT` = `test_mode`.
+
+**2. Products.** Dodo → Products → create these seven, all in USD, tax category SaaS. Copy each product ID (`pdt_…`) into the variable shown.
+
+| Product | Type | Price | Variable |
+|---|---|---|---|
+| Single-bid pass | One-time | $29 | `DODO_PRODUCT_SINGLE_BID` |
+| Starter (monthly) | Subscription, every 1 month | $49 | `DODO_PRODUCT_STARTER_MONTHLY` |
+| Starter (annual) | Subscription, every 1 year | $490 | `DODO_PRODUCT_STARTER_ANNUAL` |
+| Pro (monthly) | Subscription, every 1 month | $129 | `DODO_PRODUCT_PRO_MONTHLY` |
+| Pro (annual) | Subscription, every 1 year | $1,290 | `DODO_PRODUCT_PRO_ANNUAL` |
+| Extra proposal (Starter) | One-time | $15 | `DODO_PRODUCT_EXTRA_PROPOSAL_STARTER` |
+| Extra proposal (Pro) | One-time | $12 | `DODO_PRODUCT_EXTRA_PROPOSAL_PRO` |
+
+For each subscription, set the **subscription period** much longer than the billing frequency (for example 10 years). If the period equals the frequency, Dodo ends the subscription after one payment. No free trial on any product.
+
+**3. Webhook.** Dodo → Developer → Webhooks → Add endpoint. URL: your live site address exactly as it appears in the browser, plus `/api/webhooks/dodo` (for example `https://www.draftbidai.com/api/webhooks/dodo`; a redirecting address will not work). Events: all `subscription.*` events and `payment.succeeded`. Copy the signing secret (`whsec_…`) into `DODO_PAYMENTS_WEBHOOK_KEY`.
+
+**4. Customer portal.** Dodo → Settings → Customer portal: allow customers to cancel subscriptions and update payment methods. "Manage billing" on the billing page opens it.
+
+**5. Redeploy** in Vercel, then open /admin/setup: "Online checkout (Dodo Payments)" should be on, in test mode.
+
+**6. Test with Dodo's test card** (in Dodo's docs, under testing) using a second account of your own:
+- [ ] Buy the single-bid pass: the billing page shows "Single-bid pass" with an access end date 30 days out.
+- [ ] Subscribe to Starter monthly from that account within the 30 days: checkout shows **$29 off** the first payment. (Check this one carefully: it is the part Dodo's documentation was least clear about.)
+- [ ] Use up Starter's 3 proposals, then "Buy an extra proposal for $15": after paying, the upload page says the extra is ready and the next upload goes through.
+- [ ] Switch Starter → Pro (applies straight away), then Pro → Starter (scheduled for the renewal date).
+- [ ] Manage billing → cancel: the billing page says the plan stays active until the period ends.
+- [ ] Dodo → Developer → Webhooks → Logs: every delivery returned 200.
+
+**7. Go live.** After Dodo approves your business for live payments, repeat steps 1–4 in **live mode**: live products and the live webhook have different IDs and a different secret. Update all the Vercel variables, set `DODO_PAYMENTS_ENVIRONMENT=live_mode`, and redeploy.
+
+Not automated yet: **refunds and chargebacks.** Refund from the Dodo dashboard, then change the account's plan in /admin if access should end. A single-bid pass bought by someone who already subscribes is not applied (the server log says so); refund it.

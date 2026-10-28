@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     fileName?: unknown;
     size?: unknown;
     contentType?: unknown;
-    confirmOverageUsd?: unknown;
   } | null;
   const fileName = typeof body?.fileName === "string" ? body.fileName : "";
   const size = typeof body?.size === "number" ? body.size : 0;
@@ -50,7 +49,6 @@ export async function POST(request: Request) {
     userId: user.id,
     subscription: user.subscription,
     title: titleFromFilename(fileName),
-    confirmedOverageUsd: typeof body?.confirmOverageUsd === "number" ? body.confirmOverageUsd : null,
   });
   if (!reservation.ok) {
     return NextResponse.json(

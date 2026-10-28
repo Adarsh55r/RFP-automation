@@ -72,7 +72,6 @@ export async function reserveProposal(input: {
   userId: string;
   subscription: SubscriptionTerms;
   title: string;
-  confirmedOverageUsd: number | null;
   now?: Date;
 }): Promise<Reservation> {
   const now = input.now ?? new Date();
@@ -89,15 +88,25 @@ export async function reserveProposal(input: {
     const used = await tx.proposalUsage.count({
       where: { userId: input.userId, ...(since ? { createdAt: { gte: since } } : {}) },
     });
-    const decision = decideUpload(computeAllowance(input.subscription, used, now), input.confirmedOverageUsd);
+    const extra = await tx.extraProposal.findFirst({
+      where: { userId: input.userId, usedAt: null },
+      orderBy: { createdAt: "asc" },
+    });
+    const decision = decideUpload(computeAllowance(input.subscription, used, now), extra ? 1 : 0);
     if (!decision.ok) return decision;
 
+    // Past the limit, the proposal uses an extra the user already paid for at checkout.
+    const overageCents = decision.useExtra && extra ? extra.amountCents : null;
     const rfp = await tx.rfp.create({
-      data: { userId: input.userId, title: input.title, status: RfpStatus.uploaded, overageCents: decision.overageCents },
+      data: { userId: input.userId, title: input.title, status: RfpStatus.uploaded, overageCents },
     });
-    // A confirmed extra charge is recorded with the proposal, to be billed once checkout is live.
-    await tx.proposalUsage.create({ data: { userId: input.userId, rfpId: rfp.id, overageCents: decision.overageCents } });
-    return { ok: true as const, rfpId: rfp.id, overageCents: decision.overageCents };
+    if (decision.useExtra && extra) {
+      await tx.extraProposal.update({ where: { id: extra.id }, data: { usedAt: now, rfpId: rfp.id } });
+    }
+    await tx.proposalUsage.create({
+      data: { userId: input.userId, rfpId: rfp.id, overageCents, overageBilledAt: overageCents === null ? null : now },
+    });
+    return { ok: true as const, rfpId: rfp.id, overageCents };
   });
 }
 
@@ -110,6 +119,8 @@ export async function releaseReservation(rfpId: string, userId: string) {
   await prisma.$transaction(async (tx) => {
     const pending = await tx.rfp.findFirst({ where: { id: rfpId, userId, originalFileUrl: null }, select: { id: true } });
     if (!pending) return;
+    // A paid extra the upload was using is kept for the next one.
+    await tx.extraProposal.updateMany({ where: { rfpId, userId }, data: { usedAt: null, rfpId: null } });
     await tx.proposalUsage.deleteMany({ where: { rfpId, userId } });
     await tx.rfp.delete({ where: { id: rfpId } });
   });
