@@ -145,7 +145,8 @@ export function checkoutCustomization(payButtonText?: string) {
     text_success: "#4cc58a",
   };
   return {
-    theme: "light",
+    // Dark (navy and green) is the look that matches the site; the customer can still switch.
+    theme: "dark",
     show_order_details: true,
     theme_config: {
       light,
