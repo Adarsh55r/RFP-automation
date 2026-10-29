@@ -9,7 +9,7 @@ import { ManageBillingButton, PlanPicker, type PlanOption } from "@/components/d
 import { COMPANY } from "@/lib/company";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
-import { dodoConfigured } from "@/lib/dodo";
+import { checkoutOutcome, dodoConfigured } from "@/lib/dodo";
 import { getProposalAllowance } from "@/lib/entitlements";
 import { displayPrice, formatPrice, publicPlans } from "@/lib/plans";
 import { recordFirst } from "@/lib/funnel";
@@ -38,7 +38,7 @@ const day = (date: Date) => date.toISOString().slice(0, 10);
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string; checkout?: string }>;
+  searchParams: Promise<{ plan?: string; checkout?: string; status?: string }>;
 }) {
   const user = await requireDashboardUser();
   if (!user) {
@@ -94,12 +94,21 @@ export default async function BillingPage({
       </header>
 
       {params.checkout === "done" ? (
-        <Card className="border-brand">
-          <p className="text-sm leading-relaxed text-ink">
-            Thank you. Your payment is being confirmed; your plan updates here within a minute or two. Refresh the page if
-            it has not changed yet.
-          </p>
-        </Card>
+        checkoutOutcome(params.status) === "failed" ? (
+          <Card role="alert" className="border-danger">
+            <p className="text-sm leading-relaxed text-ink">
+              Your payment did not go through, so nothing was charged and your plan has not changed. Choose the plan again
+              to retry with a different card or payment method.
+            </p>
+          </Card>
+        ) : (
+          <Card className="border-brand">
+            <p className="text-sm leading-relaxed text-ink">
+              Thank you. Your payment is being confirmed; your plan updates here within a minute or two. Refresh the page
+              if it has not changed yet.
+            </p>
+          </Card>
+        )
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dodoConfigured, PRODUCT_ENV, productFromId, productIdFor, verifyWebhook } from "@/lib/dodo";
+import { checkoutOutcome, dodoConfigured, PRODUCT_ENV, productFromId, productIdFor, verifyWebhook } from "@/lib/dodo";
 
 const SECRET = `whsec_${Buffer.from("test-signing-key-123").toString("base64")}`;
 
@@ -55,5 +55,16 @@ describe("Dodo products", () => {
     expect(dodoConfigured()).toBe(false);
     for (const [key, name] of Object.entries(PRODUCT_ENV)) vi.stubEnv(name, `pdt_${key}`);
     expect(dodoConfigured()).toBe(true);
+  });
+});
+
+describe("checkout return status", () => {
+  it("tells a failed payment from a paid or still-processing one", () => {
+    expect(checkoutOutcome("succeeded")).toBe("paid");
+    expect(checkoutOutcome("active")).toBe("paid");
+    expect(checkoutOutcome("failed")).toBe("failed");
+    expect(checkoutOutcome("cancelled")).toBe("failed");
+    expect(checkoutOutcome("processing")).toBe("pending");
+    expect(checkoutOutcome(undefined)).toBe("pending");
   });
 });
