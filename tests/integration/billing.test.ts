@@ -195,7 +195,7 @@ describe.skipIf(!hasTestDb)("Dodo Payments billing", () => {
       metadata: { user_id: user.id, plan_id: "pro", cycle: "annual" },
       feature_flags: { allow_customer_editing_email: false },
       customization: {
-        theme: "light",
+        theme: "dark",
         theme_config: { light: { button_primary: "#0f6e5b" }, radius: "8px", pay_button_text: "Start Pro" },
       },
     });
