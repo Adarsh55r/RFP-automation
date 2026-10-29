@@ -124,6 +124,7 @@ export async function startPlanCheckout(userId: string, planId: PlanId, cycle: B
     cancelUrl: `${SITE_URL}/dashboard/billing`,
     metadata,
     discountCode,
+    payButtonText: subscription ? `Start ${plan.name}` : `Pay for ${plan.name}`,
   });
   return { ok: true, url: session.url };
 }
@@ -144,6 +145,7 @@ export async function startExtraProposalCheckout(userId: string): Promise<Billin
     returnUrl: `${SITE_URL}/dashboard/rfps/new?extra=paid`,
     cancelUrl: `${SITE_URL}/dashboard/rfps/new`,
     metadata: { user_id: account.id, kind: "extra_proposal" },
+    payButtonText: "Buy extra proposal",
   });
   return { ok: true, url: session.url };
 }

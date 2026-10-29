@@ -99,11 +99,70 @@ export type CheckoutRequest = {
   cancelUrl: string;
   metadata: Record<string, string>;
   discountCode?: string | null;
+  /** Text on the checkout's pay button, at most 100 characters. */
+  payButtonText?: string;
 };
+
+/**
+ * DraftBid AI's look on Dodo's hosted checkout: the site's colours (app/globals.css)
+ * and fonts. The logo and business name come from the brand in the Dodo dashboard.
+ */
+export function checkoutCustomization(payButtonText?: string) {
+  const light = {
+    bg_primary: "#ffffff",
+    bg_secondary: "#f6f8f7",
+    border_primary: "#e2e8e4",
+    border_secondary: "#cfd8d3",
+    button_primary: "#0f6e5b",
+    button_primary_hover: "#0a5546",
+    button_text_primary: "#ffffff",
+    button_secondary: "#ffffff",
+    button_secondary_hover: "#f6f8f7",
+    button_text_secondary: "#0b1f33",
+    input_focus_border: "#0f6e5b",
+    text_primary: "#0b1f33",
+    text_secondary: "#445566",
+    text_placeholder: "#8a99a8",
+    text_error: "#c0432f",
+    text_success: "#1e7a4c",
+  };
+  const dark = {
+    bg_primary: "#0b1f33",
+    bg_secondary: "#0a2540",
+    border_primary: "#1f3a55",
+    border_secondary: "#2b4a68",
+    button_primary: "#1f9c80",
+    button_primary_hover: "#25b393",
+    button_text_primary: "#ffffff",
+    button_secondary: "#0a2540",
+    button_secondary_hover: "#12304f",
+    button_text_secondary: "#f6f8f7",
+    input_focus_border: "#1f9c80",
+    text_primary: "#f6f8f7",
+    text_secondary: "#b7c4d1",
+    text_placeholder: "#7d8fa1",
+    text_error: "#ef7b67",
+    text_success: "#4cc58a",
+  };
+  return {
+    theme: "light",
+    show_order_details: true,
+    theme_config: {
+      light,
+      dark,
+      font_primary_url: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap",
+      font_secondary_url: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap",
+      font_size: "md",
+      font_weight: "medium",
+      radius: "8px",
+      ...(payButtonText ? { pay_button_text: payButtonText.slice(0, 100) } : {}),
+    },
+  };
+}
 
 /** Creates a hosted checkout session; returns the URL to send the customer to. */
 export async function createCheckoutSession(input: CheckoutRequest) {
-  const session = await dodoRequest<{ session_id: string; checkout_url?: string | null }>("POST", "/checkouts", {
+  const body = {
     product_cart: [{ product_id: input.productId, quantity: 1 }],
     customer: "customerId" in input.customer
       ? { customer_id: input.customer.customerId }
@@ -114,7 +173,17 @@ export async function createCheckoutSession(input: CheckoutRequest) {
     ...(input.discountCode ? { discount_codes: [input.discountCode] } : {}),
     // The account is matched by this email, so the customer cannot change it at checkout.
     feature_flags: { allow_customer_editing_email: false },
-  });
+  };
+  type Session = { session_id: string; checkout_url?: string | null };
+  let session: Session;
+  try {
+    session = await dodoRequest<Session>("POST", "/checkouts", { ...body, customization: checkoutCustomization(input.payButtonText) });
+  } catch (error) {
+    // The styling must never stop a customer paying: if Dodo refuses it, check out unstyled.
+    if (!(error instanceof DodoError) || error.status !== 422) throw error;
+    console.warn("[billing] Dodo refused the checkout styling; opening checkout without it.", error.message.slice(0, 300));
+    session = await dodoRequest<Session>("POST", "/checkouts", body);
+  }
   if (!session.checkout_url) throw new DodoError("Dodo Payments returned no checkout link.", 502);
   return { sessionId: session.session_id, url: session.checkout_url };
 }

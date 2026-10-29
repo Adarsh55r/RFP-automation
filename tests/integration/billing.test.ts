@@ -194,6 +194,10 @@ describe.skipIf(!hasTestDb)("Dodo Payments billing", () => {
       customer: { email: "buyer@example.test", name: "buyer Co" },
       metadata: { user_id: user.id, plan_id: "pro", cycle: "annual" },
       feature_flags: { allow_customer_editing_email: false },
+      customization: {
+        theme: "light",
+        theme_config: { light: { button_primary: "#0f6e5b" }, radius: "8px", pay_button_text: "Start Pro" },
+      },
     });
     expect(calls[0].body).not.toHaveProperty("discount_codes");
   });
@@ -274,6 +278,20 @@ describe.skipIf(!hasTestDb)("Dodo Payments billing", () => {
     await testDb().subscription.update({ where: { userId: trial.id }, data: { planVersion: "2026-10" } });
     expect((await startExtraProposalCheckout(trial.id)).ok).toBe(false);
     expect(calls).toHaveLength(1);
+  });
+
+  it("if Dodo refuses the styling, checkout still opens without it", async () => {
+    const calls: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      calls.push(body);
+      if (body.customization) return new Response(JSON.stringify({ code: "INVALID_REQUEST" }), { status: 422 });
+      return new Response(JSON.stringify({ session_id: "cks_2", checkout_url: "https://test.checkout.dodopayments.com/session/cks_2" }), { status: 200 });
+    });
+    const user = await createUser("plain", "free");
+    const { startPlanCheckout } = await import("@/lib/billing");
+    expect(await startPlanCheckout(user.id, "starter", "monthly")).toEqual({ ok: true, url: "https://test.checkout.dodopayments.com/session/cks_2" });
+    expect(calls.map((body) => Boolean(body.customization))).toEqual([true, false]);
   });
 
   it("without Dodo configured, checkout says so and calls nothing", async () => {
