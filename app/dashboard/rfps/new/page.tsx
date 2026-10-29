@@ -6,7 +6,7 @@ import { RfpUploadZone } from "@/components/dashboard/rfp-upload-zone";
 import { Card } from "@/components/ui/card";
 import { requireDashboardUser } from "@/lib/dashboard";
 import { prisma } from "@/lib/db";
-import { dodoConfigured } from "@/lib/dodo";
+import { checkoutOutcome, dodoConfigured } from "@/lib/dodo";
 import { decideUpload, getProposalAllowance } from "@/lib/entitlements";
 
 export const metadata: Metadata = {
@@ -14,12 +14,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function NewRfpPage({ searchParams }: { searchParams: Promise<{ extra?: string }> }) {
+export default async function NewRfpPage({ searchParams }: { searchParams: Promise<{ extra?: string; status?: string }> }) {
   const user = await requireDashboardUser();
   if (!user) {
     redirect("/onboarding");
   }
-  const { extra } = await searchParams;
+  const { extra, status } = await searchParams;
 
   const [allowance, extras] = await Promise.all([
     getProposalAllowance(user.id, user.subscription),
@@ -48,11 +48,13 @@ export default async function NewRfpPage({ searchParams }: { searchParams: Promi
       </header>
 
       {extra === "paid" ? (
-        <Card className="border-brand">
+        <Card className={checkoutOutcome(status) === "failed" ? "border-danger" : "border-brand"}>
           <p className="text-sm leading-relaxed text-ink">
-            {extras > 0
-              ? "Payment received: your extra proposal is ready. Upload the RFP below."
-              : "Thank you. Your payment is being confirmed, which usually takes under a minute. Refresh this page, then upload the RFP."}
+            {checkoutOutcome(status) === "failed"
+              ? "Your payment did not go through, so nothing was charged. Buy the extra proposal again with a different card or payment method."
+              : extras > 0
+                ? "Payment received: your extra proposal is ready. Upload the RFP below."
+                : "Thank you. Your payment is being confirmed, which usually takes under a minute. Refresh this page, then upload the RFP."}
           </p>
         </Card>
       ) : null}

@@ -181,6 +181,19 @@ export async function createOneTimeDiscount(input: {
   return discount.code;
 }
 
+/**
+ * What the `status` Dodo adds to the return URL says about the checkout:
+ * "paid" (payment succeeded or subscription active), "failed" (nothing was
+ * charged), or "pending" (still processing, or no status given). The account
+ * itself only changes when the webhook arrives.
+ */
+export function checkoutOutcome(status: string | null | undefined): "paid" | "failed" | "pending" {
+  const value = status?.trim().toLowerCase() ?? "";
+  if (value === "succeeded" || value === "active") return "paid";
+  if (["failed", "cancelled", "canceled", "expired", "requires_payment_method"].includes(value)) return "failed";
+  return "pending";
+}
+
 /** Webhooks older than this are refused, so a captured delivery cannot be replayed later. */
 const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 
