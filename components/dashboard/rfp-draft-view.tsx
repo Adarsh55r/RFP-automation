@@ -32,7 +32,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ProgressPanel, type ProgressStep } from "@/components/ui/progress-panel";
 import { SkeletonText } from "@/components/ui/skeleton";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
@@ -66,11 +68,25 @@ type StreamEvent =
 
 type ExportPhase = "idle" | "generating" | "ready" | "error";
 
-const phaseCopy: Record<DraftPhase, string> = {
-  planning: "Reading the full RFP and planning the bid…",
-  writing: "Writing each section from the RFP and your library…",
-  reviewing: "Checking the draft against every requirement…",
-};
+/** Progress of a full draft, built from the server's stream events. */
+type DraftProgress = { startedAt: number; written: number; current: string | null; coverage: boolean };
+
+function draftSteps(phase: DraftPhase, progress: DraftProgress, total: number): ProgressStep[] {
+  const at = progress.coverage ? 3 : phase === "reviewing" ? 2 : phase === "writing" ? 1 : 0;
+  const steps = [
+    { id: "planning", label: "Reading the full RFP and planning the bid" },
+    {
+      id: "writing",
+      label: "Writing each section from the RFP and your library",
+      detail: at === 1 && total > 0
+        ? `${Math.min(progress.written, total)} of ${total} done${progress.current ? ` · now: ${progress.current}` : ""}`
+        : at > 1 && total > 0 ? `${total} sections` : undefined,
+    },
+    { id: "reviewing", label: "Checking every claim and requirement" },
+    ...(progress.coverage ? [{ id: "coverage", label: "Building the compliance matrix" }] : []),
+  ];
+  return steps.map((step, index) => ({ ...step, state: index < at ? "done" : index === at ? "active" : "pending" }));
+}
 
 const revisionPresets = [
   "More specific to this buyer",
@@ -140,7 +156,7 @@ function DraftSectionCard({
   onRevise: (section: string, instruction: string) => void;
 }) {
   const [saveFlash, setSaveFlash] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
   const [reviseOpen, setReviseOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -160,11 +176,10 @@ function DraftSectionCard({
       return;
     }
 
-    setSaveError(null);
     startTransition(async () => {
       const result = await saveDraftSection({ rfpId, sectionKey: section, content: next });
       if (!result.ok) {
-        setSaveError(result.error);
+        alert.error(`Couldn't save ${title}`, result.error);
         return;
       }
       baselineRef.current = result.draft.content;
@@ -350,7 +365,6 @@ function DraftSectionCard({
         <p className="text-sm text-slate">Waiting to generate…</p>
       ) : null}
 
-      {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
     </Card>
   );
 }
@@ -369,7 +383,7 @@ function InputChecklist({
   onCitations: (section: string, content: string, citations: DraftCitations) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [reviewError, setReviewError] = useState<string | null>(null);
+  const alert = useAlert();
   const groups = sections
     .map(({ key, title }) => ({
       section: key,
@@ -381,11 +395,10 @@ function InputChecklist({
   const total = groups.reduce((sum, group) => sum + group.items.length + group.uncited.length, 0);
 
   const keepClaim = (section: string, claim: string) => {
-    setReviewError(null);
     startTransition(async () => {
       const result = await setClaimReviewed({ rfpId, sectionKey: section, claim, reviewed: true });
       if (!result.ok) {
-        setReviewError(result.error);
+        alert.error("Couldn't mark it as checked", result.error);
         return;
       }
       onCitations(section, (state[section] ?? EMPTY).content, result.citations);
@@ -466,7 +479,6 @@ function InputChecklist({
           ))}
         </ul>
       ) : null}
-      {reviewError ? <p className="text-sm text-danger">{reviewError}</p> : null}
     </Card>
   );
 }
@@ -520,12 +532,12 @@ export function RfpDraftView({
   const [coverageStreaming, setCoverageStreaming] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<DraftPhase | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [draftProgress, setDraftProgress] = useState<DraftProgress | null>(null);
+  const alert = useAlert();
   const [exportPhase, setExportPhase] = useState<ExportPhase>("idle");
   const [exportFormat, setExportFormat] = useState<DownloadFormat>("docx");
   const [unansweredRows, setUnansweredRows] = useState<number | null>(null);
   const [pageWarning, setPageWarning] = useState<string | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
   const [includeMatrix, setIncludeMatrix] = useState(true);
   const [exportVariant, setExportVariant] = useState<ExportVariant>("submission");
@@ -591,7 +603,7 @@ export function RfpDraftView({
 
   const runGeneration = async (revision?: { section: string; instruction: string }) => {
     setGenerating(true);
-    setError(null);
+    setDraftProgress(revision ? null : { startedAt: Date.now(), written: 0, current: null, coverage: false });
     setExportPhase("idle");
     setCoverageMap("");
     setCoverageStreaming(false);
@@ -652,6 +664,7 @@ export function RfpDraftView({
               if (payload.sections.length > 0) setPlannedSections(payload.sections);
               break;
             case "section_start":
+              setDraftProgress((current) => (current ? { ...current, current: payload.label } : current));
               setSections((current) => ({
                 ...current,
                 [payload.section]: { content: "", status: "streaming" },
@@ -667,6 +680,7 @@ export function RfpDraftView({
               }));
               break;
             case "section_done":
+              setDraftProgress((current) => (current ? { ...current, written: current.written + 1 } : current));
               setSections((current) => ({
                 ...current,
                 [payload.section]: {
@@ -685,8 +699,10 @@ export function RfpDraftView({
                   error: payload.message,
                 },
               }));
-              setError(
-                `${plannedSections.find((item) => item.key === payload.section)?.title ?? "A section"}: ${payload.message}`,
+              setDraftProgress((current) => (current ? { ...current, written: current.written + 1 } : current));
+              alert.error(
+                `${plannedSections.find((item) => item.key === payload.section)?.title ?? "A section"} didn't draft`,
+                `${payload.message} The other sections carry on; revise this one when the draft finishes.`,
               );
               break;
             case "section_checked":
@@ -696,6 +712,7 @@ export function RfpDraftView({
               }));
               break;
             case "meta_start":
+              setDraftProgress((current) => (current ? { ...current, coverage: true } : current));
               setCoverageStreaming(true);
               setCoverageMap("");
               break;
@@ -723,7 +740,10 @@ export function RfpDraftView({
 
       router.refresh();
     } catch (generateError) {
-      setError(generateError instanceof Error ? generateError.message : "Drafting failed.");
+      alert.error(
+        revision ? "The revision didn't finish" : "Drafting didn't finish",
+        generateError instanceof Error ? generateError.message : "Drafting failed.",
+      );
       // Restore anything that was mid-stream when the request died.
       setSections((current) => {
         const next = { ...current };
@@ -739,6 +759,7 @@ export function RfpDraftView({
     } finally {
       setGenerating(false);
       setPhase(null);
+      setDraftProgress(null);
       setCoverageStreaming(false);
     }
   };
@@ -764,13 +785,21 @@ export function RfpDraftView({
             .join("; ")}. Make them consistent unless they are different services.`
         : "",
     ].filter(Boolean);
-    if (warnings.length > 0 && !window.confirm(`${warnings.join("\n\n")}\n\nExport anyway?`)) {
+    if (
+      warnings.length > 0 &&
+      !(await alert.confirm({
+        tone: "warning",
+        title: "Check these before you export",
+        text: warnings.join("\n\n"),
+        confirmLabel: "Export anyway",
+        cancelLabel: "Go back and fix",
+      }))
+    ) {
       return;
     }
 
     setExportFormat(format);
     setExportPhase("generating");
-    setExportError(null);
     setExportProgress(8);
 
     const progressTimer = window.setInterval(() => {
@@ -794,7 +823,7 @@ export function RfpDraftView({
       router.refresh();
     } catch (exportErr) {
       setExportPhase("error");
-      setExportError(exportErr instanceof Error ? exportErr.message : "Export failed.");
+      alert.error("Export failed", exportErr instanceof Error ? exportErr.message : "Export failed.");
     } finally {
       window.clearInterval(progressTimer);
     }
@@ -842,12 +871,15 @@ export function RfpDraftView({
           <Button
             type="button"
             variant={hasAnyContent ? "secondary" : "primary"}
-            onClick={() => {
+            onClick={async () => {
               if (
                 hasAnyContent &&
-                !window.confirm(
-                  "Regenerate the whole proposal? This replaces every section, including your manual edits.",
-                )
+                !(await alert.confirm({
+                  title: "Regenerate the whole proposal?",
+                  text: "This replaces every section, including your manual edits. It uses one of your full drafts.",
+                  confirmLabel: "Regenerate",
+                  destructive: true,
+                }))
               ) {
                 return;
               }
@@ -946,28 +978,15 @@ export function RfpDraftView({
           Section revisions: {allowance.revisions.used} of {allowance.revisions.limit} used
           {fullDraftsLeft <= 0 ? " · Use “Revise with AI” on individual sections" : ""}
         </p>
-
-        {phase ? (
-          <p
-            className="inline-flex items-center gap-2 font-mono text-xs tracking-wide text-brand"
-            aria-live="polite"
-          >
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            {phaseCopy[phase]} This can take one to three minutes.
-          </p>
-        ) : null}
       </div>
 
-      {error ? (
-        <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-
-      {exportError ? (
-        <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {exportError}
-        </p>
+      {generating && draftProgress && phase ? (
+        <ProgressPanel
+          eyebrow="Drafting your proposal"
+          steps={draftSteps(phase, draftProgress, plannedSections.length)}
+          startedAt={draftProgress.startedAt}
+          hint="A full proposal takes one to three minutes. Sections appear below as they are written."
+        />
       ) : null}
 
       {!generating && unverifiedClaims.length > 0 ? (
@@ -1092,15 +1111,6 @@ export function RfpDraftView({
           <CoverageMapCard markdown={coverageMap} streaming={coverageStreaming} />
         ) : null}
 
-        {generating && phase === "planning" ? (
-          <Card className="flex flex-col gap-4" aria-busy="true">
-            <p className="font-mono text-xs tracking-wide text-slate uppercase">Planning</p>
-            <p className="font-sans text-base font-semibold text-ink">
-              Identifying the buyer, their priorities, and your win themes…
-            </p>
-            <SkeletonText lines={4} />
-          </Card>
-        ) : null}
 
         {plannedSections.map((section) => (
           <DraftSectionCard

@@ -61,6 +61,44 @@ describe.skipIf(!hasTestDb)("extraction route", () => {
     expect(llm.calls[0].user).toContain("Kentucky business license");
   });
 
+  it("reports each step live when the browser asks for progress, then the same result", async () => {
+    const { rfp, llm } = await setup(fixture("straightforward-public-tender").text);
+    llm.script.json = () => goodJson();
+    const route = await import("@/app/api/rfps/[id]/extract/route");
+    const res = await route.POST(
+      new Request("http://t/x", { method: "POST", headers: { Accept: "application/x-ndjson" } }),
+      ctx(rfp.id),
+    );
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = (await res.text()).trim().split("\n").map((line) => JSON.parse(line));
+    expect(events.filter((event) => event.type === "step").map((event) => event.step)).toEqual([
+      "download",
+      "read",
+      "extract",
+      "check",
+      "save",
+    ]);
+    const result = events.at(-1);
+    expect(result).toMatchObject({ type: "result", status: 200, body: { status: "extracted" } });
+    expect(result.body.extracted.deadline).toBe("2026-11-20");
+  });
+
+  it("streams a failure as the last line, with the same error the plain response gives", async () => {
+    const { rfp, llm } = await setup(fixture("straightforward-public-tender").text);
+    llm.script.json = () => "not json at all";
+    const route = await import("@/app/api/rfps/[id]/extract/route");
+    const res = await route.POST(
+      new Request("http://t/x", { method: "POST", headers: { Accept: "application/x-ndjson" } }),
+      ctx(rfp.id),
+    );
+    const events = (await res.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const result = events.at(-1);
+    expect(result.type).toBe("result");
+    expect(result.status).toBeGreaterThanOrEqual(400);
+    expect(typeof result.body.error).toBe("string");
+    expect((await testDb().rfp.findUniqueOrThrow({ where: { id: rfp.id } })).status).toBe("uploaded");
+  });
+
   it("reads requirements that sit beyond 120,000 characters in a long RFP", async () => {
     const long = fixture("long-rfp-requirement-at-end");
     expect(long.text.length).toBeGreaterThan(120_000);

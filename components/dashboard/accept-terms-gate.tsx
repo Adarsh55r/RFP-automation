@@ -6,12 +6,13 @@ import { TermsCheckbox } from "@/components/legal/terms-checkbox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { acceptCurrentTerms } from "@/lib/actions/terms";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 /** Shown in place of a dashboard page until the user accepts the current Terms version. */
 export function AcceptTermsGate({ updated }: { updated: boolean }) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -26,21 +27,15 @@ export function AcceptTermsGate({ updated }: { updated: boolean }) {
           submit to buyers, and how your data is handled. Your RFPs and drafts are unchanged.
         </p>
         <TermsCheckbox checked={checked} onChange={setChecked} />
-        {error ? (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        ) : null}
         <Button
           type="button"
           className="w-full sm:w-fit"
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              setError(null);
               const result = await acceptCurrentTerms(checked);
               if (!result.ok) {
-                setError(result.error);
+                alert.warning("One more step", result.error);
                 return;
               }
               router.refresh();

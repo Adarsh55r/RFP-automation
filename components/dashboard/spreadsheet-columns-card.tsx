@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { updateSpreadsheetColumns } from "@/lib/actions/questionnaire";
 import type { SheetSummary } from "@/lib/spreadsheet";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 export type SpreadsheetColumns = {
   format: "xlsx" | "csv";
@@ -30,13 +31,12 @@ export function SpreadsheetColumnsCard({ rfpId, columns }: { rfpId: string; colu
   const [answerColumn, setAnswerColumn] = useState(columns.answerColumn);
   const [idColumn, setIdColumn] = useState(columns.idColumn ?? "");
   const [headerRow, setHeaderRow] = useState(columns.headerRow ? String(columns.headerRow) : "");
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const alert = useAlert();
 
   const options = columns.sheets.find((item) => item.name === sheet)?.columns ?? [];
   const label = (letter: string, title: string) => (title ? `${letter}: ${title}` : letter);
 
   const save = () => {
-    setMessage(null);
     startTransition(async () => {
       const result = await updateSpreadsheetColumns({
         rfpId,
@@ -47,13 +47,13 @@ export function SpreadsheetColumnsCard({ rfpId, columns }: { rfpId: string; colu
         headerRow: headerRow ? Number(headerRow) : null,
       });
       if (!result.ok) {
-        setMessage({ tone: "error", text: result.error });
+        alert.error("Couldn't use those columns", result.error);
         return;
       }
-      setMessage({
-        tone: "ok",
-        text: `${result.questions} questions found. If you already drafted answers, regenerate them so they match these questions.`,
-      });
+      alert.success(
+        `${result.questions} questions found`,
+        "If you already drafted answers, regenerate them so they match these questions.",
+      );
       router.refresh();
     });
   };
@@ -124,11 +124,6 @@ export function SpreadsheetColumnsCard({ rfpId, columns }: { rfpId: string; colu
         <Button type="button" variant="secondary" onClick={save} disabled={pending}>
           {pending ? "Re-reading…" : "Use these columns"}
         </Button>
-        {message ? (
-          <p role="status" className={message.tone === "ok" ? "text-sm text-slate" : "text-sm text-danger"}>
-            {message.text}
-          </p>
-        ) : null}
       </div>
     </Card>
   );

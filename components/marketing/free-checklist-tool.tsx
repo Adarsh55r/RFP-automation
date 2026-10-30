@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { groupKeyDetails, type KeyDetail } from "@/lib/key-details";
 
 type Checklist = {
@@ -43,7 +44,7 @@ function List({ title, items }: { title: string; items: string[] }) {
 export function FreeChecklistTool() {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const [result, setResult] = useState<Checklist | null>(null);
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -51,7 +52,6 @@ export function FreeChecklistTool() {
 
   const run = async (file: File) => {
     setBusy(true);
-    setError(null);
     setResult(null);
     try {
       const form = new FormData();
@@ -61,7 +61,7 @@ export function FreeChecklistTool() {
       if (!response.ok || !payload || payload.error) throw new Error(payload?.error ?? "The checklist could not be built.");
       setResult(payload);
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : "The checklist could not be built.");
+      alert.error("Couldn't build the checklist", runError instanceof Error ? runError.message : "The checklist could not be built.");
     } finally {
       setBusy(false);
     }
@@ -104,11 +104,6 @@ export function FreeChecklistTool() {
           </Link>
           ). To apply the daily limit we keep a one-way hash of your IP address for 30 days.
         </p>
-        {error ? (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        ) : null}
       </Card>
 
       {result ? (

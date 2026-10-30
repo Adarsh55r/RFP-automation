@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateBidOutcome } from "@/lib/actions/outcomes";
 import { CURRENCIES, OUTCOMES } from "@/lib/outcomes";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 export type BidOutcomeValues = {
   submittedAt: string;
@@ -26,13 +27,12 @@ export function BidOutcomeCard({ rfpId, initial }: { rfpId: string; initial: Bid
   const router = useRouter();
   const [values, setValues] = useState(initial);
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const alert = useAlert();
   const set = (key: keyof BidOutcomeValues) => (event: { target: { value: string } }) =>
     setValues((current) => ({ ...current, [key]: event.target.value }));
 
   const save = (event: React.FormEvent) => {
     event.preventDefault();
-    setMessage(null);
     startTransition(async () => {
       const result = await updateBidOutcome({
         rfpId,
@@ -43,7 +43,8 @@ export function BidOutcomeCard({ rfpId, initial }: { rfpId: string; initial: Bid
         notes: values.notes || null,
         hoursSaved: values.hoursSaved || null,
       });
-      setMessage(result.ok ? { tone: "ok", text: "Saved." } : { tone: "error", text: result.error });
+      if (result.ok) alert.success("Bid outcome saved");
+      else alert.error("Couldn't save the outcome", result.error);
       if (result.ok) router.refresh();
     });
   };
@@ -109,11 +110,6 @@ export function BidOutcomeCard({ rfpId, initial }: { rfpId: string; initial: Bid
           <Button type="submit" variant="secondary" disabled={pending}>
             {pending ? "Saving…" : "Save outcome"}
           </Button>
-          {message ? (
-            <p role="status" className={message.tone === "ok" ? "text-sm text-success" : "text-sm text-danger"}>
-              {message.text}
-            </p>
-          ) : null}
         </div>
       </form>
     </Card>

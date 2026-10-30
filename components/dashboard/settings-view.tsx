@@ -9,6 +9,7 @@ import { updateAgencySettings } from "@/lib/actions/settings";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
 import { teamSizeOptions, type TeamSize } from "@/lib/onboarding";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 export function SettingsView({
   agencyName,
@@ -27,34 +28,31 @@ export function SettingsView({
       : "",
   );
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
 
   const handleSave = () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
       setError("Enter your company’s legal or trading name (at least 2 characters).");
-      setSaved(false);
       return;
     }
     if (!size) {
       setError("Pick a team size so we can size your workspace.");
-      setSaved(false);
       return;
     }
 
     startTransition(async () => {
       setError(null);
-      setSaved(false);
       const result = await updateAgencySettings({
         agencyName: trimmed,
         teamSize: size,
       });
       if (!result.ok) {
-        setError(result.error);
+        alert.error("Couldn't save your settings", result.error);
         return;
       }
-      setSaved(true);
+      alert.success("Settings saved");
       router.refresh();
     });
   };
@@ -78,7 +76,6 @@ export function SettingsView({
           value={name}
           onChange={(event) => {
             setName(event.target.value);
-            setSaved(false);
           }}
           aria-invalid={Boolean(error && name.trim().length < 2)}
           disabled={pending}
@@ -99,7 +96,6 @@ export function SettingsView({
                 disabled={pending}
                 onClick={() => {
                   setSize(option.value);
-                  setSaved(false);
                 }}
                 className={cn(
                   "rounded-card border px-4 py-4 text-left transition-[border-color,transform] duration-hover ease-out",
@@ -119,14 +115,7 @@ export function SettingsView({
         </div>
       </fieldset>
 
-      {error ? (
-        <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {saved ? (
-        <p className="text-sm text-success">Settings saved.</p>
-      ) : null}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
 
       <Button
         type="button"
