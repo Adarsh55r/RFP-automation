@@ -33,7 +33,8 @@ export function DashboardShell({ agencyName, allowance, children }: DashboardShe
 
   return (
     <div className="flex min-h-screen bg-surface">
-      <div className="hidden md:flex">
+      {/* Pinned to the screen at full height, so only the page content beside it scrolls. */}
+      <div className="sticky top-0 hidden h-dvh shrink-0 md:block">
         <DashboardSidebar />
       </div>
 
