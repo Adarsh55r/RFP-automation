@@ -28,7 +28,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        "flex h-full w-64 shrink-0 flex-col bg-brand-dark",
+        "flex h-full w-64 shrink-0 flex-col overflow-y-auto bg-brand-dark",
         className,
       )}
     >

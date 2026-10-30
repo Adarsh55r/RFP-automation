@@ -6,7 +6,7 @@ import type { SubscriptionStatus, SubscriptionTier } from "@/lib/generated/prism
 
 /**
  * Read-only queries behind the admin panel. Revenue is estimated from each
- * account's plan list price until Stripe billing is connected.
+ * account's plan list price, not from Dodo Payments' records.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;

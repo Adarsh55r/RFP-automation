@@ -29,7 +29,7 @@ export default async function AdminOverviewPage() {
         eyebrow={today}
         title="Business overview"
         description="Sales, usage and AI spend across every DraftBid AI account, updated live from the database."
-        actions={<Pill>Revenue estimated from list prices · Stripe not connected</Pill>}
+        actions={<Pill>Revenue estimated from list prices</Pill>}
       />
 
       <SetupStrip blocking={setup.blocking} optionalOff={setup.optionalOff} />

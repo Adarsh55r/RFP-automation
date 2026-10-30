@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, BellRing, Coins, CreditCard, Filter, LayoutDashboard, Search, Settings2, Users } from "lucide-react";
+import { ArrowLeft, BellRing, Coins, Filter, LayoutDashboard, Search, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -164,15 +164,6 @@ export function AdminShell({
           </nav>
 
           <div className="mt-auto space-y-3">
-            <div className="rounded-xl border border-dashed border-(--a-border-strong) p-3">
-              <div className="flex items-center gap-2 text-xs font-medium text-(--a-text-2)">
-                <CreditCard aria-hidden className="size-3.5 text-(--a-amber)" />
-                Stripe not connected
-              </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-(--a-muted)">
-                Revenue is estimated from each plan&apos;s list price until billing goes live.
-              </p>
-            </div>
             <Link
               href="/dashboard"
               className="group flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-(--a-text-2) outline-none transition-colors hover:bg-white/[0.04] hover:text-(--a-text) focus-visible:ring-2 focus-visible:ring-(--a-teal)/60"
