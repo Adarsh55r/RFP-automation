@@ -24,7 +24,7 @@ async function run(action: () => Promise<void>, paths: string[]): Promise<Result
   }
 }
 
-/** Moves an account to another plan (manual override until Stripe billing is live). */
+/** Moves an account to another plan (manual override; billing in Dodo Payments is not changed). */
 export async function adminSetPlan(userId: string, tier: string) {
   if (!TIERS.includes(tier as SubscriptionTier)) {
     return { ok: false as const, error: "Unknown plan." };

@@ -207,7 +207,7 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
 
         <Stagger className="space-y-4">
           <SpotlightCard className="p-5">
-            <CardHeader title="Admin actions" description="Manual overrides until Stripe billing is live" icon={ShieldCheck} />
+            <CardHeader title="Admin actions" description="Changes the plan here only; billing in Dodo Payments is not changed" icon={ShieldCheck} />
             <p className="mb-2 text-xs uppercase tracking-[0.12em] text-(--a-muted)">Plan</p>
             <PlanSwitcher userId={user.id} tier={user.tier} />
             <p className="mb-2 mt-5 text-xs uppercase tracking-[0.12em] text-(--a-muted)">AI task lock</p>
