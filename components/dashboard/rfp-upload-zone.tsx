@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { FileText, Upload, X } from "lucide-react";
 import { BuyExtraProposalButton } from "@/components/dashboard/billing-controls";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
@@ -119,12 +120,11 @@ export function RfpUploadZone() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
+  const showError = (text: string) => alert.error("Upload didn't work", text);
   const [overage, setOverage] = useState<{ message: string; priceUsd: number } | null>(null);
 
   const onDrop = useCallback((accepted: File[], rejected: FileRejection[]) => {
-    setError(null);
-
     if (rejected.length > 0) {
       const rejection = rejected[0];
       const tooLarge = rejection.errors.some((item) => item.code === "file-too-large");
@@ -132,13 +132,14 @@ export function RfpUploadZone() {
         (item) => item.code === "file-invalid-type",
       );
 
-      if (tooLarge) {
-        setError("File is too large. Maximum size is 25 MB.");
-      } else if (invalidType) {
-        setError("Upload a PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file.");
-      } else {
-        setError("Could not use that file. Try another PDF, Word, Excel, CSV or image file.");
-      }
+      alert.error(
+        "Can't use that file",
+        tooLarge
+          ? "File is too large. Maximum size is 25 MB."
+          : invalidType
+            ? "Upload a PDF, Word (.docx), Excel (.xlsx), CSV or image (PNG, JPEG) file."
+            : "Could not use that file. Try another PDF, Word, Excel, CSV or image file.",
+      );
       return;
     }
 
@@ -146,7 +147,7 @@ export function RfpUploadZone() {
       setSelectedFile(accepted[0]);
       setProgress(0);
     }
-  }, []);
+  }, [alert]);
 
   const { getRootProps, getInputProps, isDragActive, isFocused, open } = useDropzone({
     onDrop,
@@ -162,7 +163,6 @@ export function RfpUploadZone() {
   const clearFile = () => {
     setSelectedFile(null);
     setProgress(0);
-    setError(null);
     setOverage(null);
   };
 
@@ -173,7 +173,6 @@ export function RfpUploadZone() {
 
     setUploading(true);
     setProgress(0);
-    setError(null);
     setOverage(null);
 
     try {
@@ -189,7 +188,7 @@ export function RfpUploadZone() {
         setOverage({ message: uploadError.message, priceUsd: uploadError.priceUsd });
         return;
       }
-      setError(
+      showError(
         uploadError instanceof Error
           ? uploadError.message
           : "Upload failed. Try again.",
@@ -312,11 +311,6 @@ export function RfpUploadZone() {
         </div>
       ) : null}
 
-      {error ? (
-        <p role="alert" className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

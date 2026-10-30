@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 const fields: { key: keyof CoverDetails; label: string; placeholder: string; wide?: boolean }[] = [
   { key: "projectTitle", label: "Proposal title", placeholder: "e.g. Managed IT Services for the City of Maple Grove", wide: true },
@@ -35,15 +36,14 @@ export function CoverDetailsCard({
   const [open, setOpen] = useState(missingContact);
   const [cover, setCover] = useState(initialCover);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
 
   const save = () => {
-    setError(null);
     startTransition(async () => {
       const result = await saveCoverDetails({ rfpId, cover });
       if (!result.ok) {
-        setError(result.error);
+        alert.error("Couldn't save the cover details", result.error);
         return;
       }
       setSaved(true);
@@ -110,7 +110,6 @@ export function CoverDetailsCard({
                 Saved
               </span>
             ) : null}
-            {error ? <span className="text-sm text-danger">{error}</span> : null}
           </div>
         </form>
       ) : null}

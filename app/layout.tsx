@@ -3,7 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { Fraunces, IBM_Plex_Mono, Manrope } from "next/font/google";
 import { SentryUser } from "@/components/sentry-user";
-import { ToastProvider } from "@/components/ui/toast";
+import { AlertProvider } from "@/components/ui/sweet-alert";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -67,7 +67,7 @@ export default function RootLayout({
           <a href="#main-content" className="skip-link">
             Skip to content
           </a>
-          <ToastProvider>{children}</ToastProvider>
+          <AlertProvider>{children}</AlertProvider>
           <SentryUser />
           <Analytics />
         </body>

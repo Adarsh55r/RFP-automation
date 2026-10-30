@@ -7,13 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { deleteWorkspace } from "@/lib/actions/data-deletion";
 import { DELETE_WORKSPACE_CONFIRMATION } from "@/lib/data-deletion";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 /** Settings danger zone: deletes all workspace data, then signs out. */
 export function DeleteWorkspaceCard() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -35,11 +36,6 @@ export function DeleteWorkspaceCard() {
         autoComplete="off"
         onChange={(event) => setConfirmation(event.target.value)}
       />
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
       <Button
         type="button"
         variant="danger"
@@ -47,10 +43,9 @@ export function DeleteWorkspaceCard() {
         disabled={pending || confirmation.trim() !== DELETE_WORKSPACE_CONFIRMATION}
         onClick={() =>
           startTransition(async () => {
-            setError(null);
             const result = await deleteWorkspace(confirmation);
             if (!result.ok) {
-              setError(result.error);
+              alert.error("Couldn't delete the workspace", result.error);
               return;
             }
             // Stop the onboarding page from quietly rebuilding the workspace from saved sign-up data.

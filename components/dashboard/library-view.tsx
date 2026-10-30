@@ -42,7 +42,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/toast";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
 
@@ -82,19 +82,17 @@ export function LibraryView({
   initialType?: LibraryItemType;
 }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const alert = useAlert();
   const [activeType, setActiveType] = useState<LibraryItemType>(initialType);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const uploadInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   // Past proposals, résumés and certificates usually exist as files already.
   const uploadDocument = async (file: File) => {
     setUploading(true);
-    setUploadMessage(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -104,19 +102,19 @@ export function LibraryView({
         | { error?: string; created?: string[]; skippedForLimits?: number; hiddenRemoved?: number }
         | null;
       if (!response.ok || !payload?.created) throw new Error(payload?.error ?? "Upload failed. Try again.");
-      setUploadMessage({
-        tone: "ok",
-        text: [
+      alert.success(
+        "Added to your library",
+        [
           `Added ${payload.created.length === 1 ? `“${payload.created[0]}”` : `${payload.created.length} parts`}. Check the text and remove anything you do not want drafts to reuse.`,
           payload.skippedForLimits ? `${payload.skippedForLimits} part(s) did not fit your library's limits.` : "",
           payload.hiddenRemoved ? "Hidden text in the file was left out." : "",
         ]
           .filter(Boolean)
           .join(" "),
-      });
+      );
       router.refresh();
     } catch (uploadError) {
-      setUploadMessage({ tone: "error", text: uploadError instanceof Error ? uploadError.message : "Upload failed." });
+      alert.error("Upload failed", uploadError instanceof Error ? uploadError.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -203,29 +201,29 @@ export function LibraryView({
           : await updateLibraryItem(editor.itemId!, payload);
 
       if (!result.ok) {
-        setError(result.error);
+        alert.error("Couldn't save it", result.error);
         return;
       }
 
-      toast({
-        variant: "success",
-        title:
-          editor.mode === "create"
-            ? `${libraryTypeSingular[editor.type]} added`
-            : `${libraryTypeSingular[editor.type]} updated`,
-        description:
-          "Drafts will pull from this when writing company-specific sections.",
-      });
+      alert.success(
+        editor.mode === "create"
+          ? `${libraryTypeSingular[editor.type]} added`
+          : `${libraryTypeSingular[editor.type]} updated`,
+        "Drafts will pull from this when writing company-specific sections.",
+      );
 
       setEditor(null);
       router.refresh();
     });
   };
 
-  const handleDelete = (item: LibraryItemView) => {
-    const confirmed = window.confirm(
-      `Delete “${item.title}”? This cannot be undone.`,
-    );
+  const handleDelete = async (item: LibraryItemView) => {
+    const confirmed = await alert.confirm({
+      title: `Delete “${item.title}”?`,
+      text: "This cannot be undone. Drafts you already made keep their text.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -233,18 +231,11 @@ export function LibraryView({
     startTransition(async () => {
       const result = await deleteLibraryItem(item.id);
       if (!result.ok) {
-        toast({
-          variant: "error",
-          title: "Could not delete",
-          description: result.error,
-        });
+        alert.error("Could not delete", result.error);
         return;
       }
 
-      toast({
-        variant: "success",
-        title: "Removed from library",
-      });
+      alert.success("Removed from library");
       router.refresh();
     });
   };
@@ -322,11 +313,6 @@ export function LibraryView({
         </Button>
       </div>
 
-      {uploadMessage ? (
-        <p role="status" className={uploadMessage.tone === "ok" ? "text-sm text-slate" : "text-sm text-danger"}>
-          {uploadMessage.text}
-        </p>
-      ) : null}
 
       {activeType === "company_profile" && hasCompanyProfile ? (
         <p className="text-sm text-slate">
@@ -436,12 +422,16 @@ export function LibraryView({
                     <Select
                       value=""
                       disabled={pending}
-                      onChange={(event) => {
+                      onChange={async (event) => {
                         const template = templatesFor(editor.type).find((item) => item.id === event.target.value);
                         if (!template) return;
                         if (
                           (editor.title.trim() || editor.content.trim()) &&
-                          !window.confirm("Replace what you have typed with the template?")
+                          !(await alert.confirm({
+                            title: "Use this template?",
+                            text: "It replaces what you have typed so far.",
+                            confirmLabel: "Use template",
+                          }))
                         ) {
                           return;
                         }

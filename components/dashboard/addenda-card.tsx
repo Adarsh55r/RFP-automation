@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { focusRing } from "@/lib/focus";
 import { changeCount, REQUIREMENT_FIELD_LABELS, type ExtractionChanges } from "@/lib/requirement-diff";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 export type AddendumFile = { id: string; fileName: string; createdAt: string; included: boolean };
 
@@ -28,12 +29,11 @@ export function AddendaCard({
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"upload" | "remove" | "reread" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const unread = files.filter((file) => !file.included).length;
 
   const call = async (kind: "upload" | "remove" | "reread", request: () => Promise<Response>) => {
     setBusy(kind);
-    setError(null);
     try {
       const response = await request();
       if (!response.ok) {
@@ -42,7 +42,10 @@ export function AddendaCard({
       }
       router.refresh();
     } catch (callError) {
-      setError(callError instanceof Error ? callError.message : "Something went wrong. Try again.");
+      alert.error(
+        kind === "upload" ? "Couldn't add the addendum" : kind === "remove" ? "Couldn't remove the addendum" : "Couldn't re-read the requirements",
+        callError instanceof Error ? callError.message : "Something went wrong. Try again.",
+      );
     } finally {
       setBusy(null);
     }
@@ -104,8 +107,14 @@ export function AddendaCard({
                   type="button"
                   aria-label={`Remove ${file.fileName}`}
                   disabled={busy !== null}
-                  onClick={() => {
-                    if (!window.confirm(`Remove ${file.fileName}? Requirements change only when you re-read them.`)) return;
+                  onClick={async () => {
+                    const remove = await alert.confirm({
+                      title: `Remove ${file.fileName}?`,
+                      text: "Requirements change only when you re-read them.",
+                      confirmLabel: "Remove",
+                      destructive: true,
+                    });
+                    if (!remove) return;
                     void call("remove", () => fetch(`/api/rfps/${rfpId}/addenda?fileId=${encodeURIComponent(file.id)}`, { method: "DELETE" }));
                   }}
                   className={cn("rounded-control p-1.5 text-slate hover:text-danger disabled:opacity-50", focusRing)}
@@ -137,7 +146,6 @@ export function AddendaCard({
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
 
       {changes ? <ChangesSummary changes={changes} /> : null}
     </Card>

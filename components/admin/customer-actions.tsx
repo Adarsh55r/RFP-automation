@@ -5,7 +5,7 @@ import { Loader2, LockOpen, MessageSquareHeart, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PLAN_COLORS } from "@/components/admin/badges";
-import { useToast } from "@/components/ui/toast";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { adminResetAllowance, adminResetReviewPrompt, adminSetPlan, adminUnlockAi } from "@/lib/actions/admin";
 import { cn } from "@/lib/cn";
 
@@ -21,16 +21,16 @@ const PLANS = [
 
 function useAdminAction() {
   const router = useRouter();
-  const { toast } = useToast();
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, success: string) =>
     startTransition(async () => {
       const result = await action();
       if (result.ok) {
-        toast({ title: success, variant: "success" });
+        alert.success(success);
         router.refresh();
       } else {
-        toast({ title: "Couldn't complete that", description: result.error, variant: "error" });
+        alert.error("Couldn't complete that", result.error);
       }
     });
   return { pending, run };

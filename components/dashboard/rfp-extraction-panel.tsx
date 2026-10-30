@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { ProgressPanel, type ProgressStep } from "@/components/ui/progress-panel";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/toast";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { confirmExtraction } from "@/lib/actions/rfp-extraction";
 import { downloadRfpExport } from "@/lib/download-rfp-export";
 import type { ExportFormat } from "@/lib/proposal-document";
@@ -26,11 +26,43 @@ import {
 } from "@/lib/rfp-extract-form";
 import type { Rfp, RfpStatus } from "@/lib/generated/prisma";
 
-const STATUS_LINES = [
-  "Reading document...",
-  "Identifying requirements...",
-  "Almost done...",
+/** The extraction's steps, in the order the server reports them. Addenda appear only when there are some. */
+const EXTRACTION_STEPS = [
+  { id: "download", label: "Opening your file" },
+  { id: "read", label: "Reading the document" },
+  { id: "addenda", label: "Reading addenda" },
+  { id: "extract", label: "Finding requirements, deadlines and evaluation criteria" },
+  { id: "check", label: "Checking dates and page references against the document" },
+  { id: "save", label: "Saving your checklist" },
 ] as const;
+type ExtractionStepId = (typeof EXTRACTION_STEPS)[number]["id"];
+
+function extractionSteps(current: ExtractionStepId | null, detail: string | null, sawAddenda: boolean): ProgressStep[] {
+  const shown = EXTRACTION_STEPS.filter((step) => step.id !== "addenda" || sawAddenda);
+  const at = current ? shown.findIndex((step) => step.id === current) : -1;
+  return shown.map((step, index) => ({
+    id: step.id,
+    label: step.label,
+    detail: step.id === current && detail ? detail : undefined,
+    state: index < at ? "done" : index === at ? "active" : "pending",
+  }));
+}
+
+type ExtractPayload = {
+  error?: string;
+  extracted?: {
+    documentType?: string;
+    scope: string;
+    deadline: string | null;
+    eligibilityCriteria: string[];
+    desirableCriteria?: string[];
+    evaluationCriteria: string[];
+    questionnaireItems?: string[];
+    flaggedForReview?: string[];
+    submissionRequirements?: string[];
+  };
+  status?: RfpStatus;
+};
 
 type ExtractionFormState = {
   documentType: RfpDocumentType;
@@ -87,12 +119,16 @@ export function RfpExtractionPanel({
   extractLimit: number;
 }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const alert = useAlert();
   const [status, setStatus] = useState<RfpStatus>(rfp.status);
   const [form, setForm] = useState<ExtractionFormState>(() => formFromRfp(rfp));
   const [extracting, setExtracting] = useState(false);
-  const [statusLineIndex, setStatusLineIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ step: ExtractionStepId | null; detail: string | null; sawAddenda: boolean; startedAt: number }>({
+    step: null,
+    detail: null,
+    sawAddenda: false,
+    startedAt: 0,
+  });
   const [fieldErrors, setFieldErrors] = useState<{
     scope?: string;
     deadline?: string;
@@ -104,19 +140,6 @@ export function RfpExtractionPanel({
     setStatus(rfp.status);
     setForm(formFromRfp(rfp));
   }, [rfp]);
-
-  useEffect(() => {
-    if (!extracting) {
-      setStatusLineIndex(0);
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setStatusLineIndex((current) => (current + 1) % STATUS_LINES.length);
-    }, 3500);
-
-    return () => window.clearInterval(interval);
-  }, [extracting]);
 
   const canExtract = Boolean(rfp.originalFileUrl) && !extracting;
 
@@ -133,31 +156,51 @@ export function RfpExtractionPanel({
   const handleExtract = async () => {
     const statusBeforeExtract = status;
     setExtracting(true);
-    setError(null);
+    setProgress({ step: null, detail: null, sawAddenda: false, startedAt: Date.now() });
     setStatus("extracting");
 
     try {
+      // The server reports each step as one JSON line, then the result.
       const response = await fetch(`/api/rfps/${rfp.id}/extract`, {
         method: "POST",
+        headers: { Accept: "application/x-ndjson" },
       });
-      const payload = (await response.json()) as {
-        error?: string;
-        extracted?: {
-          documentType?: string;
-          scope: string;
-          deadline: string | null;
-          eligibilityCriteria: string[];
-          desirableCriteria?: string[];
-          evaluationCriteria: string[];
-          questionnaireItems?: string[];
-          flaggedForReview?: string[];
-          submissionRequirements?: string[];
-        };
-        status?: RfpStatus;
-      };
+      let payload: ExtractPayload = {};
+      let resultStatus = response.status;
+      if ((response.headers.get("content-type") ?? "").includes("application/x-ndjson") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffered = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffered += decoder.decode(value, { stream: true });
+          const lines = buffered.split("\n");
+          buffered = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line) as
+              | { type: "step"; step: ExtractionStepId; detail?: string }
+              | { type: "result"; status: number; body: ExtractPayload };
+            if (event.type === "step") {
+              setProgress((current) => ({
+                ...current,
+                step: event.step,
+                detail: event.detail ?? null,
+                sawAddenda: current.sawAddenda || event.step === "addenda",
+              }));
+            } else {
+              resultStatus = event.status;
+              payload = event.body;
+            }
+          }
+        }
+      } else {
+        payload = (await response.json()) as ExtractPayload;
+      }
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Extraction failed.");
+      if (resultStatus >= 400 || !payload.status) {
+        throw new Error(payload.error ?? "Extraction did not finish. Try again in a moment.");
       }
 
       if (payload.extracted) {
@@ -185,15 +228,15 @@ export function RfpExtractionPanel({
       }
 
       setStatus(payload.status ?? "extracted");
+      alert.success("Requirements extracted", "Check the checklist below, correct anything that looks off, then continue to drafting.");
       router.refresh();
     } catch (extractError) {
       setStatus(
         statusBeforeExtract === "extracting" ? "uploaded" : statusBeforeExtract,
       );
-      setError(
-        extractError instanceof Error
-          ? extractError.message
-          : "Extraction failed. Try again.",
+      alert.error(
+        "Extraction didn't finish",
+        extractError instanceof Error ? extractError.message : "Extraction failed. Try again.",
       );
     } finally {
       setExtracting(false);
@@ -216,12 +259,10 @@ export function RfpExtractionPanel({
 
     if (nextErrors.scope || nextErrors.deadline) {
       setFieldErrors(nextErrors);
-      setError(null);
       return;
     }
 
     setFieldErrors({});
-    setError(null);
     startConfirm(async () => {
       const result = await confirmExtraction({
         rfpId: rfp.id,
@@ -237,7 +278,7 @@ export function RfpExtractionPanel({
       });
 
       if (!result.ok) {
-        setError(result.error);
+        alert.error("Couldn't save the requirements", result.error);
         return;
       }
 
@@ -253,25 +294,13 @@ export function RfpExtractionPanel({
   const handleExport = async (format: ExportFormat) => {
     if (exporting) return;
     setExporting(format);
-    setError(null);
     try {
       await downloadRfpExport(rfp.id, format);
       setStatus("exported");
-      toast({
-        title: "Proposal exported",
-        description:
-          format === "pdf"
-            ? "Your PDF has downloaded."
-            : "Your Word document has downloaded.",
-        variant: "success",
-      });
+      alert.success("Proposal exported", format === "pdf" ? "Your PDF has downloaded." : "Your Word document has downloaded.");
       router.refresh();
     } catch (exportError) {
-      setError(
-        exportError instanceof Error
-          ? exportError.message
-          : "Could not export the proposal.",
-      );
+      alert.error("Export failed", exportError instanceof Error ? exportError.message : "Could not export the proposal.");
     } finally {
       setExporting(null);
     }
@@ -308,28 +337,12 @@ export function RfpExtractionPanel({
       ) : null}
 
       {extracting ? (
-        <Card className="flex flex-col gap-6" aria-busy="true">
-          <div>
-            <p className="font-mono text-xs tracking-wide text-slate uppercase">
-              Extraction in progress
-            </p>
-            <p
-              className="mt-2 font-sans text-base font-semibold text-ink"
-              aria-live="polite"
-            >
-              {STATUS_LINES[statusLineIndex]}
-            </p>
-            <p className="mt-2 text-sm text-slate">
-              Long documents can take 10–20 seconds.
-            </p>
-          </div>
-          <div className="flex flex-col gap-4">
-            <Skeleton className="h-10 w-1/3" />
-            <SkeletonText lines={4} />
-            <Skeleton className="h-10 w-1/4" />
-            <SkeletonText lines={3} />
-          </div>
-        </Card>
+        <ProgressPanel
+          eyebrow="Extracting requirements"
+          steps={extractionSteps(progress.step, progress.detail, progress.sawAddenda)}
+          startedAt={progress.startedAt}
+          hint="Long documents can take a minute or two. You can stay on this page."
+        />
       ) : null}
 
       {showForm ? (
@@ -614,12 +627,6 @@ export function RfpExtractionPanel({
             </div>
           )}
         </Card>
-      ) : null}
-
-      {error ? (
-        <p className="rounded-control border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </p>
       ) : null}
     </div>
   );

@@ -2,73 +2,40 @@
 
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { deleteRfp } from "@/lib/actions/data-deletion";
 
 /** Deletes one RFP after confirmation, then returns to the RFP list. */
 export function DeleteRfpButton({ rfpId, title }: { rfpId: string; title: string }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
 
+  const remove = async () => {
+    const confirmed = await alert.confirm({
+      title: `Delete “${title}”?`,
+      text: "This permanently deletes the uploaded file, the extracted requirements and every draft for this RFP. It cannot be undone. Deleting does not give back the proposal it used on your plan.",
+      confirmLabel: "Delete permanently",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    startTransition(async () => {
+      const result = await deleteRfp(rfpId);
+      if (!result.ok) {
+        alert.error("Couldn't delete the RFP", result.error);
+        return;
+      }
+      alert.success("RFP deleted");
+      router.replace("/dashboard/rfps");
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="w-fit text-danger">
-          <Trash2 aria-hidden className="size-4" />
-          Delete RFP
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete “{title}”?</DialogTitle>
-          <DialogDescription>
-            This permanently deletes the uploaded file, the extracted requirements and every draft
-            for this RFP. It cannot be undone. Deleting does not give back the proposal it used on
-            your plan this month.
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                setError(null);
-                const result = await deleteRfp(rfpId);
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
-                }
-                setOpen(false);
-                router.replace("/dashboard/rfps");
-              })
-            }
-          >
-            {pending ? "Deleting…" : "Delete permanently"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Button type="button" variant="ghost" size="sm" className="w-fit text-danger" disabled={pending} onClick={remove}>
+      <Trash2 aria-hidden className="size-4" />
+      {pending ? "Deleting…" : "Delete RFP"}
+    </Button>
   );
 }

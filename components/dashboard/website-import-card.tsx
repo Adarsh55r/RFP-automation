@@ -7,21 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { importFromWebsite } from "@/lib/actions/website-import";
+import { useAlert } from "@/components/ui/sweet-alert";
 
 /** Drafts library items from the user's own website, on request. */
 export function WebsiteImportCard() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const alert = useAlert();
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    setMessage(null);
     startTransition(async () => {
       const result = await importFromWebsite(url);
       if (!result.ok) {
-        setMessage({ tone: "error", text: result.error });
+        alert.error("Import didn't work", result.error);
         return;
       }
       const parts = [
@@ -32,7 +32,7 @@ export function WebsiteImportCard() {
         result.skippedForLimits > 0 ? `${result.skippedForLimits} item(s) did not fit your library's limits.` : "",
         result.skippedByRobots > 0 ? `${result.skippedByRobots} page(s) were skipped because the site's robots.txt asks tools not to read them.` : "",
       ];
-      setMessage({ tone: "ok", text: parts.filter(Boolean).join(" ") });
+      alert.success(result.created.length > 0 ? "Imported from your website" : "Nothing new to add", parts.filter(Boolean).join(" "));
       router.refresh();
     });
   };
@@ -69,11 +69,6 @@ export function WebsiteImportCard() {
           {pending ? "Reading your site…" : "Import"}
         </Button>
       </form>
-      {message ? (
-        <p role="status" className={message.tone === "ok" ? "text-sm text-slate" : "text-sm text-danger"}>
-          {message.text}
-        </p>
-      ) : null}
     </Card>
   );
 }

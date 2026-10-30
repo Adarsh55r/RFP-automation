@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, type ButtonVariant } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAlert } from "@/components/ui/sweet-alert";
 import { buyExtraProposal, choosePlan, openBillingPortal } from "@/lib/actions/billing";
 import type { BillingCycle } from "@/types";
 
@@ -14,31 +15,21 @@ type Result = { ok: true; url: string } | { ok: true; message: string } | { ok: 
 /** Runs a billing action: follows a checkout or portal link, or shows its message. */
 function useBillingAction() {
   const router = useRouter();
+  const alert = useAlert();
   const [pending, startTransition] = useTransition();
-  const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const run = (action: () => Promise<Result>) =>
     startTransition(async () => {
-      setNotice(null);
       const result = await action();
       if (!result.ok) {
-        setNotice({ tone: "error", text: result.error });
+        alert.error("That didn't go through", result.error);
       } else if ("url" in result) {
         window.location.assign(result.url);
       } else {
-        setNotice({ tone: "info", text: result.message });
+        alert.success("Plan change requested", result.message);
         router.refresh();
       }
     });
-  return { pending, notice, run };
-}
-
-function Notice({ notice }: { notice: { tone: "info" | "error"; text: string } | null }) {
-  if (!notice) return null;
-  return (
-    <p role={notice.tone === "error" ? "alert" : "status"} className={notice.tone === "error" ? "text-sm text-danger" : "text-sm text-ink"}>
-      {notice.text}
-    </p>
-  );
+  return { pending, run };
 }
 
 export type PlanOption = {
@@ -57,7 +48,7 @@ export type PlanOption = {
 /** Plan cards with a monthly/annual switch; each button starts checkout or a plan change. */
 export function PlanPicker({ options, initialCycle }: { options: PlanOption[]; initialCycle: BillingCycle }) {
   const [cycle, setCycle] = useState<BillingCycle>(initialCycle);
-  const { pending, notice, run } = useBillingAction();
+  const { pending, run } = useBillingAction();
   const [chosen, setChosen] = useState<string | null>(null);
 
   return (
@@ -78,7 +69,6 @@ export function PlanPicker({ options, initialCycle }: { options: PlanOption[]; i
           ))}
         </div>
       </div>
-      <Notice notice={notice} />
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {options.map((option) => {
           const annual = option.kind === "subscription" && cycle === "annual";
@@ -129,26 +119,24 @@ export function PlanPicker({ options, initialCycle }: { options: PlanOption[]; i
 
 /** Opens Dodo's customer portal: invoices, payment method, cancellation. */
 export function ManageBillingButton({ variant = "secondary", children }: { variant?: ButtonVariant; children?: ReactNode }) {
-  const { pending, notice, run } = useBillingAction();
+  const { pending, run } = useBillingAction();
   return (
     <div className="flex flex-col gap-2">
       <Button type="button" variant={variant} className="w-fit" disabled={pending} onClick={() => run(openBillingPortal)}>
         {pending ? "Opening…" : (children ?? "Manage billing")}
       </Button>
-      <Notice notice={notice} />
     </div>
   );
 }
 
 /** Pays for one extra proposal at checkout; the next upload past the limit uses it. */
 export function BuyExtraProposalButton({ priceUsd }: { priceUsd: number }) {
-  const { pending, notice, run } = useBillingAction();
+  const { pending, run } = useBillingAction();
   return (
     <div className="flex flex-col gap-2">
       <Button type="button" className="w-fit" disabled={pending} onClick={() => run(buyExtraProposal)}>
         {pending ? "Opening checkout…" : `Buy an extra proposal for $${priceUsd}`}
       </Button>
-      <Notice notice={notice} />
     </div>
   );
 }
