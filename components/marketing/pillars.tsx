@@ -21,20 +21,23 @@ const pillars = [
 
 export function Pillars() {
   return (
-    <Section id="product" className="bg-surface">
-      <p className="font-mono text-xs tracking-wide text-slate uppercase">Why DraftBid AI</p>
-      <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
+    <Section id="product">
+      <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">Why DraftBid AI</p>
+      <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold tracking-tight text-ink md:text-[2.6rem] md:leading-[1.15]">
         A first draft you can check, built from documents you trust.
       </h2>
-      <ul className="mt-12 grid gap-8 md:grid-cols-3">
+      <ul className="mt-12 grid gap-5 md:grid-cols-3">
         {pillars.map((pillar) => {
           const Icon = pillar.icon;
           return (
-            <li key={pillar.title} className="flex flex-col gap-4">
-              <div className="flex size-10 items-center justify-center rounded-control bg-brand/10 text-brand">
+            <li
+              key={pillar.title}
+              className="hover-lift glow-ring flex flex-col gap-4 rounded-card border border-border bg-surface-raised/80 p-7 shadow-[var(--shadow-md)] backdrop-blur"
+            >
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-on-brand shadow-[0_10px_26px_-10px_rgb(var(--glow)/0.8)]">
                 <Icon aria-hidden className="size-6" strokeWidth={1.75} />
               </div>
-              <h3 className="font-sans text-lg font-semibold text-ink">{pillar.title}</h3>
+              <h3 className="font-display text-lg font-semibold text-ink">{pillar.title}</h3>
               <p className="text-sm leading-relaxed text-slate">{pillar.body}</p>
             </li>
           );

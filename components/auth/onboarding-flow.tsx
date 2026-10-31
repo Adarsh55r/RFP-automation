@@ -166,7 +166,7 @@ export function OnboardingFlow() {
                     className={cn(
                       "rounded-card border px-4 py-4 text-left transition-[border-color,transform] duration-hover ease-out",
                       selected
-                        ? "border-brand bg-brand/5"
+                        ? "border-brand bg-brand/10 shadow-[0_0_0_4px_rgb(var(--glow)/0.12)]"
                         : "border-border bg-surface-raised hover:-translate-y-0.5",
                       focusRing,
                     )}

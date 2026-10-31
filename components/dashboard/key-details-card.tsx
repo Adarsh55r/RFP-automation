@@ -20,7 +20,7 @@ export function KeyDetailsCard({ rfpId, details }: { rfpId: string; details: Key
   return (
     <Card className="flex flex-col gap-5">
       <div>
-        <h2 className="font-sans text-lg font-semibold text-ink">Key details</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Key details</h2>
         <p className="mt-1 text-sm leading-relaxed text-slate">
           Limits, forms, deadlines and terms found in the document. Page numbers come from finding each
           detail&apos;s wording in the file; anything marked “Check” could not be matched, so confirm it yourself.

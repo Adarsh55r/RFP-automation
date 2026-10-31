@@ -39,7 +39,7 @@ export function Logo({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark className={markClassName} />
       {withWordmark ? (
-        <span className="font-sans text-base font-semibold tracking-tight">
+        <span className="font-display text-base font-semibold tracking-tight">
           DraftBid<span className="ml-[0.16em] text-accent">AI</span>
         </span>
       ) : (

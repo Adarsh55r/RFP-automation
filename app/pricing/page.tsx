@@ -19,7 +19,8 @@ export default function PricingPage() {
       <JsonLd data={faqStructuredData()} />
       <FunnelBeacon event="visit_pricing" />
       <SiteHeader />
-      <main id="main-content">
+      <main id="main-content" className="relative overflow-hidden">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
         <PricingView />
       </main>
       <SiteFooter />

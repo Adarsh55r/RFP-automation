@@ -61,7 +61,7 @@ export function CoverDetailsCard({
       >
         <div>
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Cover page</p>
-          <h2 className="mt-2 font-sans text-lg font-semibold text-ink">Cover page details</h2>
+          <h2 className="mt-2 font-display text-lg font-semibold text-ink">Cover page details</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
             {missingContact
               ? "Add your contact details so the cover page and header look finished. We filled in what we found in the RFP."

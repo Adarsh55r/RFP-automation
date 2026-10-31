@@ -42,7 +42,7 @@ export function WebsiteImportCard() {
       <div className="flex items-start gap-3">
         <Globe className="mt-1 size-5 shrink-0 text-brand" aria-hidden />
         <div>
-          <h2 className="font-sans text-lg font-semibold text-ink">Start from your website</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">Start from your website</h2>
           <p className="mt-1 text-sm leading-relaxed text-slate">
             DraftBid AI reads your home page and up to five pages about your company, services and work (following
             the site&apos;s robots.txt), then drafts a company profile and case studies for you to check. It only

@@ -22,7 +22,7 @@ export function CoverageMapCard({
           <p className="font-mono text-xs tracking-wide text-slate uppercase">
             Before you send
           </p>
-          <h2 className="mt-2 font-sans text-lg font-semibold text-ink">
+          <h2 className="mt-2 font-display text-lg font-semibold text-ink">
             Compliance review
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">

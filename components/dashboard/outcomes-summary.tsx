@@ -40,7 +40,7 @@ export function OutcomesSummary({ summary }: { summary: Summary }) {
         {stats.map((stat) => (
           <div key={stat.label}>
             <dt className="text-xs text-slate">{stat.label}</dt>
-            <dd className="mt-1 font-display text-2xl font-medium text-ink">{stat.value}</dd>
+            <dd className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">{stat.value}</dd>
             {stat.note ? <dd className="text-xs text-slate">{stat.note}</dd> : null}
           </div>
         ))}

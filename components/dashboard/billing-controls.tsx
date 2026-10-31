@@ -54,15 +54,15 @@ export function PlanPicker({ options, initialCycle }: { options: PlanOption[]; i
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="font-sans text-lg font-semibold text-ink">Plans</h2>
-        <div role="group" aria-label="Billing period" className="inline-flex rounded-full border border-border bg-surface-raised p-1">
+        <h2 className="font-display text-lg font-semibold text-ink">Plans</h2>
+        <div role="group" aria-label="Billing period" className="inline-flex rounded-full border border-border bg-surface-raised/80 p-1 shadow-sm backdrop-blur">
           {(["monthly", "annual"] as const).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={cycle === option}
               onClick={() => setCycle(option)}
-              className={`rounded-full px-4 py-1 text-sm ${cycle === option ? "bg-brand text-surface-raised" : "text-slate hover:text-ink"}`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-200 ${cycle === option ? "bg-brand-gradient text-on-brand shadow-[0_6px_16px_-6px_rgb(var(--glow)/0.7)]" : "text-slate hover:text-ink"}`}
             >
               {option === "monthly" ? "Monthly" : "Annual · 2 months free"}
             </button>
@@ -76,10 +76,14 @@ export function PlanPicker({ options, initialCycle }: { options: PlanOption[]; i
           const suffix = option.kind === "subscription" ? (annual ? "/mo, billed yearly" : "/mo") : option.suffix;
           const current = option.state === "current" && (option.kind !== "subscription" || annual === (initialCycle === "annual"));
           return (
-            <Card key={option.id} className={`flex flex-col gap-4 ${option.state === "intended" ? "border-brand" : ""}`}>
+            <Card
+              key={option.id}
+              data-highlight={option.state === "intended" || option.state === "current" ? "true" : undefined}
+              className={`hover-lift glow-ring flex flex-col gap-4 ${option.state === "intended" ? "border-brand/60" : ""}`}
+            >
               <div>
                 <h3 className="font-sans text-base font-semibold text-ink">{option.name}</h3>
-                <p className="mt-2 font-display text-2xl font-medium text-ink">
+                <p className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
                   {price}
                   <span className="ml-1 font-sans text-xs font-medium text-slate">{suffix}</span>
                 </p>

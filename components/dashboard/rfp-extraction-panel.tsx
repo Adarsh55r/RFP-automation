@@ -311,7 +311,7 @@ export function RfpExtractionPanel({
       {(status === "uploaded" || status === "extracting") && !extracting ? (
         <Card className="flex flex-col gap-4">
           <div>
-            <h2 className="font-sans text-lg font-semibold text-ink">
+            <h2 className="font-display text-lg font-semibold text-ink">
               {status === "extracting" ? "Extraction did not finish" : "Extract requirements"}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate">
@@ -349,7 +349,7 @@ export function RfpExtractionPanel({
         <Card className="flex flex-col gap-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="font-sans text-lg font-semibold text-ink">
+              <h2 className="font-display text-lg font-semibold text-ink">
                 Review extracted requirements
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate">

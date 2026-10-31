@@ -98,10 +98,10 @@ export function SettingsView({
                   setSize(option.value);
                 }}
                 className={cn(
-                  "rounded-card border px-4 py-4 text-left transition-[border-color,transform] duration-hover ease-out",
+                  "rounded-card border px-4 py-4 text-left transition-all duration-200 ease-out",
                   selected
-                    ? "border-brand bg-brand/5"
-                    : "border-border bg-surface-raised hover:-translate-y-0.5",
+                    ? "border-brand bg-brand/10 shadow-[0_0_0_4px_rgb(var(--glow)/0.12)]"
+                    : "border-border bg-surface-raised hover:-translate-y-0.5 hover:border-brand/40",
                   focusRing,
                 )}
               >

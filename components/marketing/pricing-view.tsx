@@ -38,7 +38,7 @@ function AnimatedPrice({
   const value = useAnimatedNumber(amount);
 
   return (
-    <span className="font-display text-4xl font-medium text-ink tabular-nums">
+    <span className="font-display text-4xl font-semibold tracking-tight text-ink tabular-nums">
       {formatPrice(value, currency)}
     </span>
   );
@@ -67,14 +67,15 @@ function PlanCard({
 
   return (
     <Card
+      data-highlight={plan.highlighted ? "true" : undefined}
       className={cn(
-        "flex h-full flex-col transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
-        plan.highlighted && "border-accent shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]",
+        "hover-lift glow-ring relative flex h-full flex-col overflow-hidden",
+        plan.highlighted && "border-brand/50 shadow-[0_20px_50px_-20px_rgb(var(--glow)/0.55)]",
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-sans text-lg font-semibold text-ink">{plan.name}</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">{plan.name}</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">{plan.summary}</p>
         </div>
         {plan.highlighted ? <Badge variant="accent">Recommended</Badge> : null}
@@ -126,10 +127,10 @@ export function PricingView() {
   return (
     <>
       <Section>
-        <p className="font-mono text-xs tracking-wide text-slate uppercase">
+        <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">
           Pricing
         </p>
-        <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium text-ink md:text-5xl">
+        <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
           Simple pricing for small teams that bid.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate md:text-lg">
@@ -158,7 +159,7 @@ export function PricingView() {
                 className={cn(
                   "rounded-control px-4 py-2 text-sm font-semibold transition-colors duration-hover ease-out",
                   cycle === value
-                    ? "bg-brand text-surface-raised"
+                    ? "bg-brand-gradient text-on-brand shadow-[0_6px_16px_-6px_rgb(var(--glow)/0.7)]"
                     : "text-slate hover:text-ink",
                   focusRing,
                 )}
@@ -182,7 +183,7 @@ export function PricingView() {
                 className={cn(
                   "rounded-control px-4 py-2 text-sm font-semibold transition-colors duration-hover ease-out",
                   currency === value
-                    ? "bg-brand text-surface-raised"
+                    ? "bg-brand-gradient text-on-brand shadow-[0_6px_16px_-6px_rgb(var(--glow)/0.7)]"
                     : "text-slate hover:text-ink",
                   focusRing,
                 )}
@@ -216,7 +217,7 @@ export function PricingView() {
 
         <div className="mt-6">
           <Card className="flex flex-col gap-2">
-            <h2 className="font-sans text-lg font-semibold text-ink">On the roadmap</h2>
+            <h2 className="font-display text-lg font-semibold text-ink">On the roadmap</h2>
             <p className="text-sm leading-relaxed text-slate">
               Not included in any plan today, and we don&apos;t promise dates:
             </p>
@@ -230,7 +231,7 @@ export function PricingView() {
       </Section>
 
       <Section className="pt-0 md:pt-0">
-        <h2 className="font-display text-3xl font-medium text-ink md:text-4xl">
+        <h2 className="font-display text-3xl font-semibold tracking-tight text-ink md:text-[2.6rem] md:leading-[1.15]">
           Questions small teams ask before they start
         </h2>
         <div className="mt-8 rounded-card border border-border bg-surface-raised px-6">

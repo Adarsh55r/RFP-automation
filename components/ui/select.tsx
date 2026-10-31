@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { forwardRef, type SelectHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
-import { focusRing } from "@/lib/focus";
+import { fieldFocus } from "@/lib/focus";
 
 export type SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 
@@ -12,11 +12,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            "h-10 w-full appearance-none rounded-control border border-border bg-surface-raised px-4 pr-10 font-sans text-sm text-ink",
-            "transition-[border-color,box-shadow] duration-hover ease-out hover:border-brand/60",
+            "h-11 w-full cursor-pointer appearance-none rounded-control border border-border bg-surface-raised px-4 pr-10 font-sans text-sm text-ink shadow-sm",
+            "transition-[border-color,box-shadow] duration-200 ease-out hover:border-brand/50",
             "disabled:cursor-not-allowed disabled:opacity-50",
             "aria-[invalid=true]:border-danger",
-            focusRing,
+            fieldFocus,
             className,
           )}
           {...props}

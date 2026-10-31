@@ -74,7 +74,7 @@ export function SpreadsheetColumnsCard({ rfpId, columns }: { rfpId: string; colu
       <div className="flex items-start gap-3">
         <Table2 className="mt-1 size-5 shrink-0 text-brand" aria-hidden />
         <div>
-          <h2 className="font-sans text-lg font-semibold text-ink">Spreadsheet columns</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">Spreadsheet columns</h2>
           <p className="mt-1 text-sm leading-relaxed text-slate">
             {columns.questionCount > 0
               ? `${columns.questionCount} questions found. Answers are written into the answer column of your original ${columns.format === "xlsx" ? "workbook" : "CSV file"} when you export it; everything else in the file stays as it is.`

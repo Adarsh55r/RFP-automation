@@ -5,11 +5,11 @@ export function PositioningStrip() {
         <p className="font-mono text-xs tracking-wide text-accent uppercase">
           Why DraftBid AI
         </p>
-        <p className="mt-4 max-w-4xl font-display text-3xl font-medium leading-snug text-surface-raised md:text-5xl md:leading-tight">
+        <p className="mt-4 max-w-4xl font-display text-3xl font-semibold leading-snug tracking-tight text-white md:text-5xl md:leading-tight">
           Most of the work in an RFP is finding every requirement and
           answering each one from what you have already done.
         </p>
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-surface-raised/80 md:text-lg">
+        <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg">
           DraftBid AI reads the whole document, lists the mandatory items,
           forms, page limits and deadlines it finds for you to confirm, and
           drafts each answer from your own library. Anything it cannot support

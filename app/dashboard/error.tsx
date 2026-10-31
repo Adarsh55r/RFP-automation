@@ -28,7 +28,7 @@ export default function DashboardError({
         <p className="font-mono text-xs tracking-wide text-slate uppercase">
           Something went wrong
         </p>
-        <h1 className="font-display text-2xl font-medium text-ink">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
           This page didn&apos;t load
         </h1>
         <p className="text-sm leading-relaxed text-slate">

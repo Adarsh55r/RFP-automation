@@ -110,7 +110,7 @@ export function FreeChecklistTool() {
         <Card className="flex flex-col gap-6" aria-live="polite">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-sans text-xl font-semibold text-ink">Your requirement checklist</h2>
+              <h2 className="font-display text-xl font-semibold text-ink">Your requirement checklist</h2>
               <p className="mt-1 text-sm text-slate">
                 Check it against the document: extraction can miss or misread items.
               </p>
@@ -138,7 +138,7 @@ export function FreeChecklistTool() {
           <List title="Worth checking" items={result.flags} />
 
           <div className="flex flex-col gap-4 rounded-control border border-brand/30 bg-brand/5 p-5">
-            <h3 className="font-sans text-lg font-semibold text-ink">Get a first draft of the response</h3>
+            <h3 className="font-display text-lg font-semibold text-ink">Get a first draft of the response</h3>
             <p className="text-sm text-slate">
               Create a free account, add your past proposals and case studies, and DraftBid AI drafts the response from them,
               flagging anything they don&apos;t support.

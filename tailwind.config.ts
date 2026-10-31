@@ -1,8 +1,9 @@
 import type { Config } from "tailwindcss";
 
 /**
- * DraftBid AI token map — keep in lockstep with `:root` in `app/globals.css`
- * and `.cursor/rules/design-system.md`. Do not add ad-hoc colors or fonts here.
+ * DraftBid AI token map — keep in lockstep with `:root` and `.dark` in
+ * `app/globals.css`. Colours are CSS variables, so the light and dark themes
+ * restyle every component. Do not add ad-hoc colors or fonts here.
  */
 const config: Config = {
   content: [
@@ -16,8 +17,11 @@ const config: Config = {
         ink: "var(--ink)",
         surface: "var(--surface)",
         "surface-raised": "var(--surface-raised)",
+        "surface-sunken": "var(--surface-sunken)",
         brand: "var(--brand)",
+        "brand-2": "var(--brand-2)",
         "brand-dark": "var(--brand-dark)",
+        "on-brand": "var(--on-brand)",
         accent: "var(--accent)",
         slate: "var(--slate)",
         border: "var(--border)",
@@ -25,7 +29,7 @@ const config: Config = {
         success: "var(--success)",
       },
       fontFamily: {
-        display: ["var(--font-fraunces)", "ui-serif", "Georgia", "serif"],
+        display: ["var(--font-sora)", "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ["var(--font-manrope)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: [
           "var(--font-ibm-plex-mono)",
@@ -35,8 +39,8 @@ const config: Config = {
         ],
       },
       borderRadius: {
-        card: "10px",
-        control: "8px",
+        card: "16px",
+        control: "10px",
       },
       maxWidth: {
         content: "1200px",

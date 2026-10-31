@@ -23,7 +23,7 @@ export function Spinner({ className }: { className?: string }) {
       <motion.span
         className="absolute inset-0 rounded-full"
         style={{
-          background: "conic-gradient(from 0deg, transparent 0deg, #0f6e5b 300deg, #e8a33d 360deg)",
+          background: "conic-gradient(from 0deg, transparent 0deg, var(--brand) 260deg, var(--brand-2) 320deg, var(--accent) 360deg)",
           mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
           WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
         }}
@@ -102,7 +102,7 @@ export function ProgressPanel({
             <span
               className={cn(
                 "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-300",
-                step.state === "done" && "border-success bg-success text-surface-raised",
+                step.state === "done" && "border-success bg-success text-white dark:text-surface",
                 step.state === "active" && "border-brand bg-brand/10",
                 step.state === "pending" && "border-border bg-surface",
               )}
@@ -131,7 +131,7 @@ export function ProgressPanel({
 
       <div className="absolute inset-x-0 bottom-0 h-1 bg-brand/10" aria-hidden>
         <motion.div
-          className="h-full bg-[linear-gradient(90deg,#0f6e5b,#e8a33d)]"
+          className="h-full bg-[linear-gradient(90deg,var(--brand),var(--brand-2),var(--accent))]"
           animate={{ width: `${Math.min(percent, 98)}%` }}
           transition={{ duration: reduceMotion ? 0 : 0.5, ease: "easeOut" }}
         />

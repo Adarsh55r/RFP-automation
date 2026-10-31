@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Badge } from "@/components/ui/badge";
-import { clerkAppearance } from "@/lib/clerk-appearance";
+import { useClerkAppearance } from "@/components/theme/use-clerk-appearance";
 import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 import {
@@ -25,6 +25,7 @@ function persistIntendedPlan(planId: PlanId) {
 }
 
 export function SignUpView({ planId, segment }: { planId?: PlanId; segment?: string }) {
+  const appearance = useClerkAppearance();
   useEffect(() => {
     if (planId) persistIntendedPlan(planId);
   }, [planId]);
@@ -62,7 +63,7 @@ export function SignUpView({ planId, segment }: { planId?: PlanId; segment?: str
       ) : null}
 
       <SignUp
-        appearance={clerkAppearance}
+        appearance={appearance}
         routing="path"
         path="/sign-up"
         signInUrl="/sign-in"

@@ -61,7 +61,7 @@ export function AddendaCard({
     <Card className="flex flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-sans text-lg font-semibold text-ink">Addenda</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">Addenda</h2>
           <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate">
             Add amendments or clarifications the buyer issued after the RFP (PDF or Word). They are
             read with the original, later ones taking priority, and you see what changed.

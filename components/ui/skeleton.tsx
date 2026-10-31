@@ -9,8 +9,8 @@ export function Skeleton({ className }: SkeletonProps) {
     <div
       aria-hidden
       className={cn(
-        "animate-pulse rounded-control bg-border",
-        "motion-reduce:animate-none motion-reduce:bg-border",
+        "shimmer rounded-control",
+        "motion-reduce:bg-border",
         className,
       )}
     />

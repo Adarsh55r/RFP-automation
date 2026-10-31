@@ -19,7 +19,7 @@ export function AcceptTermsGate({ updated }: { updated: boolean }) {
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6 py-12">
       <Card className="flex flex-col gap-4">
         <p className="font-mono text-xs tracking-wide text-slate uppercase">One step before you continue</p>
-        <h1 className="font-display text-2xl font-medium text-ink">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
           {updated ? "We have updated our Terms" : "Please review our Terms"}
         </h1>
         <p className="text-sm leading-relaxed text-slate">
