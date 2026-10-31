@@ -187,7 +187,7 @@ export default async function BillingPage({
           <PlanPicker options={options} initialCycle={cycle} />
           {plan.id === "single_bid" && allowance.accessEndsAt && !allowance.accessEnded ? (
             <p className="text-sm text-slate">
-              Subscribing before {day(allowance.accessEndsAt)}? The $29 you paid for your pass is taken off your first
+              Subscribing before {day(allowance.accessEndsAt)}? The $19 you paid for your pass is taken off your first
               invoice at checkout.
             </p>
           ) : null}

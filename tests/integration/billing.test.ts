@@ -54,7 +54,7 @@ function mockDodoApi() {
     calls.push({ method: init.method ?? "GET", path: pathname + search, body });
     const reply = (value: unknown) => new Response(JSON.stringify(value), { status: 200 });
     if (pathname === "/checkouts") return reply({ session_id: "cks_1", checkout_url: "https://test.checkout.dodopayments.com/session/cks_1" });
-    if (pathname === "/discounts") return reply({ discount_id: "dsc_1", code: "PASSCREDIT29" });
+    if (pathname === "/discounts") return reply({ discount_id: "dsc_1", code: "PASSCREDIT19" });
     if (pathname.endsWith("/change-plan")) return reply({});
     if (pathname.endsWith("/customer-portal/session")) return reply({ link: "https://portal.example/cus_1" });
     return new Response("not found", { status: 404 });
@@ -202,7 +202,7 @@ describe.skipIf(!hasTestDb)("Dodo Payments billing", () => {
     expect(calls[0].body).not.toHaveProperty("discount_codes");
   });
 
-  it("a single-bid buyer subscribing within 30 days gets one $29 code, reused if checkout is retried", async () => {
+  it("a single-bid buyer subscribing within 30 days gets one $19 code, reused if checkout is retried", async () => {
     const calls = mockDodoApi();
     const user = await createUser("upgrader", "single_bid");
     const now = new Date();
@@ -219,11 +219,11 @@ describe.skipIf(!hasTestDb)("Dodo Payments billing", () => {
       type: "flat",
       usage_limit: 1,
       subscription_cycles: 1,
-      currency_options: [{ currency: "USD", max_amount_possible: 2900 }],
+      currency_options: [{ currency: "USD", max_amount_possible: 1900 }],
       restricted_to: ["pdt_starter_m", "pdt_starter_y", "pdt_pro_m", "pdt_pro_y"],
     });
     const checkouts = calls.filter((call) => call.path === "/checkouts");
-    expect(checkouts.map((call) => call.body?.discount_codes)).toEqual([["PASSCREDIT29"], ["PASSCREDIT29"]]);
+    expect(checkouts.map((call) => call.body?.discount_codes)).toEqual([["PASSCREDIT19"], ["PASSCREDIT19"]]);
     expect(checkouts[0].body).toMatchObject({ customer: { customer_id: "cus_up" } });
 
     // After the pass's 30 days there is no credit.

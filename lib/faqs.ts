@@ -34,7 +34,7 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "What is the single-bid pass?",
     answer:
-      "A one-time $29 payment for one proposal, with 30 days of access. If you subscribe to a plan within 30 days of buying it, the $29 is credited to your first invoice.",
+      "A one-time $19 payment for one proposal, with 30 days of access. If you subscribe to a plan within 30 days of buying it, the $19 is credited to your first invoice.",
   },
   {
     question: "How do I pay, and can I cancel?",

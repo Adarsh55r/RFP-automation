@@ -24,7 +24,7 @@ describe("plan config", () => {
   it("matches the agreed prices and limits", () => {
     expect(PLANS.starter.billing).toMatchObject({ monthly: { usd: 49 }, annual: { usd: 490 } });
     expect(PLANS.pro.billing).toMatchObject({ monthly: { usd: 129 }, annual: { usd: 1290 } });
-    expect(PLANS.single_bid.billing).toMatchObject({ price: { usd: 29 }, accessDays: 30 });
+    expect(PLANS.single_bid.billing).toMatchObject({ price: { usd: 19 }, accessDays: 30 });
     expect([PLANS.free.proposals, PLANS.starter.proposals, PLANS.pro.proposals]).toEqual([
       { limit: 1, per: "lifetime" },
       { limit: 3, per: "month" },

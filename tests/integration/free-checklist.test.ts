@@ -84,6 +84,54 @@ describe.skipIf(!hasTestDb)("free no-signup checklist", () => {
     expect((await res.json()).error).toMatch(/capacity/);
   });
 
+  it("requests sent at the same moment from one visitor cannot beat the daily limit", async () => {
+    const { POST } = await import("@/app/api/tools/checklist/route");
+    const file = await makeDocx(FIXTURES[0].text);
+    const results = await Promise.all(Array.from({ length: 10 }, () => POST(request("rfp.docx", file, "198.51.100.20"))));
+    const statuses = results.map((res) => res.status).sort();
+    expect(statuses.filter((status) => status === 200)).toHaveLength(3);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(7);
+    expect(await testDb().toolUsage.count()).toBe(3);
+    expect((await import("../helpers/llm")).calls).toHaveLength(3);
+  });
+
+  it("runs still in progress count against the daily budget at their worst-case cost", async () => {
+    const { RESERVED_RUN_COST_MICROS, FREE_TOOL } = await import("@/lib/free-tool");
+    // Room left for exactly two runs at their worst case.
+    const budget = FREE_TOOL.spendPerDayUsd * 1_000_000;
+    await testDb().toolUsage.create({
+      data: { tool: "rfp-checklist", ipHash: "earlier", costMicros: budget - 2 * RESERVED_RUN_COST_MICROS - 50_000 },
+    });
+    const llm = await import("../helpers/llm");
+    // Each AI call takes a moment, so all five requests are in flight together.
+    llm.script.json = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return extraction;
+    };
+    const { POST } = await import("@/app/api/tools/checklist/route");
+    const file = await makeDocx(FIXTURES[0].text);
+    const results = await Promise.all(
+      ["192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4", "192.0.2.5"].map((ip) => POST(request("rfp.docx", file, ip))),
+    );
+    expect(results.map((res) => res.status).filter((status) => status === 200)).toHaveLength(2);
+    expect(llm.calls).toHaveLength(2);
+  });
+
+  it("a failed AI call keeps its reserved cost; a run stopped before the AI costs nothing", async () => {
+    const { RESERVED_RUN_COST_MICROS } = await import("@/lib/free-tool");
+    const llm = await import("../helpers/llm");
+    llm.script.json = () => {
+      throw new Error("provider timed out");
+    };
+    const { POST } = await import("@/app/api/tools/checklist/route");
+    const failed = await POST(request("rfp.docx", await makeDocx(FIXTURES[0].text), "203.0.113.50"));
+    expect(failed.status).toBe(500);
+    const scanned = await POST(request("scan.pdf", await makeScannedPdf(2), "203.0.113.51", "application/pdf"));
+    expect(scanned.status).toBe(422);
+    const runs = await testDb().toolUsage.findMany({ orderBy: { createdAt: "asc" } });
+    expect(runs.map((run) => run.costMicros)).toEqual([RESERVED_RUN_COST_MICROS, 0]);
+  });
+
   it("refuses other file types and fake files", async () => {
     const { POST } = await import("@/app/api/tools/checklist/route");
     expect((await POST(request("q.xlsx", Buffer.from("PK\u0003\u0004"), "1.1.1.1", "application/octet-stream"))).status).toBe(400);

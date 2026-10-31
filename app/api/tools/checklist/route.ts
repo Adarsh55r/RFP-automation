@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { usageCostMicros } from "@/lib/ai-usage";
 import { DocumentReadError, officeFileProblem } from "@/lib/document-safety";
 import { verifyExtraction } from "@/lib/extraction-checks";
-import { clientIp, finishFreeToolRun, FREE_TOOL, freeToolLimit, hashIp, startFreeToolRun } from "@/lib/free-tool";
+import { clientIp, finishFreeToolRun, FREE_TOOL, freeToolLimit, hashIp, reserveFreeToolRun } from "@/lib/free-tool";
 import { hiddenTextFlags } from "@/lib/hidden-text";
 import { parseKeyDetails } from "@/lib/key-details";
 import { friendlyLlmError } from "@/lib/llm";
@@ -45,16 +45,25 @@ export async function POST(request: Request) {
   const unsafe = officeFileProblem(bytes, file.name);
   if (unsafe) return NextResponse.json({ error: unsafe }, { status: 400 });
 
-  const runId = await startFreeToolRun(ipHash);
+  // The limits are checked and the run recorded in one locked step, so requests
+  // sent at the same moment cannot all pass a count taken before any was recorded.
+  const reservation = await reserveFreeToolRun(ipHash);
+  if (!reservation.ok) return NextResponse.json({ error: reservation.error }, { status: 429 });
+  const runId = reservation.id;
+  // Until the AI starts the run costs nothing; once it has, an unknown cost stays at the reserved worst case.
+  let aiStarted = false;
+  let costMicros = 0;
   try {
     const { text, pageCount, hidden } = await readDocumentText(Buffer.from(bytes), file.name);
     if (pageCount !== null && pageCount > FREE_TOOL.maxPages) {
+      await finishFreeToolRun(runId, 0);
       return NextResponse.json(
         { error: `The free checklist reads up to ${FREE_TOOL.maxPages} pages. Create a free account to read the whole document.` },
         { status: 413 },
       );
     }
     if (!text.trim() || (pageCount !== null && textLayerIsThin(text, pageCount))) {
+      await finishFreeToolRun(runId, 0);
       return NextResponse.json(
         { error: "This looks like a scanned document. Scans are read with OCR in the app: create a free account to use it." },
         { status: 422 },
@@ -63,7 +72,7 @@ export async function POST(request: Request) {
     const truncated = text.length > FREE_TOOL.maxChars;
     const documentText = truncated ? text.slice(0, FREE_TOOL.maxChars) : text;
 
-    let costMicros = 0;
+    aiStarted = true;
     const extracted = await extractRequirementsWithLlm(documentText, (usage) => {
       costMicros += usageCostMicros(usage);
     });
@@ -89,6 +98,8 @@ export async function POST(request: Request) {
       flags: [...new Set(flags)],
     });
   } catch (error) {
+    // A failed AI call keeps its reserved cost unless the provider reported the real one.
+    if (!aiStarted || costMicros > 0) await finishFreeToolRun(runId, costMicros).catch(() => undefined);
     if (error instanceof DocumentReadError) return NextResponse.json({ error: error.message }, { status: 422 });
     console.error("Free checklist failed:", safeErrorSummary(error));
     return NextResponse.json(
