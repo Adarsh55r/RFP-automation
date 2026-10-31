@@ -105,7 +105,7 @@ Checkout stays off, and the billing page keeps the "request by email" buttons, u
 
 | Product | Type | Price | Variable |
 |---|---|---|---|
-| Single-bid pass | One-time | $29 | `DODO_PRODUCT_SINGLE_BID` |
+| Single-bid pass | One-time | $19 | `DODO_PRODUCT_SINGLE_BID` |
 | Starter (monthly) | Subscription, every 1 month | $49 | `DODO_PRODUCT_STARTER_MONTHLY` |
 | Starter (annual) | Subscription, every 1 year | $490 | `DODO_PRODUCT_STARTER_ANNUAL` |
 | Pro (monthly) | Subscription, every 1 month | $129 | `DODO_PRODUCT_PRO_MONTHLY` |
@@ -123,7 +123,7 @@ For each subscription, set the **subscription period** much longer than the bill
 
 **6. Test with Dodo's test card** (in Dodo's docs, under testing) using a second account of your own:
 - [ ] Buy the single-bid pass: the billing page shows "Single-bid pass" with an access end date 30 days out.
-- [ ] Subscribe to Starter monthly from that account within the 30 days: checkout shows **$29 off** the first payment. (Check this one carefully: it is the part Dodo's documentation was least clear about.)
+- [ ] Subscribe to Starter monthly from that account within the 30 days: checkout shows **$19 off** the first payment. (Check this one carefully: it is the part Dodo's documentation was least clear about.)
 - [ ] Use up Starter's 3 proposals, then "Buy an extra proposal for $15": after paying, the upload page says the extra is ready and the next upload goes through.
 - [ ] Switch Starter → Pro (applies straight away), then Pro → Starter (scheduled for the renewal date).
 - [ ] Manage billing → cancel: the billing page says the plan stays active until the period ends.

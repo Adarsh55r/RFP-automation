@@ -71,7 +71,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     summary: "One proposal with 30 days of access, for a bid you need to answer now.",
     ctaLabel: "Get a single-bid pass",
     visibility: "public",
-    billing: { kind: "one_time", price: usd(29), accessDays: 30 },
+    billing: { kind: "one_time", price: usd(19), accessDays: 30 },
     proposals: { limit: 1, per: "access_period" },
     overage: null,
     libraryItems: null,
@@ -80,7 +80,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
       "Your full content library",
       "Requirements checklist and compliance review",
       "Word and PDF export",
-      "$29 credited to your first invoice if you subscribe within 30 days",
+      "$19 credited to your first invoice if you subscribe within 30 days",
     ],
   },
   starter: {
