@@ -626,3 +626,9 @@ Prices lowered to fit small firms, aiming for about 85% margin after AI, hosting
 - **Database:** migration `20261028090000_dodo_billing`, also applied by the boot-time upgrade.
 - **Legal pages:** Terms and Privacy name Dodo Payments as reseller and merchant of record (versions bumped to 2026-10-28, so signed-in users accept the updated Terms once); Dodo added to the subprocessors list.
 - **Tests:** webhook signatures, product mapping, every webhook path, checkout bodies, the $29 credit, plan changes, extras under simultaneous uploads.
+
+## Security fix: free checklist limits under simultaneous requests (review bug 4, most of bug 5)
+
+- **Problem:** the free tool counted today's runs at the start of a request but recorded the run later, and recorded its cost only when the AI call finished. Requests sent at the same moment all passed the "3 a day per visitor", "200 a day" and "$25 a day" checks; in testing, 10 simultaneous requests from one visitor all got a checklist.
+- **Fix:** `reserveFreeToolRun` (lib/free-tool.ts) checks every limit and records the run in one transaction under a Postgres advisory lock, so simultaneous requests queue. Each run is recorded at a reserved worst-case cost of $0.40 (50k tokens in, 32,768 out at GPT-4.1 prices is $0.36), replaced by the real cost when it finishes, so runs in progress count against the $25 budget and a run is admitted only if its worst case still fits. A run stopped before the AI (scan, too many pages, unreadable file) records $0; a failed AI call keeps the reserved cost unless the provider reported the real one. The quick check before the upload is read stays.
+- **Tests:** 10 simultaneous requests from one visitor get exactly 3 checklists (all 10 did before); five simultaneous runs with room for two in the budget admit exactly two; failed and early-stopped runs record the right cost.
