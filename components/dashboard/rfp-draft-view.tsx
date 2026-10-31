@@ -205,7 +205,7 @@ function DraftSectionCard({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Section</p>
-          <h2 className="mt-2 font-sans text-lg font-semibold text-ink">
+          <h2 className="mt-2 font-display text-lg font-semibold text-ink">
             {title}
           </h2>
         </div>
@@ -410,7 +410,7 @@ function InputChecklist({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Before you submit</p>
-          <h2 className="mt-2 font-sans text-lg font-semibold text-ink">Needs your input</h2>
+          <h2 className="mt-2 font-display text-lg font-semibold text-ink">Needs your input</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate">
             Facts DraftBid AI could not find in the RFP or your library (signatures,
             prices, reference contacts, figures to confirm) are highlighted in yellow.
@@ -858,7 +858,7 @@ export function RfpDraftView({
       <div className="flex flex-col gap-4">
         <div>
           <p className="font-mono text-xs tracking-wide text-slate uppercase">Proposal draft</p>
-          <h2 className="mt-2 font-sans text-xl font-semibold text-ink">{rfpTitle}</h2>
+          <h2 className="mt-2 font-display text-xl font-semibold text-ink">{rfpTitle}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">
             DraftBid AI reads the full RFP, plans the bid, writes each section from
             your library, then checks the draft against every requirement. Review
@@ -1046,7 +1046,7 @@ export function RfpDraftView({
               <p className="font-mono text-xs tracking-wide text-slate uppercase">
                 {exportPhase === "ready" ? "Exported" : "Exporting"}
               </p>
-              <h3 className="mt-2 font-sans text-lg font-semibold text-ink">
+              <h3 className="mt-2 font-display text-lg font-semibold text-ink">
                 {exportPhase === "ready" ? "Download ready" : `Building your ${formatName}`}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate">
@@ -1062,7 +1062,7 @@ export function RfpDraftView({
               </p>
             </div>
 
-            <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-control bg-border">
+            <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-surface-sunken">
               <div
                 className="h-full rounded-control bg-brand transition-[width] duration-hover ease-out"
                 style={{ width: `${exportPhase === "ready" ? 100 : Math.min(exportProgress, 96)}%` }}

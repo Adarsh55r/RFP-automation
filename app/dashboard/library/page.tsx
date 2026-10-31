@@ -34,10 +34,10 @@ export default async function LibraryPage({
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <header>
-        <p className="font-mono text-xs tracking-wide text-slate uppercase">
+        <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase">
           Content library
         </p>
-        <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
           Company content that drafts can reuse
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">

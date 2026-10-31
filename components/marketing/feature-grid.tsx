@@ -32,10 +32,10 @@ const features = [
 export function FeatureGrid() {
   return (
     <Section id="product" className="bg-surface">
-      <p className="font-mono text-xs tracking-wide text-slate uppercase">
+      <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">
         Why DraftBid AI
       </p>
-      <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
+      <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold tracking-tight text-ink md:text-[2.6rem] md:leading-[1.15]">
         The groundwork of a bid response, done before you start writing.
       </h2>
       <ul className="mt-12 divide-y divide-border border-y border-border">
@@ -46,11 +46,11 @@ export function FeatureGrid() {
               key={feature.title}
               className="grid gap-4 py-8 md:grid-cols-[auto_1fr] md:items-start md:gap-8"
             >
-              <div className="flex size-10 items-center justify-center rounded-control bg-brand/10 text-brand">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-on-brand shadow-[0_10px_26px_-10px_rgb(var(--glow)/0.8)]">
                 <Icon aria-hidden className="size-6" strokeWidth={1.75} />
               </div>
               <div>
-                <h3 className="font-sans text-lg font-semibold text-ink">
+                <h3 className="font-display text-lg font-semibold text-ink">
                   {feature.title}
                 </h3>
                 <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">

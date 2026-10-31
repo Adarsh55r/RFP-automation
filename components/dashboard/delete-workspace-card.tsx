@@ -20,7 +20,7 @@ export function DeleteWorkspaceCard() {
   return (
     <Card className="flex flex-col gap-4 border-danger/30">
       <div>
-        <h2 className="font-sans text-lg font-semibold text-ink">Delete workspace</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Delete workspace</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate">
           Permanently deletes every uploaded RFP file, extracted requirement, draft and library
           item, and your plan details. It cannot be undone. Export anything you need first. Your

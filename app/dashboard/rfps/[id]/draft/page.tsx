@@ -109,7 +109,7 @@ export default async function RfpDraftPage({ params }: DraftPageProps) {
             <p className="font-mono text-xs tracking-wide text-slate uppercase">
               Drafting
             </p>
-            <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
+            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
               Write the proposal
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate">

@@ -52,7 +52,7 @@ export function BidOutcomeCard({ rfpId, initial }: { rfpId: string; initial: Bid
   return (
     <Card className="flex flex-col gap-5">
       <div>
-        <h2 className="font-sans text-lg font-semibold text-ink">Bid outcome</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Bid outcome</h2>
         <p className="mt-1 text-sm leading-relaxed text-slate">
           Keep track of where this bid went. Only you see this; it feeds the summary on your dashboard.
         </p>

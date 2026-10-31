@@ -15,9 +15,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         ref={ref}
         tabIndex={interactive ? 0 : undefined}
         className={cn(
-          "rounded-card border border-border bg-surface-raised p-6",
+          "rounded-card border border-border bg-surface-raised p-6 shadow-[var(--shadow-md)] transition-colors duration-300",
           interactive &&
-            "hover-lift cursor-pointer select-none outline-none",
+            "hover-lift glow-ring cursor-pointer select-none outline-none",
           interactive && focusRing,
           className,
         )}

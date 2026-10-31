@@ -87,7 +87,7 @@ export default async function RfpDetailPage({ params }: RfpDetailPageProps) {
             <p className="font-mono text-xs tracking-wide text-slate uppercase">
               RFP detail
             </p>
-            <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">
+            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
               {rfp.title}
             </h1>
             <p className="mt-2 font-mono text-xs tracking-wide text-slate">

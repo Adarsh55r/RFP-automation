@@ -1,15 +1,17 @@
 "use client";
 
 import { UserButton, useAuth } from "@clerk/nextjs";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand";
 import { SmoothLink } from "@/components/marketing/smooth-link";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { useClerkAppearance } from "@/components/theme/use-clerk-appearance";
 import { Button } from "@/components/ui/button";
-import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/cn";
-import { focusRingOnDark, textLinkOnDark } from "@/lib/focus";
+import { focusRing } from "@/lib/focus";
 
 const publicLinks = [
   { href: "/#how-it-works", label: "How it works" },
@@ -17,8 +19,16 @@ const publicLinks = [
   { href: "/#pricing", label: "Pricing" },
 ];
 
+const navLink = cn(
+  "rounded-full px-4 py-2 text-sm font-medium text-slate transition-colors duration-200 hover:bg-surface-sunken hover:text-ink",
+  focusRing,
+);
+
+/** A floating, frosted header that tightens up once the page scrolls. */
 export function SiteHeader() {
   const { isSignedIn } = useAuth();
+  const appearance = useClerkAppearance();
+  const reduceMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -39,142 +49,100 @@ export function SiteHeader() {
   }, [open]);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 bg-brand-dark transition-shadow duration-hover ease-out",
-        scrolled && "shadow-[0_8px_24px_rgb(11_31_51_/_0.28)]",
-      )}
-    >
-      <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-6 md:px-8">
-        <SmoothLink href="/" className={cn(textLinkOnDark, "inline-flex")}>
-          <Logo />
-        </SmoothLink>
+    <header className="sticky top-0 z-40 px-3 pt-3 md:px-6">
+      <div
+        className={cn(
+          "glass mx-auto max-w-content rounded-2xl border transition-all duration-300 ease-out",
+          scrolled || open ? "border-border shadow-[var(--shadow-lg)]" : "border-transparent bg-transparent shadow-none",
+        )}
+      >
+        <div className="flex h-14 items-center justify-between gap-4 px-4 md:px-5">
+          <SmoothLink href="/" className={cn("inline-flex rounded-control text-ink", focusRing)}>
+            <Logo />
+          </SmoothLink>
 
-        <nav aria-label="Primary" className="hidden items-center gap-2 md:flex">
-          {publicLinks.map((link) => (
-            <SmoothLink
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "rounded-control px-4 py-2 text-sm font-medium text-surface-raised/80 transition-colors duration-hover ease-out hover:text-surface-raised",
-                focusRingOnDark,
-              )}
-            >
-              {link.label}
-            </SmoothLink>
-          ))}
-          {isSignedIn ? (
-            <>
-              <Link
-                href="/dashboard"
-                className={cn(
-                  "rounded-control px-4 py-2 text-sm font-medium text-surface-raised/80 transition-colors duration-hover ease-out hover:text-surface-raised",
-                  focusRingOnDark,
-                )}
-              >
-                Dashboard
-              </Link>
-              <div className="ml-2">
-                <UserButton appearance={clerkAppearance} />
-              </div>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/sign-in"
-                className={cn(
-                  "rounded-control px-4 py-2 text-sm font-medium text-surface-raised/80 transition-colors duration-hover ease-out hover:text-surface-raised",
-                  focusRingOnDark,
-                )}
-              >
-                Log in
-              </Link>
-              <Button asChild className="ml-2">
-                <Link href="/sign-up?plan=free">Try it free</Link>
-              </Button>
-            </>
-          )}
-        </nav>
-
-        <div className="flex items-center gap-2 md:hidden">
-          {isSignedIn ? (
-            <UserButton appearance={clerkAppearance} />
-          ) : (
-            <Button asChild size="sm">
-              <Link href="/sign-up?plan=free">Try it free</Link>
-            </Button>
-          )}
-          <button
-            type="button"
-            className={cn(
-              "rounded-full p-2 text-surface-raised transition-colors duration-hover ease-out hover:text-accent",
-              focusRingOnDark,
-            )}
-            aria-expanded={open}
-            aria-controls="mobile-nav"
-            onClick={() => setOpen((value) => !value)}
-          >
-            {open ? (
-              <X className="size-6" strokeWidth={1.75} aria-hidden />
-            ) : (
-              <Menu className="size-6" strokeWidth={1.75} aria-hidden />
-            )}
-            <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
-          </button>
-        </div>
-      </div>
-
-      {open ? (
-        <nav
-          id="mobile-nav"
-          aria-label="Mobile"
-          className="border-t border-surface-raised/10 px-6 py-4 md:hidden"
-        >
-          <ul className="flex flex-col gap-2">
+          <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
             {publicLinks.map((link) => (
-              <li key={link.href}>
-                <SmoothLink
-                  href={link.href}
-                  className={cn(
-                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
-                    focusRingOnDark,
-                  )}
-                  onClick={() => setOpen(false)}
-                >
-                  {link.label}
-                </SmoothLink>
-              </li>
+              <SmoothLink key={link.href} href={link.href} className={navLink}>
+                {link.label}
+              </SmoothLink>
             ))}
             {isSignedIn ? (
-              <li>
-                <Link
-                  href="/dashboard"
-                  className={cn(
-                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
-                    focusRingOnDark,
-                  )}
-                  onClick={() => setOpen(false)}
-                >
-                  Dashboard
-                </Link>
-              </li>
+              <Link href="/dashboard" className={navLink}>
+                Dashboard
+              </Link>
             ) : (
-              <li>
-                <Link
-                  href="/sign-in"
-                  className={cn(
-                    "block rounded-control px-4 py-2 text-sm font-medium text-surface-raised/90 transition-colors duration-hover ease-out hover:text-surface-raised",
-                    focusRingOnDark,
-                  )}
-                  onClick={() => setOpen(false)}
-                >
-                  Log in
-                </Link>
-              </li>
+              <Link href="/sign-in" className={navLink}>
+                Log in
+              </Link>
             )}
-          </ul>
-        </nav>
-      ) : null}
+            <ThemeToggle className="ml-1" />
+            {isSignedIn ? (
+              <div className="ml-2">
+                <UserButton appearance={appearance} />
+              </div>
+            ) : (
+              <Button asChild size="sm" className="ml-2">
+                <Link href="/sign-up?plan=free">Try it free</Link>
+              </Button>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle />
+            {isSignedIn ? (
+              <UserButton appearance={appearance} />
+            ) : (
+              <Button asChild size="sm">
+                <Link href="/sign-up?plan=free">Try it free</Link>
+              </Button>
+            )}
+            <button
+              type="button"
+              className={cn("rounded-full p-2 text-ink transition-colors duration-200 hover:bg-surface-sunken", focusRing)}
+              aria-expanded={open}
+              aria-controls="mobile-nav"
+              onClick={() => setOpen((value) => !value)}
+            >
+              {open ? <X className="size-6" strokeWidth={1.75} aria-hidden /> : <Menu className="size-6" strokeWidth={1.75} aria-hidden />}
+              <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
+            </button>
+          </div>
+        </div>
+
+        <AnimatePresence initial={false}>
+          {open ? (
+            <motion.nav
+              id="mobile-nav"
+              aria-label="Mobile"
+              className="overflow-hidden border-t border-border md:hidden"
+              initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+              animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+            >
+              <ul className="flex flex-col gap-1 p-3">
+                {publicLinks.map((link) => (
+                  <li key={link.href}>
+                    <SmoothLink href={link.href} className={cn(navLink, "block rounded-control")} onClick={() => setOpen(false)}>
+                      {link.label}
+                    </SmoothLink>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    href={isSignedIn ? "/dashboard" : "/sign-in"}
+                    className={cn(navLink, "block rounded-control")}
+                    onClick={() => setOpen(false)}
+                  >
+                    {isSignedIn ? "Dashboard" : "Log in"}
+                  </Link>
+                </li>
+              </ul>
+            </motion.nav>
+          ) : null}
+        </AnimatePresence>
+      </div>
     </header>
   );
 }

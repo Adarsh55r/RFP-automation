@@ -9,8 +9,8 @@ import { SEGMENTS } from "@/lib/segments";
 export function WhoItsFor() {
   return (
     <Section id="who-its-for">
-      <p className="font-mono text-xs tracking-wide text-slate uppercase">Who it&apos;s for</p>
-      <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
+      <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">Who it&apos;s for</p>
+      <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold tracking-tight text-ink md:text-[2.6rem] md:leading-[1.15]">
         Small teams that answer RFPs alongside their day job.
       </h2>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -19,7 +19,7 @@ export function WhoItsFor() {
             <Link
               href={`/for/${segment.slug}`}
               className={cn(
-                "group flex h-full flex-col justify-between gap-4 rounded-card border border-border bg-surface-raised p-5 transition-colors hover:border-brand/50",
+                "group flex h-full flex-col justify-between gap-4 hover-lift glow-ring rounded-card border border-border bg-surface-raised/80 p-5 backdrop-blur hover:border-brand/40",
                 focusRing,
               )}
             >

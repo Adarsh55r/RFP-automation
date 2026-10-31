@@ -20,11 +20,12 @@ export async function AllowanceBadge({ userId, subscription }: { userId: string;
       href="/dashboard/billing"
       title={`${allowance.plan.name}: ${allowance.used} used ${allowance.periodLabel}`}
       className={cn(
-        "hidden rounded-full border px-3 py-1 font-mono text-xs tracking-wide md:inline-flex",
-        low ? "border-accent/50 bg-accent/10 text-ink" : "border-border text-slate",
+        "hidden items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-wide transition-colors duration-200 hover:border-brand/50 lg:inline-flex",
+        low ? "border-accent/50 bg-accent/10 text-ink" : "border-border bg-surface-raised/70 text-slate",
         focusRing,
       )}
     >
+      <span aria-hidden className={cn("size-1.5 rounded-full", low ? "bg-accent" : "bg-brand shadow-[0_0_8px_rgb(var(--glow)/0.9)]")} />
       {label}
     </Link>
   );

@@ -3,11 +3,12 @@
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { clerkAppearance } from "@/lib/clerk-appearance";
+import { useClerkAppearance } from "@/components/theme/use-clerk-appearance";
 import { cn } from "@/lib/cn";
 import { textLink } from "@/lib/focus";
 
 export function SignInView() {
+  const appearance = useClerkAppearance();
   return (
     <AuthShell
       title="Welcome back"
@@ -25,7 +26,7 @@ export function SignInView() {
       }
     >
       <SignIn
-        appearance={clerkAppearance}
+        appearance={appearance}
         routing="path"
         path="/sign-in"
         signUpUrl="/sign-up"

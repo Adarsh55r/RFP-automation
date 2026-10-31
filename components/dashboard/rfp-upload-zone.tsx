@@ -204,33 +204,36 @@ export function RfpUploadZone() {
         <div
           {...getRootProps()}
           className={cn(
-            "flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-card border-2 border-dashed px-6 py-12 text-center transition-colors duration-hover ease-out",
+            "group relative flex min-h-72 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-card border-2 border-dashed px-6 py-12 text-center transition-all duration-300 ease-out",
             isDragActive
-              ? "border-brand bg-brand/10"
-              : "border-border bg-surface-raised hover:border-brand/60",
+              ? "scale-[1.01] border-brand bg-brand/10 shadow-[0_0_0_6px_rgb(var(--glow)/0.12)]"
+              : "border-border bg-surface-raised/80 backdrop-blur hover:border-brand/60 hover:shadow-[var(--shadow-lg)]",
             isFocused && focusRing,
           )}
         >
           <input {...getInputProps()} />
+          <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_0%,rgb(var(--glow)/0.12),transparent)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <span
             className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-control transition-colors duration-hover ease-out",
-              isDragActive ? "bg-brand/15 text-brand" : "bg-surface text-slate",
+              "relative flex size-16 items-center justify-center rounded-2xl transition-all duration-300 ease-out",
+              isDragActive
+                ? "-translate-y-1 bg-brand-gradient text-on-brand shadow-[0_14px_34px_-10px_rgb(var(--glow)/0.8)]"
+                : "bg-brand/10 text-brand ring-1 ring-brand/20 group-hover:-translate-y-1 group-hover:bg-brand-gradient group-hover:text-on-brand group-hover:shadow-[0_14px_34px_-10px_rgb(var(--glow)/0.8)]",
             )}
           >
-            <Upload className="h-6 w-6" aria-hidden />
+            <Upload className="size-7" aria-hidden />
           </span>
-          <p className="mt-6 font-sans text-base font-semibold text-ink">
+          <p className="relative mt-6 font-display text-lg font-semibold text-ink">
             Drag your RFP here or click to browse
           </p>
-          <p className="mt-2 text-sm text-slate">PDF, Word, Excel (.xlsx), CSV or a scan image, up to 25 MB</p>
+          <p className="relative mt-2 text-sm text-slate">PDF, Word, Excel (.xlsx), CSV or a scan image, up to 25 MB</p>
         </div>
       ) : (
-        <div className="rounded-card border border-border bg-surface-raised p-6">
+        <div className="animate-fade-up rounded-card border border-border bg-surface-raised p-6 shadow-[var(--shadow-md)]">
           {uploading ? (
             <div className="flex flex-col gap-4">
               <div className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand/10 text-brand">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-on-brand">
                   <FileText className="h-5 w-5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -243,7 +246,7 @@ export function RfpUploadZone() {
                 </div>
               </div>
               <div
-                className="h-2 overflow-hidden rounded-control bg-surface"
+                className="h-2 overflow-hidden rounded-full bg-surface-sunken"
                 role="progressbar"
                 aria-valuenow={progress}
                 aria-valuemin={0}
@@ -251,7 +254,7 @@ export function RfpUploadZone() {
                 aria-label="Upload progress"
               >
                 <div
-                  className="h-full rounded-control bg-brand transition-[width] duration-150 ease-out"
+                  className="h-full rounded-full bg-brand-gradient transition-[width] duration-150 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -259,7 +262,7 @@ export function RfpUploadZone() {
           ) : (
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand/10 text-brand">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-on-brand">
                   <FileText className="h-5 w-5" aria-hidden />
                 </span>
                 <div className="min-w-0">
@@ -283,7 +286,7 @@ export function RfpUploadZone() {
                   <X className="h-4 w-4" aria-hidden />
                   Remove
                 </Button>
-                <Button type="button" onClick={() => open()}>
+                <Button type="button" variant="secondary" onClick={() => open()}>
                   Replace
                 </Button>
                 <Button type="button" onClick={() => handleContinue()} className="w-full sm:w-auto">

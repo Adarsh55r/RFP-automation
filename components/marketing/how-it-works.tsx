@@ -32,10 +32,10 @@ export function HowItWorks() {
 
   return (
     <Section id="how-it-works">
-      <p className="font-mono text-xs tracking-wide text-slate uppercase">
+      <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">
         How it works
       </p>
-      <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium text-ink md:text-4xl">
+      <h2 className="mt-4 max-w-2xl font-display text-3xl font-semibold tracking-tight text-ink md:text-[2.6rem] md:leading-[1.15]">
         From RFP to ready-to-send proposal in four steps.
       </h2>
       <motion.ol
@@ -52,7 +52,7 @@ export function HowItWorks() {
       >
         <div
           aria-hidden
-          className="absolute top-5 right-5 left-5 hidden h-px bg-brand/25 lg:block"
+          className="absolute top-6 right-6 left-6 hidden h-px bg-[linear-gradient(90deg,transparent,rgb(var(--glow)/0.6),transparent)] lg:block"
         />
         {steps.map((step, index) => {
           const Icon = step.icon;
@@ -69,13 +69,13 @@ export function HowItWorks() {
                 },
               }}
             >
-              <div className="relative z-10 flex size-10 items-center justify-center rounded-control bg-brand text-surface-raised">
-                <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+              <div className="relative z-10 flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-on-brand shadow-[0_10px_26px_-10px_rgb(var(--glow)/0.85)] ring-4 ring-surface">
+                <Icon aria-hidden className="size-5" strokeWidth={1.9} />
               </div>
-              <p className="mt-6 font-mono text-xs tracking-wide text-slate">
-                0{index + 1}
+              <p className="mt-6 font-mono text-xs tracking-[0.16em] text-brand">
+                STEP 0{index + 1}
               </p>
-              <h3 className="mt-2 font-sans text-lg font-semibold text-ink">
+              <h3 className="mt-2 font-display text-lg font-semibold text-ink">
                 {step.title}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate">{step.body}</p>

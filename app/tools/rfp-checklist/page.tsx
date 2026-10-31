@@ -16,11 +16,12 @@ export default function FreeChecklistPage() {
     <>
       <FunnelBeacon />
       <SiteHeader />
-      <main id="main-content" className="bg-surface">
-        <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">
+      <main id="main-content" className="relative overflow-hidden">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
+        <div className="animate-fade-up relative mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">
           <header>
-            <p className="font-mono text-xs tracking-wide text-slate uppercase">Free tool · No account needed</p>
-            <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink md:text-5xl">
+            <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">Free tool · No account needed</p>
+            <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
               Get the requirement checklist for any RFP.
             </h1>
             <p className="mt-4 text-base leading-relaxed text-slate">

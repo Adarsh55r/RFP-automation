@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
-import { Fraunces, IBM_Plex_Mono, Manrope } from "next/font/google";
+import { IBM_Plex_Mono, Manrope, Sora } from "next/font/google";
 import { SentryUser } from "@/components/sentry-user";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AlertProvider } from "@/components/ui/sweet-alert";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
-const fraunces = Fraunces({
+const sora = Sora({
   subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-fraunces",
+  weight: ["500", "600", "700"],
+  variable: "--font-sora",
   display: "swap",
 });
 
@@ -61,13 +63,20 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`scroll-smooth ${fraunces.variable} ${manrope.variable} ${ibmPlexMono.variable}`}
+        className={`scroll-smooth ${sora.variable} ${manrope.variable} ${ibmPlexMono.variable}`}
+        // The theme script sets the dark class before React loads.
+        suppressHydrationWarning
       >
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        </head>
         <body className="min-h-screen bg-surface font-sans text-ink antialiased">
           <a href="#main-content" className="skip-link">
             Skip to content
           </a>
-          <AlertProvider>{children}</AlertProvider>
+          <ThemeProvider>
+            <AlertProvider>{children}</AlertProvider>
+          </ThemeProvider>
           <SentryUser />
           <Analytics />
         </body>

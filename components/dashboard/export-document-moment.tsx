@@ -29,7 +29,7 @@ function MiniDoc({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface-raised p-3 shadow-[0_8px_20px_rgb(11_31_51_/_0.08)]",
+        "flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface-raised p-3 shadow-[var(--shadow-lg)]",
         className,
       )}
     >
@@ -47,7 +47,7 @@ function MiniDoc({
 
 function CleanDoc({ ready }: { ready: boolean }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface-raised shadow-[0_12px_28px_rgb(11_31_51_/_0.12)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface-raised shadow-[var(--shadow-lg)]">
       <div className="h-1.5 bg-brand" />
       <div className="flex flex-1 flex-col p-3">
         <p className="font-mono text-[9px] tracking-wide text-slate">

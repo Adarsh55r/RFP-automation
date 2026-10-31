@@ -67,14 +67,14 @@ export function ReviewPrompt() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
           transition={{ type: "spring", stiffness: 320, damping: 28 }}
-          className="fixed inset-x-4 bottom-4 z-50 rounded-card border border-border bg-surface-raised p-5 shadow-[0_24px_64px_rgb(11_31_51_/_0.18)] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[380px]"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-card border border-border bg-surface-raised p-5 shadow-[var(--shadow-lg)] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[380px]"
         >
           <button
             type="button"
             onClick={() => close("later")}
             aria-label="Close"
             className={cn(
-              "absolute top-3 right-3 rounded-control p-1.5 text-slate transition-colors hover:bg-surface hover:text-ink",
+              "absolute top-3 right-3 rounded-control p-1.5 text-slate transition-colors hover:bg-surface-sunken hover:text-ink",
               focusRing,
             )}
           >
@@ -110,7 +110,7 @@ export function ReviewPrompt() {
               rel="noopener noreferrer"
               onClick={() => close("reviewed")}
               className={cn(
-                "inline-flex h-10 items-center justify-center gap-2 rounded-control bg-brand px-4 text-sm font-semibold text-surface-raised transition-[transform,box-shadow] duration-hover hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.12)]",
+                "inline-flex h-10 items-center justify-center gap-2 rounded-control bg-brand px-4 text-sm font-semibold text-on-brand transition-[transform,box-shadow] duration-hover hover:-translate-y-0.5 hover:shadow-[var(--shadow-lg)]",
                 focusRing,
               )}
             >

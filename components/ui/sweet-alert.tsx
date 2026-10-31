@@ -40,10 +40,10 @@ const AlertContext = createContext<AlertApi | null>(null);
 const AUTO_CLOSE_MS = 2400;
 
 const toneStyle: Record<AlertTone, { ring: string; fill: string; stroke: string; glow: string }> = {
-  success: { ring: "ring-success/20", fill: "bg-success/10", stroke: "#1e7a4c", glow: "rgb(30 122 76 / 0.28)" },
-  error: { ring: "ring-danger/20", fill: "bg-danger/10", stroke: "#c0432f", glow: "rgb(192 67 47 / 0.28)" },
-  warning: { ring: "ring-accent/30", fill: "bg-accent/15", stroke: "#b8761b", glow: "rgb(232 163 61 / 0.32)" },
-  info: { ring: "ring-brand/20", fill: "bg-brand/10", stroke: "#0f6e5b", glow: "rgb(15 110 91 / 0.28)" },
+  success: { ring: "ring-success/20", fill: "bg-success/10", stroke: "var(--success)", glow: "color-mix(in srgb, var(--success) 30%, transparent)" },
+  error: { ring: "ring-danger/20", fill: "bg-danger/10", stroke: "var(--danger)", glow: "color-mix(in srgb, var(--danger) 30%, transparent)" },
+  warning: { ring: "ring-accent/30", fill: "bg-accent/15", stroke: "var(--accent)", glow: "color-mix(in srgb, var(--accent) 34%, transparent)" },
+  info: { ring: "ring-brand/20", fill: "bg-brand/10", stroke: "var(--brand)", glow: "rgb(var(--glow) / 0.3)" },
 };
 
 /** The tone's symbol, drawn stroke by stroke. */
@@ -169,7 +169,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
                 }}
               >
                 <motion.div
-                  className="pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-[20px] border border-border bg-surface-raised px-6 pt-8 pb-6 text-center shadow-[0_24px_80px_rgb(11_31_51_/_0.28)] focus:outline-none"
+                  className="pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-[20px] border border-border bg-surface-raised px-6 pt-8 pb-6 text-center shadow-[var(--shadow-lg)] focus:outline-none"
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.88, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 6 }}

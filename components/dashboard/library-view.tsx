@@ -260,15 +260,15 @@ export function LibraryView({
                 aria-selected={selected}
                 onClick={() => setActiveType(type)}
                 className={cn(
-                  "inline-flex h-10 items-center gap-2 rounded-control border px-4 font-sans text-sm font-medium transition-[color,border-color,background-color] duration-hover ease-out",
+                  "inline-flex h-10 items-center gap-2 rounded-full border px-4 font-sans text-sm font-medium transition-all duration-200 ease-out",
                   selected
-                    ? "border-brand bg-brand/10 text-brand"
-                    : "border-border bg-surface-raised text-slate hover:border-brand/60 hover:text-ink",
+                    ? "border-transparent bg-brand-gradient text-on-brand shadow-[0_8px_20px_-8px_rgb(var(--glow)/0.8)]"
+                    : "border-border bg-surface-raised/80 text-slate hover:-translate-y-0.5 hover:border-brand/50 hover:text-ink",
                   focusRing,
                 )}
               >
                 {libraryTypeLabel[type]}
-                <span className="font-mono text-xs tracking-wide">
+                <span className={cn("rounded-full px-1.5 font-mono text-[11px] tracking-wide", selected ? "bg-black/10" : "bg-surface-sunken")}>
                   {counts[type]}
                 </span>
               </button>
@@ -341,7 +341,7 @@ export function LibraryView({
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((item) => (
             <li key={item.id}>
-              <Card className="group relative h-full p-5 transition-shadow duration-hover ease-out hover:shadow-[0_8px_24px_rgb(11_31_51_/_0.08)]">
+              <Card className="group relative h-full p-5 transition-shadow duration-hover ease-out hover:shadow-[var(--shadow-lg)]">
                 <div className="pr-16">
                   <p className="font-mono text-xs tracking-wide text-slate uppercase">
                     {libraryTypeSingular[item.type]}
@@ -368,7 +368,7 @@ export function LibraryView({
                     disabled={pending}
                     aria-label={`Edit ${item.title}`}
                     className={cn(
-                      "inline-flex h-8 w-8 items-center justify-center rounded-control text-slate transition-colors duration-hover ease-out hover:bg-surface hover:text-brand",
+                      "inline-flex h-8 w-8 items-center justify-center rounded-control text-slate transition-colors duration-hover ease-out hover:bg-surface-sunken hover:text-brand",
                       focusRing,
                     )}
                   >

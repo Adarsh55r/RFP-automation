@@ -28,10 +28,11 @@ export function LegalPage({
   return (
     <>
       <SiteHeader />
-      <main id="main-content" className="bg-surface">
-        <article className="mx-auto max-w-content px-6 py-16 md:px-8 md:py-24">
-          <p className="font-mono text-xs tracking-wide text-slate uppercase">{eyebrow}</p>
-          <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink md:text-5xl">
+      <main id="main-content" className="relative overflow-hidden">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
+        <article className="animate-fade-up relative mx-auto max-w-content px-6 py-16 md:px-8 md:py-24">
+          <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">{eyebrow}</p>
+          <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
             {title}
           </h1>
           {meta ? <p className="mt-4 font-mono text-xs tracking-wide text-slate">{meta}</p> : null}
@@ -43,7 +44,7 @@ export function LegalPage({
             <div className="mt-12 flex flex-col gap-12">
               {sections.map((section, index) => (
                 <section key={section.title} className="max-w-3xl">
-                  <h2 className="font-sans text-lg font-semibold text-ink">
+                  <h2 className="font-display text-lg font-semibold text-ink">
                     <span className="mr-3 font-mono text-xs tracking-wide text-slate">
                       {String(index + 1).padStart(2, "0")}
                     </span>

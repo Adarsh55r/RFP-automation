@@ -36,8 +36,9 @@ export default async function GuidePage({ params }: Props) {
     <>
       <FunnelBeacon />
       <SiteHeader />
-      <main id="main-content" className="bg-surface">
-        <article className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">
+      <main id="main-content" className="relative overflow-hidden">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
+        <article className="animate-fade-up relative mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16 md:px-8 md:py-20">
           {!guide.published ? (
             <p role="note" className="rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-ink">
               Draft template: not published, not indexed, and not shown in production. Replace the {"{{GUIDE_COPY}}"} placeholders
@@ -45,13 +46,13 @@ export default async function GuidePage({ params }: Props) {
             </p>
           ) : null}
           <header>
-            <p className="font-mono text-xs tracking-wide text-slate uppercase">Guide</p>
-            <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink md:text-5xl">{guide.title}</h1>
+            <p className="inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-3 py-1 font-mono text-[11px] tracking-[0.16em] text-brand uppercase">Guide</p>
+            <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">{guide.title}</h1>
             <p className="mt-4 text-base leading-relaxed text-slate">{guide.description}</p>
           </header>
           {guide.sections.map((section) => (
             <section key={section.heading}>
-              <h2 className="font-sans text-xl font-semibold text-ink">{section.heading}</h2>
+              <h2 className="font-display text-xl font-semibold text-ink">{section.heading}</h2>
               <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate">{section.body}</p>
             </section>
           ))}

@@ -34,10 +34,10 @@ export default async function NewRfpPage({ searchParams }: { searchParams: Promi
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <header>
-        <p className="font-mono text-xs tracking-wide text-slate uppercase">
+        <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase">
           New RFP
         </p>
-        <h1 className="mt-4 font-display text-3xl font-medium text-ink">
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
           Upload an RFP
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">

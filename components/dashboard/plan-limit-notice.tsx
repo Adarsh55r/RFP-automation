@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 export function PlanLimitNotice({ title, message }: { title: string; message: string }) {
   return (
     <Card className="flex flex-col gap-4">
-      <h2 className="font-sans text-lg font-semibold text-ink">{title}</h2>
+      <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
       <p className="text-sm leading-relaxed text-slate">{message}</p>
       <div className="flex flex-wrap gap-3">
         <Button asChild>

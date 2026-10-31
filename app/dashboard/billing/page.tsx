@@ -84,8 +84,8 @@ export default async function BillingPage({
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <header>
-        <p className="font-mono text-xs tracking-wide text-slate uppercase">Billing</p>
-        <h1 className="mt-4 font-display text-3xl font-medium text-ink md:text-4xl">Plan and invoices</h1>
+        <p className="font-mono text-xs tracking-[0.18em] text-brand uppercase">Billing</p>
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">Plan and invoices</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate md:text-base">
           {live
             ? "Payments are handled by Dodo Payments, our reseller and merchant of record, which adds VAT or sales tax where it applies and issues your invoices. We never see your full card number."
@@ -116,7 +116,7 @@ export default async function BillingPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="font-mono text-xs tracking-wide text-slate uppercase">Current plan</p>
-              <h2 className="mt-2 font-sans text-xl font-semibold text-ink">{plan.name}</h2>
+              <h2 className="mt-2 font-display text-xl font-semibold text-ink">{plan.name}</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate">{plan.summary}</p>
             </div>
             <Badge variant={plan.billing.kind === "free" ? "free" : subscription?.status === "past_due" ? "danger" : "success"}>
@@ -124,7 +124,7 @@ export default async function BillingPage({
             </Badge>
           </div>
           {plan.billing.kind !== "free" ? (
-            <p className="font-display text-4xl font-medium text-ink">
+            <p className="font-display text-4xl font-semibold tracking-tight text-ink">
               {formatPrice(price.amount, "usd")}
               <span className="ml-1 font-sans text-sm font-medium text-slate">{price.suffix}</span>
             </p>
@@ -194,7 +194,7 @@ export default async function BillingPage({
         </section>
       ) : (
         <section className="flex flex-col gap-4">
-          <h2 className="font-sans text-lg font-semibold text-ink">Plans</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">Plans</h2>
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {publicPlans.map((option) => {
               const optionPrice = displayPrice(option, "usd", "monthly");
@@ -203,7 +203,7 @@ export default async function BillingPage({
                 <Card key={option.id} className="flex flex-col gap-4">
                   <div>
                     <h3 className="font-sans text-base font-semibold text-ink">{option.name}</h3>
-                    <p className="mt-2 font-display text-2xl font-medium text-ink">
+                    <p className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
                       {formatPrice(optionPrice.amount, "usd")}
                       <span className="ml-1 font-sans text-xs font-medium text-slate">{optionPrice.suffix}</span>
                     </p>
